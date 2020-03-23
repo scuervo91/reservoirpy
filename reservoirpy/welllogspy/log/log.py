@@ -16,8 +16,8 @@ class log(LASFile):
             for curve in self.curves:
                 for col in mnemonics.columns:
                     if curve['mnemonic'] in mnemonics[col].tolist():
-                        print('Mnemonic: ',curve['mnemonic'],' => ', col)
-                        curve.type = col 
+                        print('Mnemonic: ',curve['mnemonic'],' => ',  col + '_' + curve['mnemonic'] )
+                        curve.mnemonic = col + '_' + curve['mnemonic']
                         break
 
     

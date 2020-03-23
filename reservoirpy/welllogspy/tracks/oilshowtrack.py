@@ -2,10 +2,19 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-def oilshowtrack(depth, oilshow=None, lims=None,
-            dtick=False,
-            fill=True, ax=None,
-            fontsize=8,**kw):
+def oilshowtrack(df: pd.DataFrame,
+                 oilshow: str = None, 
+                 lims: list = None,
+                 dtick: bool = False,
+                 fill: bool = True, 
+                 ax=None,
+                 fontsize=8,
+                 correlation: pd.DataFrame = None,
+                 grid_numbers : list = [11,51],
+                 steps: list  = None,
+                 corr_kw={},
+                 show_kw={},
+                 fill_kw={}):
 
     oax=ax or plt.gca()
     
@@ -16,17 +25,42 @@ def oilshowtrack(depth, oilshow=None, lims=None,
     }
     
     for (k,v) in defkwa.items():
-        if k not in kw:
-            kw[k]=v
+        if k not in show_kw:
+            show_kw[k]=v
     
+    def_corr_kw = {
+    'color': 'red',
+    'linestyle':'--',
+    'linewidth': 2
+    }    
+    for (k,v) in def_corr_kw.items():
+        if k not in corr_kw:
+            corr_kw[k]=v
+
+    def_fill_kw = {
+    'color': 'darkgreen',
+    }    
+    for (k,v) in def_fill_kw.items():
+        if k not in fill_kw:
+            fill_kw[k]=v
+            
     if oilshow is not None:
-        oax.plot(oilshow,depth,**kw)
+        oax.plot(df[oilshow],df.index,**show_kw)
     
+    # Set The lims of depth
     if lims==None: #Depth Limits
-        lims=[depth.max(),depth.min()]
+        lims=[df.index.max(),df.index.min()]
         oax.set_ylim(lims)
     else:
         oax.set_ylim([lims[1],lims[0]])
+
+    #Set the vertical grid spacing
+    if steps is None:
+        mayor_grid = np.linspace(lims[0],lims[1],grid_numbers[0])
+        minor_grid = np.linspace(lims[0],lims[1],grid_numbers[1])
+    else:
+        mayor_grid = np.arange(lims[0],lims[1],steps[0])
+        minor_grid = np.arange(lims[0],lims[1],steps[1])
     
     oax.set_xlim([0,1])
     oax.set_xlabel("OilShow")
@@ -35,15 +69,26 @@ def oilshowtrack(depth, oilshow=None, lims=None,
     oax.xaxis.tick_top()
     oax.xaxis.set_label_position("top")
     oax.tick_params("both",labelsize=fontsize)
-    oax.set_yticks(np.linspace(lims[0],lims[1],11))
-    oax.set_yticks(np.linspace(lims[0],lims[1],51),minor=True)        
-    oax.grid(True,linewidth=1.0)
-    oax.grid(True,which='minor', linewidth=0.5)
+    oax.set_yticks(mayor_grid)
+    oax.set_yticks(minor_grid,minor=True)        
     if dtick==True:
-        oax.set_yticklabels(np.linspace(lims[0],lims[1],11))
+        oax.set_yticklabels(mayor_grid,11)
     else:
         oax.set_yticklabels([])
     if fill==True:
-        oax.fill_betweenx(depth,0,oilshow,color="green")
-    if 'label' in kw:
-        oax.legend()            
+        oax.fill_betweenx(df.index,0,df[oilshow],**fill_kw)
+        
+        
+    #Add Correlation Line
+    if correlation is not None:
+        cor_ann = corr_kw.pop('ann',False)
+        for i in correlation.iterrows():
+            oax.hlines(i[1]['depth'],0,1, **corr_kw)
+            if cor_ann:
+                try:
+                    oax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(1-0.3,i[1]['depth']-1),
+                                 xycoords='data',horizontalalignment='right')
+                except:
+                    oax.annotate(f"{i[1]['depth']}",xy=(1-0.3,i[1]['depth']-1),
+                                 xycoords='data',horizontalalignment='right')
+    

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 
@@ -13,13 +14,18 @@ def gastrack(df: pd.DataFrame,
              grid_numbers : list = [11,51],
              steps: list  = None,
              legend:bool = True,
+             colormap: str='gist_rainbow',
              corr_kw={},
              gas_kw=[]):
 
+    #get number of curves to build the colormap
+    n_curves = len(gas)
+    cmap = mpl.cm.get_cmap(colormap,n_curves)
+    
     gax=ax or plt.gca()
     defkwa = {
     'linestyle':'-',
-    'linewidth': 1
+    'linewidth': 2
     }
     
     def_corr_kw = {
@@ -36,6 +42,7 @@ def gastrack(df: pd.DataFrame,
         for i,g in enumerate(gas):
             if len(gas_kw)<i+1:
                 gas_kw.append(defkwa)
+            gas_kw[i]['color']=cmap(i)
             for (k,v) in defkwa.items():
                 if k not in gas_kw[i]:
                     gas_kw[i][k]=v
@@ -79,7 +86,7 @@ def gastrack(df: pd.DataFrame,
     if correlation is not None:
         cor_ann = corr_kw.pop('ann',False)
         for i in correlation.iterrows():
-            gax.hlines(i[1]['depth'],0,gas_range[1], **corr_kw)
+            gax.hlines(i[1]['depth'],gas_range[0],gas_range[1], **corr_kw)
             if cor_ann:
                 try:
                     gax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(gas_range[1]-3,i[1]['depth']-1),

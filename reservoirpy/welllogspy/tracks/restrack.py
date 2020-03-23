@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 
@@ -13,8 +14,13 @@ def restrack(df: pd.DataFrame,
              grid_numbers : list = [11,51],
              steps: list  = None,
              legend:bool = True,
+             colormap: str='summer_r',
              corr_kw={},
              res_kw=[]):
+    
+    #get number of curves to build the colormap
+    n_curves = len(res)
+    cmap = mpl.cm.get_cmap(colormap,n_curves)
 
     rax=ax or plt.gca()
     defkwa = {
@@ -36,6 +42,7 @@ def restrack(df: pd.DataFrame,
         for i,r in enumerate(res):
             if len(res_kw)<i+1:
                 res_kw.append(defkwa)
+            res_kw[i]['color']=cmap(i)
             for (k,v) in defkwa.items():
                 if k not in res_kw[i]:
                     res_kw[i][k]=v
@@ -79,7 +86,7 @@ def restrack(df: pd.DataFrame,
     if correlation is not None:
         cor_ann = corr_kw.pop('ann',False)
         for i in correlation.iterrows():
-            rax.hlines(i[1]['depth'],0,res_range[1], **corr_kw)
+            rax.hlines(i[1]['depth'],res_range[0],res_range[1], **corr_kw)
             if cor_ann:
                 try:
                     rax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(res_range[1]-3,i[1]['depth']-1),
