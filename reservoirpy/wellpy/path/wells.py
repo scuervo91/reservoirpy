@@ -1,42 +1,124 @@
 import pandas as pd 
-import numpy as np 
-from .checkarrays import checkarrays, checkarrays_tvd, checkarrays_monotonic_tvd
-from .mincurve import minimum_curvature, min_curve_method
+import geopandas as gpd
+from shapely.geometry import Point
+from .mincurve import min_curve_method
 from .interpolate import interpolate_deviation, interpolate_position
 from scipy.interpolate import interp1d
-from shapely.geometry import Point
 
-class perforation:
-    def __init__(self,top,base,depth_type,skin,rw):
-        self.top = top
-        self.base = base 
-        self.depth_type = depth_type
-        self.skin = skin 
-        self.rw = rw 
 
+class perforations(gpd.GeoDataFrame):
+
+    def __init__(self, *args, **kwargs):                                                                                                                                   
+        super(perforations, self).__init__(*args, **kwargs)     
+    
+    @property
+    def _constructor(self):
+        return perforations
+    
+class tops(gpd.GeoDataFrame):
+
+    def __init__(self, *args, **kwargs):                                                                                                                                   
+        super(tops, self).__init__(*args, **kwargs)     
+    
+    @property
+    def _constructor(self):
+        return tops
+  
+    
 class well:
-    def __init__(self,  *args, **kwargs):
-        self.name = kwargs.pop("name", None)
-        self.rte = kwargs.pop("rte", None)
-        self.surf_coord = kwargs.pop("surf_coord", None)
-        self.perforations = kwargs.pop("perforations",None)
-        _deviation = pd.DataFrame(kwargs.pop("deviation",None))
-        self.survey = min_curve_method(_deviation['md'],_deviation['inc'],_deviation['azi'],surface_easting=self.surf_coord.x, surface_northing=self.surf_coord.y, kbe=self.rte)
+    def __init__(self,**kwargs):
+        self.name = kwargs.pop("name", 'Well')
+        assert isinstance(self.name,str)
         
+        self.rte = kwargs.pop("rte", None)
+        assert isinstance(self.rte,(int,float)) or self.rte is None
+        
+        self.surf_coord = kwargs.pop("surf_coord", None)
+        assert isinstance(self.surf_coord, Point) or self.surf_coord is None
+        
+        self.perforations = kwargs.pop("perforations", None)
+        assert isinstance(self.perforations, perforations) or self.perforations is None
+        
+        
+        crs = kwargs.pop("crs", None)        
+        _deviation = kwargs.pop("deviation",None)
+        if _deviation is not None:
+            _survey = min_curve_method(_deviation['md'],_deviation['inc'],
+                                       _deviation['azi'],
+                                       surface_easting=self.surf_coord.x, 
+                                       surface_northing=self.surf_coord.y, 
+                                       kbe=self.rte)
+        
+            self.survey = gpd.GeoDataFrame(_survey,
+                         geometry=gpd.points_from_xy(_survey.easting, 
+                                                     _survey.northing),crs=crs)
+            self._tvd_int = interp1d(self.survey.index,self.survey['tvd'])
+            self._tvdss_int = interp1d(self.survey.index,self.survey['tvdss'])
+            self._northing_int = interp1d(self.survey['tvd'],self.survey.geometry.y)
+            self._easting_int = interp1d(self.survey['tvd'],self.survey.geometry.x)
+        else:
+            self.survey=None
+            
     def sample_deviation(self,step=100):
-        new_dev = interpolate_deviation(self.survey.index, self.survey['inc'], self.survey['azi'], md_step=step)
+        if self.survey is not None:
+            new_dev = interpolate_deviation(self.survey.index, 
+                                            self.survey['inc'], 
+                                            self.survey['azi'], md_step=step)
+        else:
+            raise ValueError("No survey has been set")
         return new_dev
 
     def sample_position(self,step=100):
-        new_pos = interpolate_position(self.survey['tvd'], self.survey['easting'], self.survey['northing'], tvd_step=step)
-        return new_pos
+        if self.survey is not None:
+            new_pos = interpolate_position(self.survey['tvd'], 
+                                            self.survey['easting'], 
+                                            self.survey['northing'], 
+                                            tvd_step=step)
+            new_pos_gpd = gpd.GeoDataFrame(new_pos,geometry=gpd.points_from_xy(new_pos.new_easting,new_pos.new_northing))
+        else:
+            raise ValueError("No survey has been set")
+        return new_pos_gpd
     
     def to_tvd(self,md):
-        tvd_int = interp1d(self.survey.index,self.survey['tvd'])
-        tvd = tvd_int(md)
-        return tvd 
+        if self.survey is not None:       
+            _tvd = self._tvd_int(md)
+        else:
+            raise ValueError("No survey has been set")
+        return _tvd 
     
     def to_tvdss(self,md):
-        tvdss_int = interp1d(self.survey.index,self.survey['tvdss'])
-        tvdss = tvdss_int(md)
-        return tvdss
+        if self.survey is not None:  
+            _tvdss = self._tvdss_int(md)
+        else:
+            raise ValueError("No survey has been set")
+        return _tvdss
+    
+    def to_coord(self,md):
+        if self.survey is not None:  
+            _tvd = self._tvdss_int(md)
+            _northing = self._northing_int(_tvd)
+            _easting = self._easting_int(_tvd)
+            coord = Point(_easting,_northing)
+        else:
+            raise ValueError("No survey has been set")
+        return coord
+    
+    def perf_to_tvd(self):
+        if self.perforations is not None:
+            self.perforations['tvd_top']=self.perforations['md_top'].apply(self._tvd_int)
+            self.perforations['tvd_base']=self.perforations['md_base'].apply(self._tvd_int)
+        else:
+            raise ValueError("No perforations have been set")
+        return self.perforations
+    
+    def perf_to_tvdss(self):
+        if self.perforations is not None:
+            self.perforations['tvdss_top']=self.perforations['md_top'].apply(self._tvdss_int)
+            self.perforations['tvdss_base']=self.perforations['md_base'].apply(self._tvdss_int)
+        else:
+            raise ValueError("No perforations have been set")
+        return self.perforations
+    
+    
+    
+        
