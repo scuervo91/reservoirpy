@@ -14,6 +14,7 @@ setuptools.setup(
     url="https://github.com/scuervo91/reservoirpy",
     download_url="https://github.com/scuervo91/reservoirpy/archive/0.1.tar.gz",
     packages=setuptools.find_packages(),
+    include_package_data = True,
     install_requires=[            
         'numpy',
         'pandas',
