@@ -19,7 +19,8 @@ setuptools.setup(
         'pandas',
         'matplotlib',
         'scipy',
-        'lasio'
+        'lasio',
+        'geopandas'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
