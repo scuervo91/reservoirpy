@@ -16,6 +16,7 @@ def grtrack(df: pd.DataFrame,
                 sand_flag: pd.Series=None,
                 grid_numbers : list = [11,51],
                 steps: list  = None,
+                legend = False,
                 gr_kw={},
                 sp_kw={},
                 fm_kw={},
@@ -200,9 +201,9 @@ def grtrack(df: pd.DataFrame,
     if fm is not None:
         fm_ann = fm_kw.pop('ann',False)
         for i in fm.iterrows():
-            grax.hlines([i[1]['top']],0,gr_max, **fm_kw)
+            grax.hlines([i[1]['md_top']],0,gr_max, **fm_kw)
             if fm_ann:
-               grax.annotate(f"Top of {i[1]['formation']}",xy=(gr_max-3,i[1]['top']-2),
+               grax.annotate(f"Top of {i[1]['formation']}",xy=(gr_max-3,i[1]['md_top']-2),
                              xycoords='data',horizontalalignment='right',
                              bbox={'boxstyle':'round', 'fc':'0.8'})
                           
@@ -213,31 +214,31 @@ def grtrack(df: pd.DataFrame,
         for i in perf.iterrows():
             if perf_ann:
                 try:
-                    grax.annotate(f"Top:{i[1]['top']} \nBottom:{i[1]['bottom']} \nNote:{i[1]['comment']}",
-                                  xy=(0,(i[1]['top']+i[1]['bottom'])/2),xycoords='data',
+                    grax.annotate(f"Top:{i[1]['md_top']} \nBottom:{i[1]['md_bottom']} \nNote:{i[1]['comment']}",
+                                  xy=(0,(i[1]['md_top']+i[1]['md_bottom'])/2),xycoords='data',
                                   xytext=(-180, 0), textcoords='offset points',
                                   arrowprops=dict(arrowstyle="->"))
                 except:
-                    grax.annotate(f"Top:{i[1]['top']} \nBottom:{i[1]['bottom']}",
-                    xy=(0,(i[1]['top']+i[1]['bottom'])/2),xycoords='data',
+                    grax.annotate(f"Top:{i[1]['md_top']} \nBottom:{i[1]['md_bottom']}",
+                    xy=(0,(i[1]['md_top']+i[1]['md_bottom'])/2),xycoords='data',
                     xytext=(-180, 0), textcoords='offset points',
                     arrowprops=dict(arrowstyle="->"))
                 else: 
                     pass
                     
-            for j in np.arange(i[1]['top'],i[1]['bottom'],0.5):
+            for j in np.arange(i[1]['md_top'],i[1]['md_bottom'],0.5):
                 grax.hlines(j,0,10,**perf_kw)
 
     #Add Sand Gamma Ray line      
     if gr_sand_shale is not None:
         for i in gr_sand_shale.iterrows():
             try:
-                grax.vlines(i[1]['sand'],i[1]['top'],i[1]['bottom'],**gr_sand_kw)
+                grax.vlines(i[1]['sand'],i[1]['md_top'],i[1]['md_bottom'],**gr_sand_kw)
             except:
                 pass
             
             try:
-                grax.vlines(i[1]['shale'],i[1]['top'],i[1]['bottom'],**gr_shale_kw)
+                grax.vlines(i[1]['shale'],i[1]['md_top'],i[1]['md_bottom'],**gr_shale_kw)
             except:
                 pass
              
@@ -255,5 +256,5 @@ def grtrack(df: pd.DataFrame,
                                  xycoords='data',horizontalalignment='right')
                 
     
-    if 'label' in gr_kw:
+    if legend:
         grax.legend() 
