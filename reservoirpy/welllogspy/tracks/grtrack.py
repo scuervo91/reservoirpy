@@ -233,12 +233,12 @@ def grtrack(df: pd.DataFrame,
     if gr_sand_shale is not None:
         for i in gr_sand_shale.iterrows():
             try:
-                grax.vlines(i[1]['sand'],i[1]['md_top'],i[1]['md_bottom'],**gr_sand_kw)
+                grax.vlines(i[1]['gr_sand'],i[1]['md_top'],i[1]['md_bottom'],**gr_sand_kw)
             except:
                 pass
             
             try:
-                grax.vlines(i[1]['shale'],i[1]['md_top'],i[1]['md_bottom'],**gr_shale_kw)
+                grax.vlines(i[1]['gr_shale'],i[1]['md_top'],i[1]['md_bottom'],**gr_shale_kw)
             except:
                 pass
              
