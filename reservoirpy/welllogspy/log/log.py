@@ -11,13 +11,28 @@ class log(LASFile):
         if find_mnemonics == True:
             file_dir = os.path.dirname(__file__)
             mnemonics_path = os.path.join(file_dir,'mnemonics.csv')
-            mnemonics = pd.read_csv(mnemonics_path, header=0)
+            mnemonics_df = kwargs.pop('mnemonics', None)
+            if mnemonics_df is None:
+                try:
+                    mnemonics = pd.read_csv(mnemonics_path, header=0)
+                    for curve in self.curves:
+                        for col in mnemonics.columns:
+                            if curve['mnemonic'] in mnemonics[col].tolist():
+                                print('Mnemonic: ',curve['mnemonic'],' => ',  col + '_' + curve['mnemonic'] )
+                                curve.mnemonic = col + '_' + curve['mnemonic']
+                                break
+                except:
+                    print("file mnemoics.csv not found. Provide one")
+                    pass
+            else:
+                for curve in self.curves:
+                    for col in mnemonics_df.columns:
+                        if curve['mnemonic'] in mnemonics[col].tolist():
+                            print('Mnemonic: ',curve['mnemonic'],' => ',  col + '_' + curve['mnemonic'] )
+                            curve.mnemonic = col + '_' + curve['mnemonic']
+                            break
+
             
-            for curve in self.curves:
-                for col in mnemonics.columns:
-                    if curve['mnemonic'] in mnemonics[col].tolist():
-                        print('Mnemonic: ',curve['mnemonic'],' => ',  col + '_' + curve['mnemonic'] )
-                        curve.mnemonic = col + '_' + curve['mnemonic']
-                        break
+
 
     
