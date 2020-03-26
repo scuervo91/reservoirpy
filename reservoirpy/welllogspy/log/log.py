@@ -5,13 +5,13 @@ import os
 
 class log(LASFile):
     def __init__(self, file_ref,find_mnemonics=False,**kwargs):
+        mnemonics_df = kwargs.pop('mnemonics', None)
         LASFile.__init__(self, file_ref=file_ref,
                          autodetect_encoding = True, **kwargs)
         
         if find_mnemonics == True:
             file_dir = os.path.dirname(__file__)
             mnemonics_path = os.path.join(file_dir,'mnemonics.csv')
-            mnemonics_df = kwargs.pop('mnemonics', None)
             if mnemonics_df is None:
                 try:
                     mnemonics = pd.read_csv(mnemonics_path, header=0)
