@@ -39,9 +39,9 @@ class well:
         self.perforations = kwargs.pop("perforations", None)
         assert isinstance(self.perforations, perforations) or self.perforations is None
         
-        
         crs = kwargs.pop("crs", None)        
         _deviation = kwargs.pop("deviation",None)
+        
         if _deviation is not None:
             _survey = min_curve_method(_deviation['md'],_deviation['inc'],
                                        _deviation['azi'],
@@ -79,45 +79,89 @@ class well:
             raise ValueError("No survey has been set")
         return new_pos_gpd
     
-    def to_tvd(self,md):
-        if self.survey is not None:       
-            _tvd = self._tvd_int(md)
+    def to_tvd(self,md:(int,float)=None,which:list=None, ss:bool=False):
+        if self.survey is not None:
+            r=[]
+            if md is not None:
+                if ss==True:
+                    _tvdss = self._tvdss_int(md)
+                    r.append(_tvdss)
+                else:
+                    _tvd = self._tvd_int(md)
+                    r.append(_tvd)
+                
+            if which is not None:
+                if 'perforations' in which:
+                    if self.perforations is not None:
+                        if ss==True:
+                            self.perforations['tvdss_top']=self.perforations['md_top'].apply(self._tvdss_int)
+                            self.perforations['tvdss_base']=self.perforations['md_base'].apply(self._tvdss_int)
+                        else:
+                            self.perforations['tvd_top']=self.perforations['md_top'].apply(self._tvd_int)
+                            self.perforations['tvd_base']=self.perforations['md_base'].apply(self._tvd_int)
+                        r.append(self.perforations)
+                    else:
+                        raise ValueError("No perforations have been set")
+
+
+                if 'tops' in which:
+                    if self.tops is not None:
+                        if ss==True:
+                            self.tops['tvdss_top']=self.tops['md_top'].apply(self._tvdss_int)
+                            self.tops['tvdss_base']=self.tops['md_base'].apply(self._tvdss_int)
+                        else:
+                            self.tops['tvd_top']=self.tops['md_top'].apply(self._tvd_int)
+                            self.tops['tvd_base']=self.tops['md_base'].apply(self._tvd_int)
+                        r.append(self.tops)
+                    else:
+                        raise ValueError("No tops have been set")
+
         else:
             raise ValueError("No survey has been set")
-        return _tvd 
+        return r
     
-    def to_tvdss(self,md):
+
+    
+    def to_coord(self,md:(int,float)=None,which:list=None):
         if self.survey is not None:  
-            _tvdss = self._tvdss_int(md)
+            r=[]
+            if md is not None:
+                _tvd = self._tvdss_int(md)
+                _northing = self._northing_int(_tvd)
+                _easting = self._easting_int(_tvd)
+                coord = Point(_easting,_northing)
+                r.append(coord)
+                
+            if which is not None:
+                if 'perforations' in which:
+                    if self.perforations is not None:
+                        try:
+                            self.perforations['northing'] = self.perforations['tvd_top'].apply(self._northing_int)
+                            self.perforations['easting'] = self.perforations['tvd_base'].apply(self._easting_int)
+                            self.perforation['geometry'] = self.perforations[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
+                            r.append(self.perforations)
+                        except:
+                            ValueError("No tvd has been set")
+                    else:
+                        raise ValueError("No perforations have been set")
+                        
+            if which is not None:
+                if 'tops' in which:
+                    if self.tops is not None:
+                        try:
+                            self.tops['northing'] = self.tops['tvd_top'].apply(self._northing_int)
+                            self.tops['easting'] = self.tops['tvd_base'].apply(self._easting_int)
+                            self.perforation['geometry'] = self.tops[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
+                            r.append(self.tops)
+                        except:
+                            ValueError("No tvd has been set")
+                    else:
+                        raise ValueError("No tops have been set")
         else:
             raise ValueError("No survey has been set")
-        return _tvdss
+        return r
     
-    def to_coord(self,md):
-        if self.survey is not None:  
-            _tvd = self._tvdss_int(md)
-            _northing = self._northing_int(_tvd)
-            _easting = self._easting_int(_tvd)
-            coord = Point(_easting,_northing)
-        else:
-            raise ValueError("No survey has been set")
-        return coord
-    
-    def perf_to_tvd(self):
-        if self.perforations is not None:
-            self.perforations['tvd_top']=self.perforations['md_top'].apply(self._tvd_int)
-            self.perforations['tvd_base']=self.perforations['md_base'].apply(self._tvd_int)
-        else:
-            raise ValueError("No perforations have been set")
-        return self.perforations
-    
-    def perf_to_tvdss(self):
-        if self.perforations is not None:
-            self.perforations['tvdss_top']=self.perforations['md_top'].apply(self._tvdss_int)
-            self.perforations['tvdss_base']=self.perforations['md_base'].apply(self._tvdss_int)
-        else:
-            raise ValueError("No perforations have been set")
-        return self.perforations
+
     
     
     
