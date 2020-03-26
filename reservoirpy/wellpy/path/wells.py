@@ -138,7 +138,7 @@ class well:
                         try:
                             self.perforations['northing'] = self.perforations['tvd_top'].apply(self._northing_int)
                             self.perforations['easting'] = self.perforations['tvd_base'].apply(self._easting_int)
-                            self.perforation['geometry'] = self.perforations[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
+                            self.perforations['geometry'] = self.perforations[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
                             r.append(self.perforations)
                         except:
                             ValueError("No tvd has been set")
@@ -151,7 +151,7 @@ class well:
                         try:
                             self.tops['northing'] = self.tops['tvd_top'].apply(self._northing_int)
                             self.tops['easting'] = self.tops['tvd_base'].apply(self._easting_int)
-                            self.perforation['geometry'] = self.tops[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
+                            self.tops['geometry'] = self.tops[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
                             r.append(self.tops)
                         except:
                             ValueError("No tvd has been set")
