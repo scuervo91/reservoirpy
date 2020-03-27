@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 
@@ -12,8 +13,13 @@ def phietrack(df: pd.DataFrame,
              grid_numbers : list = [11,51],
              steps: list  = None,
              legend:bool = True,
+             colormap: str='Dark2',
              corr_kw={},
              phi_kw:list = []):
+
+    #get number of curves to build the colormap
+    n_curves = len(phi)
+    cmap = mpl.cm.get_cmap(colormap,n_curves)
     
     pax=ax or plt.gca()
     
@@ -35,6 +41,7 @@ def phietrack(df: pd.DataFrame,
         for i,r in enumerate(phi):
             if len(phi_kw)<i+1:
                 phi_kw.append(defkwa)
+            phi_kw[i]['color']=cmap(i)
             for (k,v) in defkwa.items():
                 if k not in phi_kw[i]:
                     phi_kw[i][k]=v
