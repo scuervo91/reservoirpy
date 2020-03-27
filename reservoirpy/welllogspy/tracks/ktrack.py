@@ -43,9 +43,9 @@ def ktrack(df: pd.DataFrame,
             if len(k_kw)<i+1:
                 k_kw.append(defkwa)
             k_kw[i]['color']=cmap(i)
-            for (k,v) in defkwa.items():
-                if k not in k_kw[i]:
-                    k_kw[i][k]=v
+            for (key,v) in defkwa.items():
+                if key not in k_kw[i]:
+                    k_kw[i][key]=v
             kax.plot(df[perm],df.index,label=perm,**k_kw[i])
     
     if lims==None: #Depth Limits
