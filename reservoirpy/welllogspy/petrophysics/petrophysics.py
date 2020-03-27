@@ -91,13 +91,14 @@ def petrophysics(logs,dfrom,dto,
         phi_col_name = sw_kw.pop('phi_name',None)
         swir = perm_kw.pop('swir', None)
         authors = perm_kw('authors',['timur'])
+        fluid = perm_kw('fluid','oil')
 
         
         #name for the new columns. List of curve names depending on the method
         perm_cols_name = sw_kw.pop('perm_cols_name',authors) 
         
         for i,author in enumerate(authors):
-            logf[perm_cols_name[i]] = perm(logf[phi_col_name],logf[swir],author=author,**perm_kw)
+            logf[perm_cols_name[i]] = perm(logf[phi_col_name],logf[swir],author=author,fluid=fluid)
             new_cols.append(perm_cols_name[i])
 
     
