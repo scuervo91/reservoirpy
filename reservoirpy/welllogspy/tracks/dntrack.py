@@ -169,4 +169,5 @@ def dntrack(df: pd.DataFrame,
                                  xycoords='data',horizontalalignment='right')
                 except:
                     dax.annotate(f"{i[1]['depth']}",xy=(rholim-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})

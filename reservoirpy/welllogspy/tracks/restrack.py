@@ -92,7 +92,8 @@ def restrack(df: pd.DataFrame,
                                  xycoords='data',horizontalalignment='right')
                 except:
                     rax.annotate(f"{i[1]['depth']}",xy=(res_range[1]-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
  
     if legend:
         rax.legend()

@@ -90,4 +90,5 @@ def cbltrack(df:pd.DataFrame,
                                  xycoords='data',horizontalalignment='right')
                 except:
                     cblax.annotate(f"{i[1]['depth']}",xy=(100-30,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})

@@ -127,7 +127,8 @@ def vshtrack(df: pd.DataFrame,
                                  xycoords='data',horizontalalignment='right')
                 except:
                     vax.annotate(f"{i[1]['depth']}",xy=(1-0.3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
      
     
     if 'label' in vsh_kw:

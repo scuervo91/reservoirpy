@@ -98,4 +98,5 @@ def caltrack(df: pd.DataFrame,
                                  xycoords='data',horizontalalignment='right')
                 except:
                     cal.annotate(f"{i[1]['depth']}",xy=(16-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})

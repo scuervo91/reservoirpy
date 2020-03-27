@@ -25,7 +25,7 @@ def gastrack(df: pd.DataFrame,
     gax=ax or plt.gca()
     defkwa = {
     'linestyle':'-',
-    'linewidth': 2
+    'linewidth': 1
     }
     
     def_corr_kw = {
@@ -92,7 +92,8 @@ def gastrack(df: pd.DataFrame,
                                  xycoords='data',horizontalalignment='right')
                 except:
                     gax.annotate(f"{i[1]['depth']}",xy=(gas_range[1]-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
  
     if legend:
         gax.legend()
