@@ -24,8 +24,8 @@ def ktrack(df: pd.DataFrame,
     
     kax=ax or plt.gca()
     defkwa = {
-    'linestyle':'-',
-    'linewidth': 1
+    "linestyle":'-',
+    "linewidth": 1
     }
     
     def_corr_kw = {
