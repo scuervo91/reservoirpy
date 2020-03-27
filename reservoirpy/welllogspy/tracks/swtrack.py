@@ -48,7 +48,7 @@ def swtrack(df: pd.DataFrame,
             fill_water_kw[k]=v
 
     def_fill_oil_kw = {
-    'color': (0.13,0.33,0.88),
+    'color': (0.07,0.72,0.08),
     }    
     for (k,v) in def_fill_oil_kw.items():
         if k not in fill_oil_kw:
