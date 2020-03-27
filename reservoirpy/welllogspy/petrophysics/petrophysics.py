@@ -88,7 +88,7 @@ def petrophysics(logs,dfrom,dto,
 
     if perm_kw is not None:
         #Name for input columns
-        phi_col_name = sw_kw.pop('phi_name',None)
+        phi_col_name = perm_kw.pop('phi_name',None)
         swir = perm_kw.pop('swir', None)
         authors = perm_kw.pop('authors',['timur'])
         fluid = perm_kw.pop('fluid','oil')
