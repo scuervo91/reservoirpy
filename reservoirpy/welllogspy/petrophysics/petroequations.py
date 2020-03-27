@@ -202,8 +202,8 @@ def perm(phie_curve,swir,fluid='oil',author='timur'):
 
 
 def flow_capacity(height,perm_curve,pay_curve):
-    perm_curve=np.atleast_1d(perm_curve)
-    pay_curve=np.atleast_1d(pay_curve)
+    perm_curve=np.nan_to_num(np.atleast_1d(perm_curve))
+    pay_curve=np.nan_to_num(np.atleast_1d(pay_curve))
     height=np.atleast_1d(height)
     
     kh=height*perm_curve*pay_curve
