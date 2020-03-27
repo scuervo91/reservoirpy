@@ -108,5 +108,6 @@ def swtrack(df: pd.DataFrame,
                     sax.annotate(f"{i[1]['depth']}",xy=(1-0.3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right')
 
-
+    if legend:
+        sax.legend()
 
