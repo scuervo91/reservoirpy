@@ -90,8 +90,8 @@ def petrophysics(logs,dfrom,dto,
         #Name for input columns
         phi_col_name = sw_kw.pop('phi_name',None)
         swir = perm_kw.pop('swir', None)
-        authors = perm_kw('authors',['timur'])
-        fluid = perm_kw('fluid','oil')
+        authors = perm_kw.pop('authors',['timur'])
+        fluid = perm_kw.pop('fluid','oil')
 
         
         #name for the new columns. List of curve names depending on the method
