@@ -12,8 +12,8 @@ def petrophysics(logs,dfrom,dto,
                 sw_kw=None,        #[a,m,n,Rw,phicolumn,rtcolumn,Vshcolumn,Rsh=4.0,alpha=0.3,[ListMethod],[listNames]]
                 perm_kw=None,      #[phiecolumn,swcolum,autor,fluid,[ListMethod],[listNames]]
                 flag_kw=None,   #[phicolumn,phicut,vshcol,vshcut,swcol,swcut,kcol,kcut,paycol]
-                kh_kw=None):       #[h,kcol,paycol,khcol]
-    
+                kh_kw=None,       #[h,kcol,paycol,khcol]
+                return_partial = False):
     logf=logs[(logs.index >= dfrom) & (logs.index<=dto)].copy()
     new_cols = []
     if vshale_gr_kw is not None:
@@ -147,6 +147,8 @@ def petrophysics(logs,dfrom,dto,
         logf[kh_col_name],logf[kh_norm_col_name]=flow_capacity(h,logf[perm_col_name],logf[pay_col_name])
         new_cols.extend([kh_norm_col_name,kh_col_name])
                                                                                                                                                                                                    
-    log_merged = logs.merge(logf[new_cols], how='left', left_index=True, right_index=True)
-    
-    return log_merged
+    if return_partial:
+        return logf
+    else:
+        log_merged = logs.merge(logf[new_cols], how='left', left_index=True, right_index=True)
+        return log_merged
