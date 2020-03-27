@@ -141,7 +141,7 @@ def petrophysics(logs,dfrom,dto,
         
         #Name for input columns
         perm_col_name = flag_kw.pop('perm_name',None)
-        pay_col_name = flag_kw.pop('pay_name',None)
+        pay_col_name = flag_kw.pop('pay_name','pay_flag')
         
         #
         h=np.mean(np.diff(logf.index))
