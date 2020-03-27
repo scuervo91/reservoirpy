@@ -52,7 +52,7 @@ class well:
         self.caselog = kwargs.pop('caselog', None)
         assert isinstance(self.caselog, log) or self.caselog is None
         
-        crs = kwargs.pop("crs", None)        
+        self.crs = kwargs.pop("crs", None)        
         _deviation = kwargs.pop("deviation",None)
         
         if _deviation is not None:
@@ -64,7 +64,7 @@ class well:
         
             self.survey = gpd.GeoDataFrame(_survey,
                          geometry=gpd.points_from_xy(_survey.easting, 
-                                                     _survey.northing),crs=crs)
+                                                     _survey.northing),crs=self.crs)
             self._tvd_int = interp1d(self.survey.index,self.survey['tvd'])
             self._tvdss_int = interp1d(self.survey.index,self.survey['tvdss'])
             self._northing_int = interp1d(self.survey['tvd'],self.survey.geometry.y)
@@ -87,7 +87,7 @@ class well:
                                             self.survey['easting'], 
                                             self.survey['northing'], 
                                             tvd_step=step)
-            new_pos_gpd = gpd.GeoDataFrame(new_pos,geometry=gpd.points_from_xy(new_pos.new_easting,new_pos.new_northing),crs=crs)
+            new_pos_gpd = gpd.GeoDataFrame(new_pos,geometry=gpd.points_from_xy(new_pos.new_easting,new_pos.new_northing),crs=self.crs)
         else:
             raise ValueError("No survey has been set")
         return new_pos_gpd
