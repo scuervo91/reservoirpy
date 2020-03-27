@@ -49,10 +49,9 @@ def gastrack(df: pd.DataFrame,
             gax.plot(df[g],df.index,label=g,**gas_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        gax.set_ylim(lims)
-    else:
-        gax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    gax.set_ylim([lims[1],lims[0]])
         
     #Set the vertical grid spacing
     if steps is None:

@@ -47,12 +47,10 @@ def oilshowtrack(df: pd.DataFrame,
     if oilshow is not None:
         oax.plot(df[oilshow],df.index,**show_kw)
     
-    # Set The lims of depth
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        oax.set_ylim(lims)
-    else:
-        oax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    oax.set_ylim([lims[1],lims[0]])
 
     #Set the vertical grid spacing
     if steps is None:

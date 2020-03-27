@@ -49,10 +49,9 @@ def restrack(df: pd.DataFrame,
             rax.plot(df[r],df.index,label=r,**res_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        rax.set_ylim(lims)
-    else:
-        rax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    rax.set_ylim([lims[1],lims[0]])
         
     #Set the vertical grid spacing
     if steps is None:

@@ -168,10 +168,9 @@ def grtrack(df: pd.DataFrame,
     # Set The lims of depth    
     grax.set_xlim([0,gr_max])           
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        grax.set_ylim(lims)
-    else:
-        grax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    grax.set_ylim([lims[1],lims[0]])
 
     #Set the vertical grid spacing
     if steps is None:

@@ -103,10 +103,9 @@ def dntrack(df: pd.DataFrame,
     rholim=-0.15*m+b
 
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        dax.set_ylim(lims)
-    else:
-        dax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+        
+    dax.set_ylim([lims[1],lims[0]])
 
     #Set the vertical grid spacing
     if steps is None:

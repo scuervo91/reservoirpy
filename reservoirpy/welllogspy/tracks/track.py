@@ -54,10 +54,9 @@ def track(df: pd.DataFrame,
             tax.plot(df[g],df.index,label=g,**track_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        tax.set_ylim(lims)
-    else:
-        tax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    tax.set_ylim([lims[1],lims[0]])
 
     #Set the vertical grid spacing
     if steps is None:

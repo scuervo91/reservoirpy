@@ -41,10 +41,9 @@ def phietrack(df: pd.DataFrame,
             pax.plot(df[r],df.index,label=r,**phi_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        pax.set_ylim(lims)
-    else:
-        pax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    pax.set_ylim([lims[1],lims[0]])
 
     #Set the vertical grid spacing
     if steps is None:

@@ -75,10 +75,9 @@ def flagtrack(df: pd.DataFrame,
     # Set The lims of depth    
     fax.set_xlim([0,1])           
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        fax.set_ylim(lims)
-    else:
-        fax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    fax.set_ylim([lims[1],lims[0]])
         
     #Set the vertical grid spacing
         

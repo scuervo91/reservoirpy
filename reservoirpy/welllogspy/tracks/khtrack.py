@@ -41,10 +41,9 @@ def khtrack(df:pd.DataFrame,
         hax.plot(df[kh],df.index,**kh_kw)
     
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        hax.set_ylim(lims)
-    else:
-        hax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    hax.set_ylim([lims[1],lims[0]])
 
     if steps is None:
         mayor_grid = np.linspace(lims[0],lims[1],grid_numbers[0])

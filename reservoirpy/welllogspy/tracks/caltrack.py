@@ -50,10 +50,9 @@ def caltrack(df: pd.DataFrame,
             
     #Set lims
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        cal.set_ylim(lims)
-    else:
-        cal.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    cal.set_ylim([lims[1],lims[0]])
         
     #Set the vertical grid spacing
     if steps is None:
@@ -77,8 +76,8 @@ def caltrack(df: pd.DataFrame,
     cal.xaxis.tick_top()
     cal.xaxis.set_label_position("top")
     cal.tick_params("both",labelsize=fontsize)
-    cal.set_yticks(np.linspace(mayor_grid,11))
-    cal.set_yticks(np.linspace(minor_grid,minor=True))        
+    cal.set_yticks(mayor_grid)
+    cal.set_yticks(minor_grid,minor=True)       
     if dtick==True:
         cal.set_yticklabels(mayor_grid)
     else:

@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 
 def swtrack(df: pd.DataFrame,
-            sw: str = None,
+            sw: list = None,
             lims:list =None,
             dtick: bool =False, 
             ax=None,
@@ -13,21 +14,23 @@ def swtrack(df: pd.DataFrame,
             steps: list  = None,
             legend:bool = True,
             fill:bool = True,
+            colormap: str='winter',
             corr_kw={},
-            sw_kw={}):
+            fill_water_kw={},
+            fill_oil_kw={},
+            sw_kw=[]):
     
+    #get number of curves to build the colormap
+    n_curves = len(sw)
+    cmap = mpl.cm.get_cmap(colormap,n_curves)
+
     sax=ax or plt.gca()
     
     defkwa = {
-    'color': 'blue',
     'linestyle':'-',
     'linewidth': 1
     }
     
-    for (k,v) in defkwa.items():
-        if k not in sw_kw:
-            sw_kw[k]=v
-
     def_corr_kw = {
     'color': 'red',
     'linestyle':'--',
@@ -36,15 +39,36 @@ def swtrack(df: pd.DataFrame,
     for (k,v) in def_corr_kw.items():
         if k not in corr_kw:
             corr_kw[k]=v
-    
+
+    def_fill_water_kw = {
+    'color': (0.13,0.33,0.88),
+    }    
+    for (k,v) in def_fill_water_kw.items():
+        if k not in fill_water_kw:
+            fill_water_kw[k]=v
+
+    def_fill_oil_kw = {
+    'color': (0.13,0.33,0.88),
+    }    
+    for (k,v) in def_fill_oil_kw.items():
+        if k not in fill_oil_kw:
+            fill_oil_kw[k]=v
+
+    #Plot main Lines
     if sw is not None:
-        sax.plot(df[sw],df.index,**sw_kw)
+        for i,r in enumerate(sw):
+            if len(sw_kw)<i+1:
+                sw_kw.append(defkwa)
+            sw_kw[i]['color']=cmap(i)
+            for (k,v) in defkwa.items():
+                if k not in sw_kw[i]:
+                    sw_kw[i][k]=v
+            sax.plot(df[r],df.index,label=r,**sw_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        sax.set_ylim(lims)
-    else:
-        sax.set_ylim([lims[1],lims[0]])
+        lims=[df.index.min(),df.index.max()]
+
+    sax.set_ylim([lims[1],lims[0]])
         
     #Set the vertical grid spacing
     if steps is None:
@@ -68,8 +92,8 @@ def swtrack(df: pd.DataFrame,
     else:
         sax.set_yticklabels([])
     if fill==True:
-        sax.fill_betweenx(df.index,1,df[sw],color="green")
-        sax.fill_betweenx(df.index,df[sw],0,color="blue")
+        sax.fill_betweenx(df.index,1,df[sw[0]],**fill_oil_kw)
+        sax.fill_betweenx(df.index,df[sw[0]],0,**fill_water_kw)
         
     #Add Correlation Line
     if correlation is not None:
