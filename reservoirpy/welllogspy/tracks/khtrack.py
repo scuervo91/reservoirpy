@@ -75,7 +75,7 @@ def khtrack(df:pd.DataFrame,
         hax.set_yticklabels([])
 
     if fill==True:
-        hax.fill_betweenx(df.index,0,kh,**fill_kh_kw)
+        hax.fill_betweenx(df.index,0,df[kh],**fill_kh_kw)
         
     #Add Correlation Line
     if correlation is not None:
