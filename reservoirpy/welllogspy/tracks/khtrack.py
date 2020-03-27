@@ -14,7 +14,8 @@ def khtrack(df:pd.DataFrame,
             steps: list  = None,
             correlation: pd.DataFrame = None,
             kh_kw={},
-            corr_kw={}):
+            corr_kw={},
+            fill_kh_kw={}):
     
     hax=ax or plt.gca()
     
@@ -36,6 +37,13 @@ def khtrack(df:pd.DataFrame,
     for (k,v) in def_corr_kw.items():
         if k not in corr_kw:
             corr_kw[k]=v
+
+    def_fill_kh_kw = {
+    'color': (0.5,0.5,0.5),
+    }    
+    for (k,v) in def_fill_kh_kw.items():
+        if k not in fill_kh_kw:
+            fill_kh_kw[k]=v
     
     if kh is not None:
         hax.plot(df[kh],df.index,**kh_kw)
@@ -65,8 +73,9 @@ def khtrack(df:pd.DataFrame,
         hax.set_yticklabels(mayor_grid)
     else:
         hax.set_yticklabels([])
+
     if fill==True:
-        hax.fill_betweenx(df.index,0,kh,color="grey")
+        hax.fill_betweenx(df.index,0,kh,**fill_kh_kw)
         
     #Add Correlation Line
     if correlation is not None:
