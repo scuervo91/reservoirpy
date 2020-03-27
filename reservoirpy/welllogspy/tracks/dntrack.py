@@ -102,6 +102,12 @@ def dntrack(df: pd.DataFrame,
     b=-m*0.45+1.9
     rholim=-0.15*m+b
 
+    if lims==None: #Depth Limits
+        lims=[df.index.max(),df.index.min()]
+        dax.set_ylim(lims)
+    else:
+        dax.set_ylim([lims[1],lims[0]])
+
     #Set the vertical grid spacing
     if steps is None:
         mayor_grid = np.linspace(lims[0],lims[1],grid_numbers[0])
@@ -113,13 +119,7 @@ def dntrack(df: pd.DataFrame,
     #Set Density Axes
     if rho is not None:
         dax.plot(df[rho],df.index,**rho_kw)
-    
-        if lims==None: #Depth Limits
-            lims=[df.index.max(),df.index.min()]
-            dax.set_ylim(lims)
-        else:
-            dax.set_ylim([lims[1],lims[0]])
-            
+               
         #Set the gridding and ticks
         dax.set_xlabel("Density [g/cc]")
         dax.set_xticks(np.linspace(1.9,rholim,4))
