@@ -136,12 +136,12 @@ def petrophysics(logs,dfrom,dto,
             
     if kh_kw is not None:
         #name for the new columns.
-        kh_col_name = flag_kw.pop('kh_name','kh')
-        kh_norm_col_name = flag_kw.pop('khnorm_name','kh_norm')
+        kh_col_name = kh_kw.pop('kh_name','kh')
+        kh_norm_col_name = kh_kw.pop('khnorm_name','kh_norm')
         
         #Name for input columns
-        perm_col_name = flag_kw.pop('perm_name',None)
-        pay_col_name = flag_kw.pop('pay_name','pay_flag')
+        perm_col_name = kh_kw.pop('perm_name',None)
+        pay_col_name = kh_kw.pop('pay_name','pay_flag')
         
         #
         h=np.mean(np.diff(logf.index))
