@@ -87,7 +87,7 @@ class well:
                                             self.survey['easting'], 
                                             self.survey['northing'], 
                                             tvd_step=step)
-            new_pos_gpd = gpd.GeoDataFrame(new_pos,geometry=gpd.points_from_xy(new_pos.new_easting,new_pos.new_northing))
+            new_pos_gpd = gpd.GeoDataFrame(new_pos,geometry=gpd.points_from_xy(new_pos.new_easting,new_pos.new_northing),crs=crs)
         else:
             raise ValueError("No survey has been set")
         return new_pos_gpd
