@@ -84,7 +84,7 @@ def phietrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     pax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(0.35-0.05,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     pax.annotate(f"{i[1]['depth']}",xy=(1-0.3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

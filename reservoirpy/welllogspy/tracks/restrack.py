@@ -89,7 +89,7 @@ def restrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     rax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(res_range[1]-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     rax.annotate(f"{i[1]['depth']}",xy=(res_range[1]-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

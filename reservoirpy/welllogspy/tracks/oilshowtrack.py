@@ -85,7 +85,7 @@ def oilshowtrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     oax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(1-0.3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     oax.annotate(f"{i[1]['depth']}",xy=(1-0.3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

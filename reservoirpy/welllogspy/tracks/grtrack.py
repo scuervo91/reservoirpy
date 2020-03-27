@@ -249,7 +249,7 @@ def grtrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     grax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(gr_max-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     grax.annotate(f"{i[1]['depth']}",xy=(gr_max-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

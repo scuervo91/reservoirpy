@@ -89,7 +89,7 @@ def gastrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     gax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(gas_range[1]-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     gax.annotate(f"{i[1]['depth']}",xy=(gas_range[1]-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

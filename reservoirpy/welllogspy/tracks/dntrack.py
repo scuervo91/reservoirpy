@@ -166,7 +166,7 @@ def dntrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     dax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(rholim-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     dax.annotate(f"{i[1]['depth']}",xy=(rholim-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

@@ -95,7 +95,7 @@ def caltrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     cal.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(16-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     cal.annotate(f"{i[1]['depth']}",xy=(16-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

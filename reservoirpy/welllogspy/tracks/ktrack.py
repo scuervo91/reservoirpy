@@ -89,7 +89,7 @@ def ktrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     kax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(k_range[1]-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     kax.annotate(f"{i[1]['depth']}",xy=(k_range[1]-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',

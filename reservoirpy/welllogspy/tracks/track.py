@@ -101,7 +101,7 @@ def track(df: pd.DataFrame,
             if cor_ann:
                 try:
                     tax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(clims[1]-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right')
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
                 except:
                     tax.annotate(f"{i[1]['depth']}",xy=(clims[1]-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',
