@@ -110,7 +110,7 @@ def rw_temp_convert(rw,t1,t2, temp_unit='f'):
     else:
         c = np.array([21.5])
     
-    rw2 = rw((t1 + c)/(t2 + c))
+    rw2 = rw*((t1 + c)/(t2 + c))
     return rw2
 
 def rw(temp, salinity,temp_unit='f'):

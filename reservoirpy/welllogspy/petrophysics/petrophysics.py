@@ -98,7 +98,7 @@ def petrophysics(logs,dfrom,dto,
         perm_cols_name = sw_kw.pop('perm_cols_name',authors) 
         
         for i,author in enumerate(authors):
-            logf[perm_cols_name[i]] = perm(logf[phi_col_name],logf[swir],author=author,fluid=fluid)
+            logf[perm_cols_name[i]] = perm(logf[phi_col_name],swir,author=author,fluid=fluid)
             new_cols.append(perm_cols_name[i])
 
     
