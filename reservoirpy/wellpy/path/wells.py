@@ -1,4 +1,5 @@
 import pandas as pd 
+import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point
 from .mincurve import min_curve_method
@@ -10,7 +11,8 @@ from ...welllogspy.log import log
 class perforations(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):                                                                                                                                   
-        super(perforations, self).__init__(*args, **kwargs)     
+        super(perforations, self).__init__(*args, **kwargs)
+        self['md_tick'] = self['md_bottom'] - self['md_top']     
     
     @property
     def _constructor(self):
@@ -71,6 +73,9 @@ class well:
             self._easting_int = interp1d(self.survey['tvd'],self.survey.geometry.x)
         else:
             self.survey=None
+
+        if self.perforations is not None:
+            self.perforations['md_tick'] = self.perforations['md_bottom'] - self.perforations['md_top']
             
     def sample_deviation(self,step=100):
         if self.survey is not None:
@@ -112,6 +117,7 @@ class well:
                         else:
                             self.perforations['tvd_top']=self.perforations['md_top'].apply(self._tvd_int)
                             self.perforations['tvd_bottom']=self.perforations['md_bottom'].apply(self._tvd_int)
+                            self.perforations['tvd_tick'] = self.perforations['tvd_bottom'] - self.perforations['tvd_top']
                         r.append(self.perforations)
                     else:
                         raise ValueError("No perforations have been set")
@@ -125,6 +131,7 @@ class well:
                         else:
                             self.tops['tvd_top']=self.tops['md_top'].apply(self._tvd_int)
                             self.tops['tvd_bottom']=self.tops['md_bottom'].apply(self._tvd_int)
+                            self.tops['tvd_tick'] = self.tops['tvd_bottom'] - self.tops['tvd_top']
                         r.append(self.tops)
                     else:
                         raise ValueError("No tops have been set")
@@ -198,16 +205,24 @@ class well:
                     for i in self.tops.iterrows():
                         _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[1]['formation']
                     self.caselog.add_curve('formation',_m['formation'].values,descr='formations')
-                
-                    
 
+    def add_to_logs(self,df):
+        if self.openlog is None:
+            raise ValueError("openlog has not been added")
+        else:
+            col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self.openlog.columns))]
+            df_merge = self.openlog.merge(df[col_add], how='left', left_index=True,right_index=True)
 
+            for i in df_merge[col_add].iteritems():
+                self.openlog.add_curve(i[0],i[1])
 
-            
-
-    
-
-    
-    
-    
+    def interval_attributes(self,perforations:bool=False, intervals:perforations=None, curves:list = None):
+        if perforations = True 
+            p = self.perforations
+        else:
+            p = intervals 
         
+        for i,c in p.iterrows():
+            interval_log = self.openlog.loc[(self.openlog.index>=p.loc[i,c['md_top']])&(self.openlog.index<=p.loc[i,c['md_bottom']]),curves]
+            for curve in curves:
+                p.loc[i,curve] =  
