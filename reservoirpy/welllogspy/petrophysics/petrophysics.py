@@ -19,13 +19,14 @@ def petrophysics(logs,dfrom,dto,
     if vshale_gr_kw is not None:
         #name for the new columns
         vsh_col_name = vshale_gr_kw.pop('vsh_col_name','vsh_gr')
+        vsh_type = vshale_gr_kw.pop('type','linear')
         new_cols.append(vsh_col_name)
         
         #Name for input columns
         gr_col_name = vshale_gr_kw.pop('gr_name',None)
         gr_sand = vshale_gr_kw.pop('gr_sand',None)
         gr_shale = vshale_gr_kw.pop('gr_shale',None)
-        logf[vsh_col_name]=vshale_gr(logf[gr_col_name],gr_sand,gr_shale)
+        logf[vsh_col_name]=vshale_gr(logf[gr_col_name],gr_sand,gr_shale,type=vsh_type)
     
     if vshale_dn_kw is not None:
         #name for the new columns
