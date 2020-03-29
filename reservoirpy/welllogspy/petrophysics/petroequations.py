@@ -9,7 +9,7 @@ def vshale_gr(gr_curve,gr_sand,gr_shale,type='linear'):
     igr=(gr_curve-gr_sand)/(gr_shale-gr_sand)
     igr[igr < 0.0] = 0.0
     igr[igr > 1.0] = 1.0
-
+    #https://www.geoloil.com/VshModels.php
     if type == 'linear':
         vsh = igr
     elif type == 'clavier':
