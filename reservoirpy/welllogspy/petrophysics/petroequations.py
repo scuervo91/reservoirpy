@@ -2,13 +2,27 @@ import numpy as np
 import pandas as pd 
 from scipy.interpolate import interp1d
 
-def vshale_gr(gr_curve,gr_sand,gr_shale):
+def vshale_gr(gr_curve,gr_sand,gr_shale,type='linear'):
     gr_curve=np.atleast_1d(gr_curve)
     gr_sand=np.atleast_1d(gr_sand)
     gr_shale=np.atleast_1d(gr_shale)
-    vsh=(gr_curve-gr_sand)/(gr_shale-gr_sand)
-    vsh[vsh < 0.0] = 0.0
-    vsh[vsh > 1.0] = 1.0
+    igr=(gr_curve-gr_sand)/(gr_shale-gr_sand)
+    igr[igr < 0.0] = 0.0
+    igr[igr > 1.0] = 1.0
+
+    if type == 'linear':
+        vsh = igr
+    elif type == 'clavier':
+        vsh = 1.7 - np.sqrt(3.38 - np.power(igr+0.7,2))
+    elif type == 'stieber':
+        vsh = igr/(3-2*igr)
+    elif type == 'larionov_old':
+        vsh = 0.33 * (np.power(2,2*igr)-1)
+    elif type == 'larionov_tertiary':
+        vsh = 0.083 * (np.power(2,3.7*igr)-1)
+    else:
+        raise ValueError(f'method especified [ {type} ] does not exist')
+
     return vsh
 
 def vshale_dn(rho_curve, ntr_curve, rho_ma=2.65, rho_f=1.0, hi_shl=0.46,rho_shl=2.43):
