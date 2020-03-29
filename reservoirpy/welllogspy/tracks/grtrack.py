@@ -224,9 +224,9 @@ def grtrack(df: pd.DataFrame,
                     arrowprops=dict(arrowstyle="->"))
                 else: 
                     pass
-                    
-            for j in np.arange(i[1]['md_top'],i[1]['md_bottom'],0.5):
-                grax.hlines(j,0,10,**perf_kw)
+        
+            for j in np.arange(i[1]['md_top'],i[1]['md_bottom'],0.2):
+                grax.hlines(j,0,15,**perf_kw)
 
     #Add Sand Gamma Ray line      
     if gr_sand_shale is not None:

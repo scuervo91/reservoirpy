@@ -5,8 +5,10 @@ from scipy.interpolate import interp1d
 
 
 
-def oil_j(k,h,mu,bo,re=1490,rw=0.58,s=0):
-    j=(0.00708*k*h)/(mu*bo*(np.log(re/rw)-0.75+s))
+def oil_j(mu,bo,h=None,k=None,kh=None,re=1490,rw=0.58,s=0):
+    if kh is None:
+        kh = k*h
+    j=(0.00708*kh)/(mu*bo*(np.log(re/rw)-0.75+s))
     return j
 
 
@@ -94,21 +96,21 @@ class oil_inflow:
         
         if pb==True:
             qpb = self.pwf_to_flow(self.pb)
-            oax.scatter(qpb,self.pb, color='red')
+            oax.scatter(qpb,self.pb, color='red', label='Bubble Point')
         
         if q is not None:
             q = np.atleast_1d(q)
             p = self._flow_to_pwf(q)
-            oax.scatter(q,p, color='springgreen')
+            oax.scatter(q,p, color='springgreen', s=70)
             
         if pwf is not None:
             pwf = np.atleast_1d(pwf)
             flow = self._pwf_to_flow(pwf)
-            oax.scatter(flow,pwf, color='lime')
+            oax.scatter(flow,pwf, color='lime',s=70)
             
         if dd is not None:
             dd = np.atleast_1d(dd)
             pwf_dd = self.pr - dd
             flow_dd = self._pwf_to_flow(pwf_dd)
-            oax.scatter(flow_dd,pwf_dd, color='lime')
+            oax.scatter(flow_dd,pwf_dd, color='lime',s=70)
         

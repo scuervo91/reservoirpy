@@ -12,7 +12,37 @@ class perforations(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):                                                                                                                                   
         super(perforations, self).__init__(*args, **kwargs)
-        self['md_tick'] = self['md_bottom'] - self['md_top']     
+    
+    def get_tick(self):
+        try:
+            self['md_tick'] = self['md_bottom'] - self['md_top']
+        except:
+            pass
+
+        try:
+            self['tvd_tick'] = self['tvd_bottom'] - self['tvd_top']
+        except:
+            pass
+        
+        return self
+    
+    def get_mid_point(self):
+        try:
+            self['md_mid_point'] = (self['md_bottom'] + self['md_top'])*0.5
+        except:
+            pass
+
+        try:
+            self['tvd_mid_point'] = (self['tvd_bottom'] + self['tvd_top'])*0.5
+        except:
+            pass
+    
+        try:
+            self['tvdss_mid_point'] = (self['tvdss_bottom'] + self['tvdss_top'])*0.5
+        except:
+            pass
+        return self
+        
     
     @property
     def _constructor(self):
@@ -146,7 +176,7 @@ class well:
         if self.survey is not None:  
             r=[]
             if md is not None:
-                _tvd = self._tvdss_int(md)
+                _tvd = self._tvd_int(md)
                 _northing = self._northing_int(_tvd)
                 _easting = self._easting_int(_tvd)
                 coord = Point(_easting,_northing)
@@ -210,19 +240,42 @@ class well:
         if self.openlog is None:
             raise ValueError("openlog has not been added")
         else:
-            col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self.openlog.columns))]
-            df_merge = self.openlog.merge(df[col_add], how='left', left_index=True,right_index=True)
+            #col_exist = self.openlog.df().columns
+            col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self.openlog.df().columns))]
+            df_merge = self.openlog.df().merge(df[col_add], how='left', left_index=True,right_index=True)
 
             for i in df_merge[col_add].iteritems():
                 self.openlog.add_curve(i[0],i[1])
 
-    def interval_attributes(self,perforations:bool=False, intervals:perforations=None, curves:list = None):
-        if perforations = True 
+    def interval_attributes(self,perforations:bool=False, 
+                            intervals:perforations=None, 
+                            curves:list = None,
+                            aggfunc = ['min','max','mean']):
+        if perforations == True :
             p = self.perforations
         else:
             p = intervals 
-        
+          
+        curves.append('inter')
+        log_appended = pd.DataFrame()
+        #add column to identify the interval
         for i,c in p.iterrows():
-            interval_log = self.openlog.loc[(self.openlog.index>=p.loc[i,c['md_top']])&(self.openlog.index<=p.loc[i,c['md_bottom']]),curves]
-            for curve in curves:
-                p.loc[i,curve] =  
+            logdf = self.openlog.df().copy()
+            logdf.loc[(logdf.index >= c['md_top'])&(logdf.index<=c['md_bottom']),'inter']=i
+            
+            #filter all the intervals
+            logdf = logdf[~logdf['inter'].isnull()]
+
+            #Group and aggregate functions
+            log_grp = logdf[curves].groupby('inter').agg(aggfunc)
+            log_appended = log_appended.append(log_grp)
+        p_result = pd.concat([p,log_appended],axis=1)
+        if perforations ==True:
+            self.perforations = p_result 
+            
+        return p_result
+            
+
+        
+        return p_result
+        

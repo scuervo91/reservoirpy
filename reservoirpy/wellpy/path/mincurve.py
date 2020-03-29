@@ -158,7 +158,7 @@ def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,
 
     northing = surface_northing + (northing_off*0.3048)
     easting = surface_easting + (easting_off*0.3048)
-    tvdss = tvd - kbe
+    tvdss = (tvd - kbe)*-1
 
     survdf = pd.DataFrame({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
                             'northing_off':northing_off,'easting_off':easting_off,
