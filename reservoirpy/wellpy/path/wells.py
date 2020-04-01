@@ -64,7 +64,7 @@ class well:
         assert isinstance(self.name,str)
         
         self.rte = kwargs.pop("rte", None)
-        assert isinstance(self.rte,(int,float)) or self.rte is None
+        assert isinstance(self.rte,(int,float,np.ndarray)) or self.rte is None
         
         self.surf_coord = kwargs.pop("surf_coord", None)
         assert isinstance(self.surf_coord, Point) or self.surf_coord is None
