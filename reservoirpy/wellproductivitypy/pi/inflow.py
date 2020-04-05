@@ -49,21 +49,41 @@ class oil_inflow:
         self.curve,self.aof = oil_inflow_curve(pr,j,pb,n=n)
         self._pwf_to_flow = interp1d(self.curve['p'],self.curve['q'])
         self._flow_to_pwf = interp1d(self.curve['q'],self.curve['p'])
-        
+
+    def __str__(self):
+        return f"""Oil Inflow: 
+            Reservoir Pressure: {self.pr} psi 
+            Productivity Index: {self.j} bbl/d*psi 
+            Bubble Point Pressure: {self.pb} psi  
+            AOF = {self.aof} bbl/d 
+                """
+  
+    def __repr__(self):
+        return f"""Oil Inflow: 
+            Reservoir Pressure: {self.pr} psi 
+            Productivity Index: {self.j} bbl/d*psi 
+            Bubble Point Pressure: {self.pb} psi  
+            AOF = {self.aof} bbl/d 
+                """
+            
     def pwf_to_flow(self, pwf):
+        pwf = np.atleast_1d(pwf)
         q = self._pwf_to_flow(pwf)
         return q
     
     def flow_to_pwf(self, q):
+        q = np.atleast_1d(q)
         pwf = self._flow_to_pwf(q)
         return pwf
     
     def flow_to_dd(self, q):
+        q = np.atleast_1d(q)
         pwf = self._flow_to_pwf(q)
         dd = self.pr - pwf
         return dd
     
     def dd_to_flow(self, dd):
+        dd = np.atleast_1d(dd)
         pwf = self.pr - dd
         q = self._pwf_to_flow(pwf)
         return q

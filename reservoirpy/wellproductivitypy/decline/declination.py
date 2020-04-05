@@ -36,7 +36,8 @@ def forecast_curve(RangeTime,qi,di,ti,b):
   diff_period = np.append(np.array([1]),np.diff(days_number))
   diff_q = diff_period * q 
   cum = diff_q.cumsum()
-  forecast = pd.DataFrame({'time':RangeTime,'curve':q, 'cum':cum})
+  forecast = pd.DataFrame({'time':RangeTime,'rate':q, 'cum':cum})
+  forecast = forecast.set_index('time')
   Np = forecast.iloc[-1,-1]
   
   return forecast, Np
@@ -103,20 +104,25 @@ class declination:
     
   def __str__(self):
     return '{self.kind} Declination \n Ti: {self.Ti} \n Qi: {self.Qi} bbl/d \n Rate: {self.Di} Annually \n b: {self.b}'.format(self=self)
+  
+  def __repr__(self):
+    return '{self.kind} Declination \n Ti: {self.Ti} \n Qi: {self.Qi} bbl/d \n Rate: {self.Di} Annually \n b: {self.b}'.format(self=self)
 
-  def forecast(self,t):
+  def forecast(self,start_date, end_date, fq='M'):
     """
     Forecast curve from the declination object.
 
     Parameters: 
-      t: Timestamp series 
+      start_date: datetime
+      end_date: datetime 
 
     Return: 
       f: DataFrame with t column and curve column
       np: Cummulative production
 
     """
-    f, Np = forecast_curve(t,self.Qi,self.Di,self.Ti,self.b)
+    TimeRange = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, closed=None))
+    f, Np = forecast_curve(TimeRange,self.Qi,self.Di,self.Ti,self.b)
     return f, Np
 
   def forecast_econ(self, t, qt, fq='M'):

@@ -93,10 +93,11 @@ class well:
                                        surface_easting=self.surf_coord.x, 
                                        surface_northing=self.surf_coord.y, 
                                        kbe=self.rte)
-        
+            #Set the survey
             self.survey = gpd.GeoDataFrame(_survey,
                          geometry=gpd.points_from_xy(_survey.easting, 
                                                      _survey.northing),crs=self.crs)
+            #Set the depth interpolators
             self._tvd_int = interp1d(self.survey.index,self.survey['tvd'])
             self._tvdss_int = interp1d(self.survey.index,self.survey['tvdss'])
             self._northing_int = interp1d(self.survey['tvd'],self.survey.geometry.y)
@@ -104,8 +105,6 @@ class well:
         else:
             self.survey=None
 
-        if self.perforations is not None:
-            self.perforations['md_tick'] = self.perforations['md_bottom'] - self.perforations['md_top']
             
     def sample_deviation(self,step=100):
         if self.survey is not None:
