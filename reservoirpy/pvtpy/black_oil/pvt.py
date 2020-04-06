@@ -38,3 +38,19 @@ class oil_pvt(pd.DataFrame):
     @property   
     def _constructor(self):
         return pvt
+
+class oil:
+    def __init__(self, **kwargs):
+
+        self.formation = kwargs.pop('formation',None)
+        assert isinstance(self.api,(str,None))
+
+        self.api = kwargs.pop("api", None)
+        assert isinstance(self.api,(int,float,np.ndarray,None))
+
+        self.sulphur = kwargs.pop("sulfur", None)
+        assert isinstance(self.api,(int,float,np.ndarray,None))
+
+        self.pvt = kwargs.pop('pvt',None)
+        assert isinstance(self.api,(oil_pvt,None))
+
