@@ -51,6 +51,20 @@ class oil:
         self.sulphur = kwargs.pop("sulfur", None)
         assert isinstance(self.api,(int,float,np.ndarray,None))
 
+        self.pb = kwargs.pop("pb", None)
+        assert isinstance(self.pb,(int,float,np.ndarray,None))
+
+        self.rsb = kwargs.pop("rsb", None)
+        assert isinstance(self.rsb,(int,float,np.ndarray,None))
+
+        self.sg_gas = kwargs.pop("sg_gas", None)
+        assert isinstance(self.sg_gas,(int,float,np.ndarray,None))
+
+        self.temp = kwargs.pop("temp", None)
+        assert isinstance(self.temp,(int,float,np.ndarray,None))
+
         self.pvt = kwargs.pop('pvt',None)
         assert isinstance(self.api,(oil_pvt,None))
+
+
 
