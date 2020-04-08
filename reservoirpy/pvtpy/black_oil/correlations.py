@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from numpy.polynomial.polynomial import polyval
+from scipy.interpolate import interp1d
 
 #####################################################################################
 #####################################################################################
@@ -351,6 +352,75 @@ def bo(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwar
 
     bo_df = pd.DataFrame(bo_dict,index=p)
     return bo_df
+
+#####################################################################################
+#Oil density
+
+def pho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,**kwargs):
+    """
+    Estimate the Oil Density in lb/ft3
+
+    Input: 
+        p -> Interest Pressure [psi]
+        rs -> Gas Oil Ratio scf/bbl
+        pb -> Bubble Point [psi]
+        co -> Isotermic oil compressibility 1/psi
+        api -> Oil API gravity [API]
+        Bo -> Oil Volumetric Factor
+
+    
+    Return:
+        rho -> Oil Density
+
+    Source: Correlaciones Numericas PVT - Carlos Banzer
+    """
+    p = np.atleast_1d(p)
+    assert isinstance(p,(np.ndarray))
+
+    rs = np.atleast_1d(rs)
+    assert isinstance(rs,(np.ndarray))
+    
+    co = np.atleast_1d(co)
+    assert isinstance(co,(np.ndarray))
+      
+    api = np.atleast_1d(api)
+    assert isinstance(api,(np.ndarray))
+
+    bo = np.atleast_1d(bo)
+    assert isinstance(bo,(np.ndarray))
+
+    pb = np.atleast_1d(pb)
+    assert isinstance(pb,(np.ndarray))
+
+    assert p.shape == bo.shape == rs.shape == co.shape
+
+
+    rho_oil_dict = {}
+
+    #Gas disolved specific gravity
+    ygd = ((12.5+api)/50)-3.5715e-6*api*rs
+
+    rho_oil = np.zeros(p.shape)
+    p_sat = np.zeros(p.shape)
+    p_sat[p>=pb] = pb
+    p_sat[p<pb] = p[p<pb]
+
+    sg_oil = api_to_sg(api)
+    rho_oil[p<=pb] = (350*sg_oil+0.0764*ygd*rs[p<=pb])/(5.615*bo[p<=pb])
+    
+    rs_int = interp1d(p,rs)
+    bo_int = interp1d(p,bo)
+
+    rho_ob = (350*sg_oil+0.0764*ygd*rs_int(pb))/(5.615*bo_int(pb))
+    rho_oil[p>pb] = rho_ob*np.exp(co[p>pb]*(pb-p))
+    rho_oil_dict['density'] = rho_oil
+
+    rho_df = pd.DataFrame(rho_oil_dict,index=p)
+    return rho_df
+
+
+
+
 
     
 
