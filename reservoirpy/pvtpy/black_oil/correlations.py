@@ -45,53 +45,59 @@ def h2s_correction(api=None,y=0,temp=None):
     return ch2s 
 
 #Standing
-def pb(rs=None,temp=None,sg_gas=None,api=None,methods=None,**kwargs):
+def pb(rs=None,temp=None,sg_gas=None,api=None,methods=['standing'], multiple=False, correction=True,**kwargs):
     """
     Estimate the bubble point pressure using Correlations
 
     Input: 
-        rs -> Solution Gas Ratio [scf/bbl]
-        temp -> Temperature [F]
-        sg_gas -> Specific Gravity gas (air=1)
-        api -> Oil API gravity [API]
-        method -> List of correlation methods
+        rs -> (int,float,np.array) Solution Gas Ratio [scf/bbl]
+        temp -> (int,float,np.array) Temperature [F]
+        sg_gas -> (int,float,np.array) Specific Gravity gas (air=1)
+        api -> (int,float,np.array) Oil API gravity [API]
+        method -> (list, default 'standing')List of correlation methods
                   ['standing',laster,'vazquez_beggs','glaso']
+        multiple->(bool, default False) Allow to return multiple result from multiple correlation
+                  If true the 'method' must be a length equal to 1
+        correction->(bool, default True) Apply correction factors for non-hydrocarbon elements
     
     Return:
-        pb -> Bubble Point Pressure
+        pb -> (pd.DataFrame) Bubble Point Pressure indexed by temperature
 
     Source: Correlaciones Numericas PVT - Carlos Banzer
     """
+    assert isinstance(rs,(int,float,list,np.ndarray))
     rs = np.atleast_1d(rs)
-    assert isinstance(rs,(np.ndarray))
-    
+
+    assert isinstance(temp,(int,float,list,np.ndarray))    
     temp = np.atleast_1d(temp)
-    assert isinstance(temp,(np.ndarray))
-    
+
+    assert isinstance(sg_gas,(int,float,list,np.ndarray))    
     sg_gas = np.atleast_1d(sg_gas)
-    assert isinstance(sg_gas,(np.ndarray))
-    
+
+    assert isinstance(api,(int,float,list,np.ndarray))    
     api = np.atleast_1d(api)
-    assert isinstance(api,(np.ndarray))
 
     assert isinstance(methods,list)
+
+    if multiple==False:
+        assert len(methods)==1
 
     #Corrections for non Hydrocarbon gases
     y_n2 = kwargs.pop('y_n2',0)
     y_co2 = kwargs.pop('y_co2',0)
     y_h2s = kwargs.pop('y_h2s',0)
 
-    cn2 = n2_correction(y=y_n2,api=api,temp=temp)
-    cco2 = co2_correction(y=y_co2,temp=temp)
-    ch2s = h2s_correction(y=y_h2s,api=api,temp=temp)
+    cn2 = n2_correction(y=y_n2,api=api,temp=temp) if correction==True else 1
+    cco2 = co2_correction(y=y_co2,temp=temp) if correction==True else 1
+    ch2s = h2s_correction(y=y_h2s,api=api,temp=temp) if correction==True else 1
 
     pb_dict = {}
      
     if 'standing' in methods:
         f = np.power(rs/sg_gas,0.83) * np.power(10,0.00091*temp - 0.0125*api)
         pb_standing = 18.2 * (f - 1.4)
-        pb_standing_corrected = pb_standing * cn2 * cco2 * ch2s
-        pb_dict['standing'] = pb_standing_corrected
+        pb = pb_standing * cn2 * cco2 * ch2s
+        pb_dict['pb_standing'] = pb
 
     if 'laster' in methods:
         #estimate oil effective molecular weight
@@ -112,8 +118,8 @@ def pb(rs=None,temp=None,sg_gas=None,api=None,methods=None,**kwargs):
         temp_r = temp + 459.67
         pb_laster = pb_factor * temp_r/sg_gas
 
-        pb_laster_corrected = pb_laster * cn2 * cco2 * ch2s
-        pb_dict['laster'] = pb_laster_corrected
+        pb = pb_laster * cn2 * cco2 * ch2s
+        pb_dict['pb_laster'] = pb
     
     if 'vazquez_beggs' in methods:
         #Constants c1, c2, c3
@@ -131,56 +137,64 @@ def pb(rs=None,temp=None,sg_gas=None,api=None,methods=None,**kwargs):
         c3[api>30] = 23.931
 
         pb_vasquez = np.power(rs/(c1*sg_gas*np.exp((c3*api)/(temp+460))),1/c2)
-        pb_vazquez_corrected = pb_vasquez * cn2 * cco2 * ch2s
-        pb_dict['vazquez_beggs'] = pb_laster_corrected
+        pb = pb_vasquez * cn2 * cco2 * ch2s
+        pb_dict['pb_vazquez_beggs'] = pb
 
     if 'glaso' in methods:
         f = np.power(rs/sg_gas,0.816)*((np.power(temp,0.172))/(np.power(api,0.989)))
 
         pb_glaso = np.power(10,polyval(np.log10(f),[1.7669,1.7447,-0.30218]))
-        pb_glaso_corrected = pb_glaso* cn2 * cco2 * ch2s
-        pb_dict['glaso'] = pb_glaso_corrected
+        pb = pb_glaso* cn2 * cco2 * ch2s
+        pb_dict['pb_glaso'] = pb
 
-    return pb_dict
+    pb_df = pd.DataFrame(pb_dict,index=temp) if multiple==True else pd.DataFrame({'pb':pb},index=temp)
+
+    return pb_df
 
 
 #####################################################################################
 # gas-Oil Ratio Correlations
 
-def rs(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwargs):
+def rs(p=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'],**kwargs):
     """
     Estimate the Gas-Oil Ratio using Standing Correlation
 
     Input: 
-        p -> Interest Pressure [psi]
-        pb -> Bubble Point [psi]
-        temp -> Temperature [F]
-        api -> Oil API gravity [API]
-        sg_gas -> Gas specifi gravity
-        method -> List of correlation methods
+        p -> (int,float,np.array) Interest Pressure [psi]
+        pb -> (int,float,np.array) Bubble Point [psi]
+        temp -> (int,float,np.array)Temperature [F]
+        api -> (int,float,np.array)Oil API gravity [API]
+        sg_gas -> (int,float,np.array) Gas specifi gravity
+        method -> (list, default 'standing')List of correlation methods
                   ['standing',laster,'vazquez_beggs','glaso','valarde']
+                  * Valarde method builds rs below pb given rsb
+        multiple->(bool, default False) Allow to return multiple result from multiple correlation
+                  If true the 'method' must be a length equal to 1
     
     Return:
-        rs -> Gas Oil Ratio
+        rs -> (pd.DataFrame) Gas Oil Ratio indexed by pressure
 
     Source: Correlaciones Numericas PVT - Carlos Banzer
     """
+    assert isinstance(p,(int,float,list,np.ndarray))
     p = np.atleast_1d(p)
-    assert isinstance(p,(np.ndarray))
-    
-    temp = np.atleast_1d(temp)
-    assert isinstance(temp,(np.ndarray))
-      
-    api = np.atleast_1d(api)
-    assert isinstance(api,(np.ndarray))
 
-    sg_gas = np.atleast_1d(sg_gas)
-    assert isinstance(sg_gas,(np.ndarray))
-
+    assert isinstance(pb,(int,float,list,np.ndarray))
     pb = np.atleast_1d(pb)
-    assert isinstance(pb,(np.ndarray))
+
+    assert isinstance(temp,(int,float,list,np.ndarray))   
+    temp = np.atleast_1d(temp)
+
+    assert isinstance(api,(int,float,list,np.ndarray))     
+    api = np.atleast_1d(api)
+
+    assert isinstance(sg_gas,(int,float,list,np.ndarray))
+    sg_gas = np.atleast_1d(sg_gas)
 
     assert isinstance(methods,list)
+
+    if multiple==False:
+        assert len(methods)==1
 
     rs_dict = {}
     p_sat = np.zeros(p.shape)
@@ -189,8 +203,8 @@ def rs(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwar
      
     if 'standing' in methods:
 
-        rs_standing = sg_gas * np.power(((p_sat/18.2)+1.4)*np.power(10,0.0125*api-0.00091*temp),1.2048)
-        rs_dict['standing'] = rs_standing
+        rs = sg_gas * np.power(((p_sat/18.2)+1.4)*np.power(10,0.0125*api-0.00091*temp),1.2048)
+        rs_dict['rs_standing'] = rs
 
     if 'laster' in methods:
         array_shape = p_sat * sg_gas * temp * p
@@ -208,8 +222,8 @@ def rs(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwar
         yg[pb_factor>=3.29] = np.power(0.121*pb_factor[pb_factor>=3.29] - 0.236,0.281)
 
         sg_oil = api_to_sg(api)
-        rs_laster = (132755*sg_oil*yg)/(mo*(1-yg))
-        rs_dict['laster'] = rs_laster
+        rs = (132755*sg_oil*yg)/(mo*(1-yg))
+        rs_dict['rs_laster'] = rs
 
     if 'vazquez_beggs' in methods:
         #Constants c1, c2, c3
@@ -226,14 +240,14 @@ def rs(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwar
         c3[api<=30] = 25.724
         c3[api>30] = 23.931
         
-        rs_vazquez = c1*sg_gas*np.power(p_sat,c2)*np.exp((c3*api)/(temp+460))
-        rs_dict['vazquez_begss'] = rs_vazquez
+        rs = c1*sg_gas*np.power(p_sat,c2)*np.exp((c3*api)/(temp+460))
+        rs_dict['rs_vazquez_begss'] = rs
 
     if 'glaso' in methods:
 
         f = np.power(10,2.8869-np.power(14.1811-3.3093*np.log10(p_sat),0.5))
-        rs_glaso = sg_gas*np.power(f*(np.power(api,0.989)/np.power(temp,0.172)),1.2255)
-        rs_dict['glaso'] = rs_glaso
+        rs = sg_gas*np.power(f*(np.power(api,0.989)/np.power(temp,0.172)),1.2255)
+        rs_dict['rs_glaso'] = rs
 
     if 'valarde' in methods:
         """Method for build rs at pressures below pb by giving the rsb
@@ -266,65 +280,70 @@ def rs(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwar
 
         pr = p_sat/pb
         rsr = alpha_1*np.power(pr,alpha_2) + (1-alpha_1)*np.power(pr,alpha_3)
-        rs_valarde = rsr*rsb
-        rs_dict['valarde'] = rs_valarde
+        rs = rsr*rsb
+        rs_dict['rs_valarde'] = rs
 
     
-    rs_df = pd.DataFrame(rs_dict,index=p)
+    rs_df = pd.DataFrame(rs_dict,index=p) if multiple==True else pd.DataFrame({'rs':rs},index=p)
 
     return rs_df
 
 #####################################################################################
 #Oil Volumetric Factor
 
-def bo(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwargs):
+def bo(p=None,rs=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'], multiple=False,**kwargs):
     """
     Estimate the Oil Volumetric Factor using Correlations
 
     Input: 
-        p -> Interest Pressure [psi]
-        rs -> Gas Oil Ratio scf/bbl
-        pb -> Bubble Point [psi]
-        temp -> Temperature [F]
-        api -> Oil API gravity [API]
+        p -> (int,float,np.array) Interest Pressure [psi]
+        rs -> (int,float,np.array) Gas Oil Ratio scf/bbl
+        pb -> (int,float,np.array) Bubble Point [psi]
+        temp ->  (int,float,np.array) Temperature [F]
+        api -> (int,float,np.array Oil API gravity [API]
         sg_gas -> Gas specifi gravity
-        method -> List of correlation methods
-                  ['standing',laster,'vazquez_beggs','glaso','valarde]
+        method -> (list, default 'standing')List of correlation methods
+                  ['standing','vazquez_beggs','glaso']
+        multiple->(bool, default False) Allow to return multiple result from multiple correlation
+                  If true the 'method' must be a length equal to 1
     
     Return:
-        bo -> Oil Volumetric Factor
+        bo -> (pd.DataFrame) Oil Volumetric Factor indexed by pressure
 
     Source: Correlaciones Numericas PVT - Carlos Banzer
     """
+    assert isinstance(p,(int,float,list,np.ndarray))
     p = np.atleast_1d(p)
-    assert isinstance(p,(np.ndarray))
 
+    assert isinstance(rs,(int,float,list,np.ndarray))
     rs = np.atleast_1d(rs)
-    assert isinstance(rs,(np.ndarray))
-    
-    temp = np.atleast_1d(temp)
-    assert isinstance(temp,(np.ndarray))
-      
-    api = np.atleast_1d(api)
-    assert isinstance(api,(np.ndarray))
 
-    sg_gas = np.atleast_1d(sg_gas)
-    assert isinstance(sg_gas,(np.ndarray))
-
+    assert isinstance(pb,(int,float,list,np.ndarray))
     pb = np.atleast_1d(pb)
-    assert isinstance(pb,(np.ndarray))
+
+    assert isinstance(temp,(int,float,list,np.ndarray))    
+    temp = np.atleast_1d(temp)
+
+    assert isinstance(api,(int,float,list,np.ndarray))      
+    api = np.atleast_1d(api)
+
+    assert isinstance(sg_gas,(int,float,list,np.ndarray))
+    sg_gas = np.atleast_1d(sg_gas)
 
     assert isinstance(methods,list)
+
+    assert p.shape == rs.shape
+
+    if multiple==False:
+        assert len(methods)==1
 
     bo_dict = {}
 
     if 'standing' in methods:
         sg_oil = api_to_sg(api)
         f = rs*np.sqrt(sg_gas/sg_oil)+1.25*temp
-        bo_standing = 0.9759+12e-5*np.power(f,1.2)
-        bo_dict['standing'] = bo_standing
-
-    
+        bo = 0.9759+12e-5*np.power(f,1.2)
+        bo_dict['bo_standing'] = bo
 
     if 'vazquez_beggs' in methods:
         #Constants c1, c2, c3
@@ -341,56 +360,283 @@ def bo(p=None,rs=None,temp=None,sg_gas=None,api=None,pb=None,methods=None,**kwar
         c3[api<=30] = -1.8106e-8
         c3[api>30] = 1.3370e-9
 
-        bo_vazquez = 1+ c1*rs + c2*(temp-60)*(api/sg_gas) + c3*rs*(temp-60)*(api/sg_gas)
-        bo_dict['vazquez_beggs'] = bo_vazquez
+        bo = 1+ c1*rs + c2*(temp-60)*(api/sg_gas) + c3*rs*(temp-60)*(api/sg_gas)
+        bo_dict['bo_vazquez_beggs'] = bo
 
     if 'glaso' in methods:
         sg_oil = api_to_sg(api)
         f = rs*np.power(sg_gas/sg_oil,0.526) + 0.968*temp
-        bo_glaso = 1 + np.power(10,-6.58511 + 2.91329* np.log10(f) - 0.27683*np.power(np.log10(f),2))
-        bo_dict['glaso'] = bo_glaso
+        bo = 1 + np.power(10,-6.58511 + 2.91329* np.log10(f) - 0.27683*np.power(np.log10(f),2))
+        bo_dict['bo_glaso'] = bo
 
-    bo_df = pd.DataFrame(bo_dict,index=p)
+    bo_df = pd.DataFrame(bo_dict,index=p) if multiple==True else pd.DataFrame({'bo':bo},index=p)
     return bo_df
+
+#####################################################################################
+#Oil Compressibility
+
+def co(p=None,rs=None,pb=None, temp = None, sg_gas = None, api = None,bo=None,bg=None, 
+        method_above_pb=['vazquez_beggs'],method_below_pb=['mccain'], **kwargs):
+    """
+    Estimate the Oil compresibility in 1/psi
+
+    Input: 
+        p -> (int,float,list,np.array) Interest Pressure [psi]
+        rs -> (int,float,np.array) Gas Oil Ratio scf/bbl
+        pb -> (int,float,np.array) Bubble Point [psi]
+        temp ->  (int,float,np.array) Temperature [F]
+        sg_gas -> (int,float,np.array) Gas specifi gravity
+        api -> (int,float,np.array) Oil API gravity [API]
+        bo -> (list,np.array) Oil Volumetric factor
+        bg -> (list,np.array) Oil Volumetric factor
+        method_above_pb -> (list, default 'vazquez_beggs') method to use above the bubble point
+                            ['vazquez_beggs','petrosky','kartoatmodjo']
+        method_below_pb -> (list, default 'mccain') method to use below the bubble point
+                            ['mccain']
+        multiple-> Only allows one method for each above and below pb 
+    Return:
+        rho -> (pd.DataFrame) Oil Density indexed by pressure
+
+    Source: Correlaciones Numericas PVT - Carlos Banzer
+    """
+    assert isinstance(p,(int,float,list,np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(rs,(int,float,list,np.ndarray))
+    rs = np.atleast_1d(rs)
+
+    assert isinstance(pb,(int,float,list,np.ndarray))
+    pb = np.atleast_1d(pb)
+
+    assert isinstance(temp,(int,float,list,np.ndarray))   
+    temp = np.atleast_1d(temp)
+
+    assert isinstance(sg_gas,(int,float,list,np.ndarray))
+    sg_gas = np.atleast_1d(sg_gas)
+
+    assert isinstance(api,(int,float,list,np.ndarray))
+    api = np.atleast_1d(api)
+
+    assert isinstance(pb,(int,float,list,np.ndarray))
+    bo = np.atleast_1d(bo)
+
+    assert isinstance(pb,(int,float,list,np.ndarray))
+    bg = np.atleast_1d(bg)
+    
+    assert p.shape == bo.shape == rs.shape == bo.shape == bg.shape 
+
+    assert len(method_above_pb) == len(method_below_pb) == 1
+
+    rs_int = interp1d(p,rs)
+    rsb = rs_int(pb)
+
+    co = np.zeros(p.shape)
+
+    if 'vazquez_beggs' in method_above_pb:
+        co[p>=pb] = (-1433+5*rs[p>=pb]+17.2*temp-1180*sg_gas +12.61*api)/(p[p>=pb]*np.power(10,5))
+ 
+    elif 'petrosky' in method_above_pb:
+        co[p>=pb] = 1.705e-7 * np.power(rs[p>=pb],0.69357) * np.power(sg_gas,0.1885) * np.power(api,0.3272) * np.power(temp,0.6729) * np.power(p[p>=pb],-0.5906)
+
+    elif 'kartoatmodjo' in method_above_pb:
+        co[p>=pb] = (6.8257*np.power(rs[p>=pb],0.5002)*np.power(api,0.3613)*np.power(temp,0.76606)*
+                    np.power(sg_gas,0.35505))/(p[p>=pb]*np.power(10,6))
+    else:
+        raise ValueError('no method set')
+
+    if 'mccain' in method_below_pb:
+        co[p<pb] = 5.1414768e-4*np.power(p[p<pb],-1.450)*np.power(pb,-0.383)*np.power(temp,1.402)*np.power(api,0.256)*np.power(rsb,0.449)
+
+    else:
+        raise ValueError('no method set')
+   
+    co_df = pd.DataFrame({'co':co},index=p)
+
+    return co_df
+
+#####################################################################################
+#Dead Oil Viscosity
+def muod(temp=None,api=None, methods=['beal'], multiple=False, **kwargs):
+    """
+    Estimate the Dead Oil Viscosity
+
+    Input: 
+        temp -> (int,float,list,np.array) Reservoir Temperature F
+        api -> (int,float,list,np.array) API crude API
+        methods-> (list,default 'beal') List of methods
+                ['beal','beggs','glaso']
+        multiple->(bool, default False) Allow to return multiple result from multiple correlation
+                  If true the 'method' must be a length equal to 1
+
+    Return:
+        muod ->(pd.Dataframe) Dead Oil Viscosity [cP] indexed by temperatures
+
+    Source: Correlaciones Numericas PVT - Carlos Banzer
+    """
+    assert isinstance(temp,(int,float,list,np.ndarray))
+    temp = np.atleast_1d(temp)
+
+    assert isinstance(api,(int,float,list,np.ndarray))
+    temp = np.atleast_1d(api)
+
+    if multiple == False:
+        assert len(methods)==1
+
+    muod_dict={}
+
+    if 'beal' in methods:
+        a = np.power(10,0.43+(8.33/api))
+        muod = (0.32+(1.8e7/np.power(api,4.53)))*np.power(360/(temp+200),a)
+        muod_dict['muod_beal'] = muod
+
+    if 'beggs' in methods:
+        z=3.0324-0.02023*api
+        y=np.power(10,z)
+        x=y*np.power(temp,-1.163)
+
+        muod = np.power(10,x)-1
+        muod_dict['muod_beggs'] = muod
+
+    if 'glaso' in methods:
+        muod = 3.141e10 * np.power(temp,-3.444) * np.power(np.log10(api),5.7526*np.log10(temp)-26.9718)
+        muod_dict['muod_glaso'] = muod
+
+    muod_df = pd.DataFrame(muo_dict,index=temp) if multiple==True else pd.DataFrame({'muo':muod})
+
+    return muod_df
+
+
+#####################################################################################
+#Live Oil Viscosity
+def muo(p=None,rs=None, temp=None,api=None,
+        method_below_pb=['beggs'],method_above_pb=['vazquez_beggs'],method_dead=['beal'], **kwargs):
+    """
+    Estimate the live Oil Viscosity
+
+    Input: 
+        p -> (int,float,list,np.array) interest Pressure [psi]
+        rs -> (int,float,list,np.array)Gas Oil Ratio scf/bbl
+        pb -> (int,float,list,np.array) Bubble Point psi
+        method_below_pb -> (list, default 'beggs') method to use above the bubble point
+                            ['chew','beggs','kartoatmodjo']
+        method_above_pb -> (list, default 'vazquez_beggs') method to use below the bubble point
+                            ['beal','vazquez_beggs','kartoatmodjo']
+        method_dead -> (list, default 'beal') method estimate dead oil
+                            ['beal','beggs','glaso']
+
+
+    Return:
+        mu -> (pd.DataFrame) Oil Viscosity [cP] indexed by pressure
+
+    Source: Correlaciones Numericas PVT - Carlos Banzer
+    """
+    assert isinstance(p,(int,float,list,np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(temp,(int,float,list,np.ndarray))
+    p = np.atleast_1d(temp)
+
+    assert isinstance(rs,(int,float,list,np.ndarray))
+    rs = np.atleast_1d(rs)
+
+    assert isinstance(pb,(int,float,list,np.ndarray))
+    pb = np.atleast_1d(pb)
+
+    assert isinstance(api,(int,float,list,np.ndarray))
+    api = np.atleast_1d(api)
+
+    assert len(method_below_pb)==len(method_dead)==1
+
+    assert p.shape == rs.shape
+
+    #Estimate the Dead oil Viscosity
+    _muod = muod(temp=temp,api=api, methods=method_dead, multiple=False)
+    _muod = _muod.values
+
+    muo = np.zeros(p.shape)
+
+    rs_int = interp1d(p,rs)
+    rsb = rs_int(pb)
+
+    if 'chew' in method_below_pb:
+        a = np.power(10,rs[p<=pb]*(2.2e-7*rs[p<=pb]-7.4e-4))
+        b = (0.68/np.power(10,8.62e-5*rs[p<=pb]))+(0.25/np.power(10,1.1e-3*rs[p<=pb]))+(0.062/np.power(10,3.74e-3*rs[p<=pb])) 
+        muo[p<=pb] = a*np.power(_muod,b)
+
+        a_b=np.power(10,rsb*(2.2e-7*rsb-7.4e-4))
+        b_b=(0.68/np.power(10,8.62e-5*rsb))+(0.25/np.power(10,1.1e-3*rsb))+(0.062/np.power(10,3.74e-3*rsb)) 
+        muob = a_b*np.power(_muod,b_b)
+
+    if 'beggs' in method_below_pb:
+        a = 10.715*np.power(rs[p<=pb]+100,-0.515)
+        b = 5.44*np.power(rs[p<=pb]+150,-0.338)
+        muo[p<=pb] = a*np.power(_muod,b)
+
+        a_b = 10.715*np.power(rsb+100,-0.515)
+        b_b = 5.44*np.power(rsb+150,-0.338) 
+        muob = a_a*np.power(_muod,b_b)
+    
+    if 'kartoatmodjo' in method_below_pb:
+        b=np.power(10,-0.00081*rs[p<=pb])
+        a=(0.2001 + 0.8428*power(10,-0.000845*rs[p<=pb]))*np.power(_muod,0.43+0.5165*b)
+        muo[p<=pb]=-0.06821 + 0.9824*a + 40.34e-5*np.power(a,2)
+
+        b_b = np.power(10,-0.00081*rsb)
+        a_b = (0.2001 + 0.8428*power(10,-0.000845*rsb))*np.power(_muod,0.43+0.5165*b_b) 
+        muob = -0.06821 + 0.9824*a_b + 40.34e-5*np.power(a_b,2)
+
+    if 'beal' in method_above_pb:
+        muo[p>pb]=(0.001*(p[p>pb]-pb))*(0.024*np.power(muob,1.6)+0.038*np.power(muob,0.56))
+
+    if 'vazquez_beggs' in method_above_pb:
+        m = 2.6*np.power(p[p>pb],1.187)*np.exp(-11.513 - 8.98e-5*p[p>pb])
+        muo[p>pb] = muob*power(p/pb,m)
+
+    if 'kartoatmodjo' in method_above_pb:
+        muo[p>pb] = 1.00081*muob + 1.127e-3*(p[p>pb]-pb)*(-65.17e-4*np.power(muob,1.8148)+0.038*np.power(muob,1.59))
+
+    muo_df = pd.DataFrame({'muo':muo}, index=p)
+    return muo_df
+
 
 #####################################################################################
 #Oil density
 
-def pho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,**kwargs):
+def rho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,**kwargs):
     """
     Estimate the Oil Density in lb/ft3
 
     Input: 
-        p -> Interest Pressure [psi]
-        rs -> Gas Oil Ratio scf/bbl
-        pb -> Bubble Point [psi]
-        co -> Isotermic oil compressibility 1/psi
-        api -> Oil API gravity [API]
-        Bo -> Oil Volumetric Factor
-
-    
+        p ->  (int,float,list,np.array) Interest Pressure [psi]
+        co -> (int,float,list,np.array) Isotermic oil compressibility 1/psi
+        bo -> (int,float,list,np.array) Oil Volumetric Factor
+        rs -> (int,float,list,np.array) Gas Oil Ratio scf/bbl
+        api -> (int,float,list,np.array) Oil API gravity [API]
+        pb -> (int,float,list,np.array)Bubble Point [psi]
+          
     Return:
-        rho -> Oil Density
+        rho -> (pd.DataFrame) Oil Density indexed by pressure
 
     Source: Correlaciones Numericas PVT - Carlos Banzer
     """
+    assert isinstance(p,(int,float,list,np.ndarray))
     p = np.atleast_1d(p)
-    assert isinstance(p,(np.ndarray))
 
-    rs = np.atleast_1d(rs)
-    assert isinstance(rs,(np.ndarray))
-    
+    assert isinstance(co,(int,float,list,np.ndarray))    
     co = np.atleast_1d(co)
-    assert isinstance(co,(np.ndarray))
-      
-    api = np.atleast_1d(api)
-    assert isinstance(api,(np.ndarray))
 
+    assert isinstance(bo,(int,float,list,np.ndarray))
     bo = np.atleast_1d(bo)
-    assert isinstance(bo,(np.ndarray))
 
+    assert isinstance(rs,(int,float,list,np.ndarray))
+    rs = np.atleast_1d(rs)
+
+    assert isinstance(api,(int,float,list,np.ndarray))      
+    api = np.atleast_1d(api)
+
+    assert isinstance(pb,(int,float,list,np.ndarray))
     pb = np.atleast_1d(pb)
-    assert isinstance(pb,(np.ndarray))
+
 
     assert p.shape == bo.shape == rs.shape == co.shape
 
@@ -406,14 +652,14 @@ def pho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,**kwargs):
     p_sat[p<pb] = p[p<pb]
 
     sg_oil = api_to_sg(api)
-    rho_oil[p<=pb] = (350*sg_oil+0.0764*ygd*rs[p<=pb])/(5.615*bo[p<=pb])
+    rho_oil[p<=pb] = (350*sg_oil+0.0764*ygd[p<=pb]*rs[p<=pb])/(5.615*bo[p<=pb])
     
     rs_int = interp1d(p,rs)
     bo_int = interp1d(p,bo)
 
-    rho_ob = (350*sg_oil+0.0764*ygd*rs_int(pb))/(5.615*bo_int(pb))
-    rho_oil[p>pb] = rho_ob*np.exp(co[p>pb]*(pb-p))
-    rho_oil_dict['density'] = rho_oil
+    rho_ob = (350*sg_oil+0.0764*ygd[p>pb]*rs_int(pb))/(5.615*bo_int(pb))
+    rho_oil[p>pb] = rho_ob*np.exp(co[p>pb]*(pb-p[p>pb]))
+    rho_oil_dict['rho'] = rho_oil
 
     rho_df = pd.DataFrame(rho_oil_dict,index=p)
     return rho_df
