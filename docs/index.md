@@ -1,7 +1,6 @@
 ---
 layout: page
 title: "RESERVOIRPY"
-permalink: /
 ---
 # Reservoirpy - Python
 
@@ -12,7 +11,7 @@ This package is being designed to provide Petroleum Engineering tools in Python.
 
 Currently 'reservoirpy' contains (so far) the next modules:
 
-* `wellpy` : Module that contains the Well python object definition. A well object have attributes like coordinates, elevations, perforations, formation tops and survey. It can calculate the the full survey (`tvd, tvdss, offset, coordinates, shape points`) by givin the `md,inc,azi`. It is done through the [Wellpathpy package](https://github.com/Zabamund/wellpathpy)
+* `wellpy` : Module that contains the Well python object definition. A well object have attributes like coordinates, elevations, perforations, formation tops and survey. It can calculate the the full survey (`tvd, tvdss, offset, coordinates, shape points`) by givin the `md,inc,azi`. It is done through the [Wellpathpy package](https://github.com/Zabamund/wellpathpy).
 (Under development)
 
 * `welllogspy` : Module that allows to make Well Logs visualization, interpretation petrophysical estimation. It allows you to visualize you `.las` files in a fully customizable way, perform petrophysical calculations, analysis and export the results. It is built on top of [Matplotlib package](https://matplotlib.org/) to visualize and [Lasio package](https://github.com/kinverarity1/lasio) to handle the .las files. (Under development)
