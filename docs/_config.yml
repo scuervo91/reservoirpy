@@ -1,4 +1,4 @@
-theme: jekyll-theme-cayman
+theme: jekyll-theme-dinky
 title: Reservoirpy
 description: Package to perform Oil and Gas reservoir Analysis in Python
 defaults:
