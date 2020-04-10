@@ -32,7 +32,6 @@ So far there is no a final version to download through [PyPi](https://pypi.org/)
 ```
 git clone https://github.com/scuervo91/reservoirpy.git
 ```
-
 * When using the python script, you must add the repository to `sys.path` to be able to import it
 ```python
 import sys
