@@ -1,9 +1,3 @@
----
-layout: page
-title: "Welllogspy"
-permalink: /welllogspy
----
-
 # Welllogspy - Module
 
 Welllogspy is a module of Reservoirpy package to visualize Oil And Gas Well logs in order to make interpretetion and petrophysics analysis. 
