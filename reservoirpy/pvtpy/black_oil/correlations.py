@@ -148,14 +148,14 @@ def pb(rs=None,temp=None,sg_gas=None,api=None,methods=['standing'], multiple=Fal
         pb_dict['pb_glaso'] = pb
 
     pb_df = pd.DataFrame(pb_dict,index=temp) if multiple==True else pd.DataFrame({'pb':pb},index=temp)
-
+    pb_df.index.name='temp'
     return pb_df
 
 
 #####################################################################################
 # gas-Oil Ratio Correlations
 
-def rs(p=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'],**kwargs):
+def rs(p=None,pb=None,temp=None,api=None,sg_gas=None,rsb=None,methods=['standing'],multiple=False,**kwargs):
     """
     Estimate the Gas-Oil Ratio using Standing Correlation
 
@@ -165,6 +165,7 @@ def rs(p=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'],**kwar
         temp -> (int,float,np.array)Temperature [F]
         api -> (int,float,np.array)Oil API gravity [API]
         sg_gas -> (int,float,np.array) Gas specifi gravity
+        rsb -> (int,float,np.array) Gas oil ration at bubble point
         method -> (list, default 'standing')List of correlation methods
                   ['standing',laster,'vazquez_beggs','glaso','valarde']
                   * Valarde method builds rs below pb given rsb
@@ -190,6 +191,9 @@ def rs(p=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'],**kwar
 
     assert isinstance(sg_gas,(int,float,list,np.ndarray))
     sg_gas = np.atleast_1d(sg_gas)
+
+    assert isinstance(rsb,(int,float,list,np.ndarray,None))
+    rsb = np.atleast_1d(rsb)
 
     assert isinstance(methods,list)
 
@@ -276,7 +280,6 @@ def rs(p=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'],**kwar
         C4 = 0.047094
         alpha_3 = C0 * np.power(sg_gas,C1)*np.power(api,C2)*np.power(temp,C3)*np.power(pb,C4)
 
-        rsb = kwargs.pop('rsb',None)
 
         pr = p_sat/pb
         rsr = alpha_1*np.power(pr,alpha_2) + (1-alpha_1)*np.power(pr,alpha_3)
@@ -285,7 +288,7 @@ def rs(p=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'],**kwar
 
     
     rs_df = pd.DataFrame(rs_dict,index=p) if multiple==True else pd.DataFrame({'rs':rs},index=p)
-
+    rs_df.index.name='pressure'
     return rs_df
 
 #####################################################################################
@@ -370,6 +373,7 @@ def bo(p=None,rs=None,pb=None,temp=None,api=None,sg_gas=None,methods=['standing'
         bo_dict['bo_glaso'] = bo
 
     bo_df = pd.DataFrame(bo_dict,index=p) if multiple==True else pd.DataFrame({'bo':bo},index=p)
+    bo_df.index.name='pressure'
     return bo_df
 
 #####################################################################################
@@ -451,7 +455,7 @@ def co(p=None,rs=None,pb=None, temp = None, sg_gas = None, api = None,bo=None,bg
         raise ValueError('no method set')
    
     co_df = pd.DataFrame({'co':co},index=p)
-
+    co_df.index.name='pressure'
     return co_df
 
 #####################################################################################
@@ -477,7 +481,7 @@ def muod(temp=None,api=None, methods=['beal'], multiple=False, **kwargs):
     temp = np.atleast_1d(temp)
 
     assert isinstance(api,(int,float,list,np.ndarray))
-    temp = np.atleast_1d(api)
+    api = np.atleast_1d(api)
 
     if multiple == False:
         assert len(methods)==1
@@ -498,17 +502,17 @@ def muod(temp=None,api=None, methods=['beal'], multiple=False, **kwargs):
         muod_dict['muod_beggs'] = muod
 
     if 'glaso' in methods:
-        muod = 3.141e10 * np.power(temp,-3.444) * np.power(np.log10(api),5.7526*np.log10(temp)-26.9718)
+        muod = 3.141e10 * np.power(temp,-3.444) * np.power(np.log10(api),10.313*np.log10(temp)-36.447)
         muod_dict['muod_glaso'] = muod
 
-    muod_df = pd.DataFrame(muo_dict,index=temp) if multiple==True else pd.DataFrame({'muo':muod})
-
+    muod_df = pd.DataFrame(muod_dict,index=temp) if multiple==True else pd.DataFrame({'muod':muod},index=temp)
+    muod_df.index.name='temp'
     return muod_df
 
 
 #####################################################################################
 #Live Oil Viscosity
-def muo(p=None,rs=None, temp=None,api=None,
+def muo(p=None,rs=None, pb=pb,temp=None,api=None,
         method_below_pb=['beggs'],method_above_pb=['vazquez_beggs'],method_dead=['beal'], **kwargs):
     """
     Estimate the live Oil Viscosity
@@ -534,7 +538,7 @@ def muo(p=None,rs=None, temp=None,api=None,
     p = np.atleast_1d(p)
 
     assert isinstance(temp,(int,float,list,np.ndarray))
-    p = np.atleast_1d(temp)
+    temp = np.atleast_1d(temp)
 
     assert isinstance(rs,(int,float,list,np.ndarray))
     rs = np.atleast_1d(rs)
@@ -545,18 +549,26 @@ def muo(p=None,rs=None, temp=None,api=None,
     assert isinstance(api,(int,float,list,np.ndarray))
     api = np.atleast_1d(api)
 
+    assert isinstance(method_above_pb,list)
+    assert isinstance(method_below_pb,list)
+    assert isinstance(method_dead,list)
+    
     assert len(method_below_pb)==len(method_dead)==1
 
-    assert p.shape == rs.shape
+
+    assert p.shape == rs.shape, f'Not equal shape: {p.shape} != {rs.shape}'
 
     #Estimate the Dead oil Viscosity
     _muod = muod(temp=temp,api=api, methods=method_dead, multiple=False)
-    _muod = _muod.values
+    _muod = _muod['muod'].values
+    print(_muod)
 
     muo = np.zeros(p.shape)
+    muob=np.zeros(1)
 
     rs_int = interp1d(p,rs)
     rsb = rs_int(pb)
+    print(rsb)
 
     if 'chew' in method_below_pb:
         a = np.power(10,rs[p<=pb]*(2.2e-7*rs[p<=pb]-7.4e-4))
@@ -574,35 +586,36 @@ def muo(p=None,rs=None, temp=None,api=None,
 
         a_b = 10.715*np.power(rsb+100,-0.515)
         b_b = 5.44*np.power(rsb+150,-0.338) 
-        muob = a_a*np.power(_muod,b_b)
+        muob = a_b*np.power(_muod,b_b)
     
     if 'kartoatmodjo' in method_below_pb:
         b=np.power(10,-0.00081*rs[p<=pb])
-        a=(0.2001 + 0.8428*power(10,-0.000845*rs[p<=pb]))*np.power(_muod,0.43+0.5165*b)
+        a=(0.2001 + 0.8428*np.power(10,-0.000845*rs[p<=pb]))*np.power(_muod,0.43+0.5165*b)
         muo[p<=pb]=-0.06821 + 0.9824*a + 40.34e-5*np.power(a,2)
 
         b_b = np.power(10,-0.00081*rsb)
-        a_b = (0.2001 + 0.8428*power(10,-0.000845*rsb))*np.power(_muod,0.43+0.5165*b_b) 
+        a_b = (0.2001 + 0.8428*np.power(10,-0.000845*rsb))*np.power(_muod,0.43+0.5165*b_b) 
         muob = -0.06821 + 0.9824*a_b + 40.34e-5*np.power(a_b,2)
 
     if 'beal' in method_above_pb:
-        muo[p>pb]=(0.001*(p[p>pb]-pb))*(0.024*np.power(muob,1.6)+0.038*np.power(muob,0.56))
+        muo[p>pb]=(0.001*(p[p>pb]-pb))*(0.024*np.power(muob,1.6)+0.038*np.power(muob,0.56))+muob
 
     if 'vazquez_beggs' in method_above_pb:
         m = 2.6*np.power(p[p>pb],1.187)*np.exp(-11.513 - 8.98e-5*p[p>pb])
-        muo[p>pb] = muob*power(p/pb,m)
+        muo[p>pb] = muob*np.power(p[p>pb]/pb,m)
 
     if 'kartoatmodjo' in method_above_pb:
         muo[p>pb] = 1.00081*muob + 1.127e-3*(p[p>pb]-pb)*(-65.17e-4*np.power(muob,1.8148)+0.038*np.power(muob,1.59))
 
     muo_df = pd.DataFrame({'muo':muo}, index=p)
+    muo_df.index.name='pressure'
     return muo_df
 
 
 #####################################################################################
 #Oil density
 
-def rho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,**kwargs):
+def rho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,multiple=False,methods=['banzer'],**kwargs):
     """
     Estimate the Oil Density in lb/ft3
 
@@ -613,6 +626,7 @@ def rho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,**kwargs):
         rs -> (int,float,list,np.array) Gas Oil Ratio scf/bbl
         api -> (int,float,list,np.array) Oil API gravity [API]
         pb -> (int,float,list,np.array)Bubble Point [psi]
+        method -> (list, default 'banzer') Correlation
           
     Return:
         rho -> (pd.DataFrame) Oil Density indexed by pressure
@@ -637,31 +651,37 @@ def rho_oil(p=None,co=None,bo=None,rs=None,api=None,pb=None,**kwargs):
     assert isinstance(pb,(int,float,list,np.ndarray))
     pb = np.atleast_1d(pb)
 
+    assert isinstance(methods,list)
 
     assert p.shape == bo.shape == rs.shape == co.shape
 
 
     rho_oil_dict = {}
 
-    #Gas disolved specific gravity
-    ygd = ((12.5+api)/50)-3.5715e-6*api*rs
+    if multiple==False:
+        assert len(methods)==1
 
-    rho_oil = np.zeros(p.shape)
-    p_sat = np.zeros(p.shape)
-    p_sat[p>=pb] = pb
-    p_sat[p<pb] = p[p<pb]
+    if 'banzer' in methods:
+        #Gas disolved specific gravity
+        ygd = ((12.5+api)/50)-3.5715e-6*api*rs
 
-    sg_oil = api_to_sg(api)
-    rho_oil[p<=pb] = (350*sg_oil+0.0764*ygd[p<=pb]*rs[p<=pb])/(5.615*bo[p<=pb])
-    
-    rs_int = interp1d(p,rs)
-    bo_int = interp1d(p,bo)
+        rho_oil = np.zeros(p.shape)
+        p_sat = np.zeros(p.shape)
+        p_sat[p>=pb] = pb
+        p_sat[p<pb] = p[p<pb]
 
-    rho_ob = (350*sg_oil+0.0764*ygd[p>pb]*rs_int(pb))/(5.615*bo_int(pb))
-    rho_oil[p>pb] = rho_ob*np.exp(co[p>pb]*(pb-p[p>pb]))
-    rho_oil_dict['rho'] = rho_oil
+        sg_oil = api_to_sg(api)
+        rho_oil[p<=pb] = (350*sg_oil+0.0764*ygd[p<=pb]*rs[p<=pb])/(5.615*bo[p<=pb])
+        
+        rs_int = interp1d(p,rs)
+        bo_int = interp1d(p,bo)
 
-    rho_df = pd.DataFrame(rho_oil_dict,index=p)
+        rho_ob = (350*sg_oil+0.0764*ygd[p>pb]*rs_int(pb))/(5.615*bo_int(pb))
+        rho_oil[p>pb] = rho_ob*np.exp(co[p>pb]*(pb-p[p>pb]))
+        rho_oil_dict['rho_banzer'] = rho_oil
+
+    rho_df = pd.DataFrame(rho_oil_dict,index=p) if multiple==True else pd.DataFrame({'rhoo':rho_oil},index=p)
+    rho_df.index.name='pressure'
     return rho_df
 
 
