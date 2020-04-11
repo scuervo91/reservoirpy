@@ -1,3 +1,7 @@
+---
+title: My page
+sidebar: toc2
+---
 
 # Welllogspy - Module
 
