@@ -1,8 +1,3 @@
----
-layout: page
-title: "Welllogspy"
-permalink: /welllogspy/
----
 
 # Welllogspy - Module
 
