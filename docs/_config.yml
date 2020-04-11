@@ -1,3 +1,11 @@
 theme: jekyll-theme-dinky
 title: Reservoirpy
 description: Package to perform Oil and Gas reservoir Analysis in Python
+defaults:
+  # _docs
+  - scope:
+      path: ""
+      type: docs
+    values:
+      sidebar:
+        nav: "docs"
