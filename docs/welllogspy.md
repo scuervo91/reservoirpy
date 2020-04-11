@@ -228,3 +228,43 @@ DEPT
 12520.00   23.9366       fm6
 12520.25   23.3663       NaN
 ```
+
+## Logs Visualization 
+
+To visualize the well logs it is recommended having the data in a `pd.DataFrame` format. To do that, either you are using `lasio.LASFile` or `reservoirpy.welllogspy.log.log`, by calling the method `.df()` it converts all data of the las object to DataFrame (as shown above). 
+
+The visualization of logs is based on Tracks functions. Each log track is implemented through a single function that plot the desired data. For example, the `grtrack` is composed generally by GammaRay and Sp logs, so this function can plot the GammaRay and SP logs with optional features like add Well tops (Formations or Units), Gr clean and Gr shale to Vshale estimations, etc...
+
+Next are the list of tracks available so far:
+
+* grtrack -> Gamma Ray and Sp track. 
+* dntrack -> Neutron Density track
+* restrack -> Resistivity track
+* vshtrack -> Vshale track
+* phietrack -> porosity track
+* gastrack -> Gas chromatograpy track
+* swtrack -> Water saturation Track
+* caltrack -> calliper track
+* cbltrack -> cbltrack
+* flagtrack -> Sand, Reservoir and Pay track
+* khtrack -> Normalized Flow capacity Track
+* oilshowtrack -> Oil show Track
+* track -> template track for any kind of curve
+
+### Usage
+
+First, get the `pd.DataFrame` 
+
+```python
+logs = w1.openlog.df()
+
+From = 9400
+To = 11520
+
+fig, ax = plt.subplots(1,3, figsize=(15,10))
+
+tk.grtrack(logs,gr='DGRCC', gr_max=200, ax=ax[0],lims=[From,To])
+tk.dntrack(logs,rho='RHOB_ALCDLC',ntr='NPHI_TNPS', ax=ax[1],lims=[From,To])
+tk.restrack(logs, res=['RS_AFRSC', 'RM_AFRMC', 'RD_AFRDC'], ax=ax[2], res_range=[2,2000],lims=[From,To])
+```
+![log_1](images/log_1.png)
