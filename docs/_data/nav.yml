@@ -1,0 +1,40 @@
+toc2:
+  - title: Group 1
+    subfolderitems:
+      - page: Thing 1
+        url: /thing1.html
+      - page: Thing 2
+        url: /thing2.html
+        subsubfolderitems:
+          - page: Subthing 1
+            url: /subthing1.html
+          - page: Subthing 2
+            url: /subthing2.html
+      - page: Thing 3
+        url: /thing3.html
+  - title: Group 2
+    subfolderitems:
+      - page: Piece 1
+        url: /piece1.html
+      - page: Piece 2
+        url: /piece2.html
+      - page: Piece 3
+        url: /piece3.html
+        subsubfolderitems:
+          - page: Subpiece 1
+            url: /subpiece1.html
+          - page: Subpiece2
+            url: /subpiece2.html
+  - title: Group 3
+    subfolderitems:
+      - page: Widget 1
+        url: /widget1.html
+        subsubfolderitems:
+          - page: Subwidget 1
+            url: /subwidget1.html
+          - page: Subwidget 2
+            url: /subwidget2.html
+      - page: Widget 2
+        url: /widget2.html
+      - page: Widget 3
+        url: /widget3.html
