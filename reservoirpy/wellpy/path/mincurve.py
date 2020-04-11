@@ -161,7 +161,7 @@ def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,
     tvdss = (tvd - kbe)*-1
 
     survdf = pd.DataFrame({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
-                            'northing_off':northing_off,'easting_off':easting_off,
+                            'north_offset':northing_off,'east_offset':easting_off,
                             'northing':northing,'easting':easting,'dleg':dls}).set_index('md')
   
     return survdf
