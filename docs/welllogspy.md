@@ -253,9 +253,10 @@ Next are the list of tracks available so far:
 
 ### Usage
 
-First, get the `pd.DataFrame` 
+Having the data in a  `pd.DataFrame` (indexed with the depth) just call the tracks you want to plot, define the column name and the axes, like in `matplotlib`. 
 
 ```python
+from reservoirpy.welllogs import tracks as tk
 logs = w1.openlog.df()
 
 From = 9400
@@ -268,3 +269,219 @@ tk.dntrack(logs,rho='RHOB_ALCDLC',ntr='NPHI_TNPS', ax=ax[1],lims=[From,To])
 tk.restrack(logs, res=['RS_AFRSC', 'RM_AFRMC', 'RD_AFRDC'], ax=ax[2], res_range=[2,2000],lims=[From,To])
 ```
 ![log_1](images/log_1.png)
+
+#### Customization 
+
+On each track function can be set a series of parameters to change the color, width, style, etc... of the curves to plot. The options are those allowed by `matplotlib`. Just by adding a dictionary with the parameters like:
+
+```python
+tk.grtrack(logs,gr='DGRCC', ax=ax[0], gr_kw={'linewidth':1, 'color':'black'})
+```
+This can be set on any curve `sp_kw`, `rho_kw`, `ntr_kw`, `vsh_kw`. For track like `restrack`, `gastrack` which can receive multiple curves at once through a list of names, teh desired parameters can be passed as a list of dictionaries
+
+```python
+tk.restrack(logs, res=['RS_AFRSC', 'RM_AFRMC', 'RD_AFRDC'], ax=ax[3], res_range=[2,2000],
+            res_kw=[
+              {'linewidth':3, 'color':'darkgreen'},
+              {'linestyle':'--', 'color':'green'},
+              {'linestyle':'-.', 'color':'lightgreen','linewidth':3 }
+            ])
+```
+Other keywords like `step` and `grid_number` control the plot gridding behavior.
+
+* `step=[10,2]` Make the mayor grids each 10 ft and minor grid each 2 ft
+* `grid_number=[51,11]` Make 50 bins for minor grid and 10 bins for mayor grid within the interval of depth. If neither is set the default behavior is `grid_number=[51,11]`
+* `lims=[11000,12000]` Control the interval depth to plot the logs. If not defined the lims are the maximun and minimum depth in the `DataFrame`
+
+On the grtrack can be included besides `gr` and `sp` curves, lines like Sand-GR, Shale-GR, Formation tops, Perforations, and Correlation lines (Correlation can be set in all Tracks) which as the other curves a keyword dictionaru can be passed to manipulate their behavior. The list of curves are the next:
+
+* Gr Sand -> Columns: 'md_top', 'md_bottom', 'gr_sand' 
+* Gr Shale -> Columns: 'md_top', 'md_bottom', 'gr_shale' 
+* Perforation -> Columns: 'md_top', 'md_bottom', 'comment'
+* Tops -> Columns: 'md_top', 'md_bottom', 'formation'
+* Correlaton -> Columns: 'depth', 'comment'
+
+These properties are `pd.DataFrame` objects with specific column name to be interpreted by the function
+
+Example:
+```python
+#Correlation
+anot = pd.DataFrame({'depth':[12061],'comment':["comment"]})
+
+#Tops
+tops = w1.tops
+topf = tops[tops['formation'].isin(['fm3','fm4'])]
+
+#Lims
+From = 11950
+To = 12175
+fig, ax = plt.subplots(1,3, figsize=(15,10))
+
+tk.grtrack(logs, gr='DGRCC', lims=[From,To],
+           gr_max=200, ax=ax[0], 
+           gr_sand_shale = topf, 
+           fm = topf, lims=[From,To],
+           fm_kw={'ann':True,'color':'black', 'linewidth':2}, 
+           gr_kw={'linewidth':1, 'color':'black'}, 
+           gr_sand_kw={'linewidth':5, 'color':(237/255,196/255,33/255)},
+           gr_shale_kw={'linewidth':5, 'color':(0.6,0.6,0.6)})
+
+
+tk.dntrack(logs,rho='RHOB_ALCDLC',ntr='NPHI_TNPS', 
+           ax=ax[1],correlation=anot,lims=[From,To])
+tk.restrack(logs, res=['RS_AFRSC', 'RM_AFRMC', 'RD_AFRDC'], 
+            ax=ax[2], res_range=[2,2000],
+            correlation=anot,
+            corr_kw={'ann':True},
+            lims=[From,To])
+```
+![log_2](images/log_2.png)
+
+
+### Petrophysical Calculation
+
+Petrophyscial properties can be calculated by calling the function  `petrophysics` which wrapps the main equations.
+
+By passing dictionaries to the arguments specifying methods, input curves names, output curves names.
+
+The next example estimate the petrophysics properties for each of the tops by iterating over the rows of the `tops` table of the `well` object where the petrophysical parameters are specified.
+```python
+#Specify parameters to estimate petrophysics
+from reservoirpy.welllogs import petrophysics as pt
+
+logpt = pd.DataFrame()
+for i in w1.tops.iterrows():
+
+    logv = pt.petrophysics(logs,i[1]['md_top'],i[1]['md_bottom'],
+          #Vshale by GammaRay
+          vshale_gr_kw=dict(vsh_col_name='vsh_gr', gr_name='DGRCC', 
+                        gr_sand=i[1]['gr_sand'], gr_shale = i[1]['gr_shale']),
+
+          #Vshale with Neutron Density
+          vshale_dn_kw=dict(vsh_col_name='vsh_dn', rho_name='RHOB_ALCDLC',
+                        ntr_name='NPHI_TNPS'),
+
+          #Porosity by Density    
+          phi_rho_kw=dict(phi_rho_name='phi_rho', rho_name='RHOB_ALCDLC'),
+
+          #Effective Porosity
+          phie_kw=dict(phi_rho_name='phi_rho',ntr_name='NPHI_TNPS', 
+                  vsh_name='vsh_dn'),
+
+          #Water Saturation
+          sw_kw=dict(rt_name='RD_AFRDC',phi_name='phie_avg',vsh_name='vsh_dn', 
+                rw=i[1]['rw'],methods=['archie','indo'],a=1,m=2,n=2),
+
+          #Flags
+          flag_kw=dict(vsh_name='vsh_gr',phi_name='phie_avg',sw_name='archie',vsh_cutoff=0.7,
+                  phi_cutoff=0.1,sw_cutoff=0.60,which='pay'),
+
+          #Permeability
+          perm_kw = dict(phi_name='phie_avg',swir=0.1,authors=['timur','morris','coates']),
+
+          #Norm Flow Capacity
+          kh_kw = dict(perm_name='timur', pay_name='pay_flag'), 
+          
+          # True only return the dataframe with the depth interval selected to estimate petrophysics
+          # False to return the entire dataframe given with only the interval calculated. 
+          return_partial=True)
+    
+    logpt = logpt.append(logv)
+logpt.columns
+```
+
+```python
+From = 11200
+To = 12475
+
+fig, ax = plt.subplots(1,9, figsize=(22,15))
+tk.grtrack(logs,gr='DGRCC', gr_max=200, ax=ax[0], fm=tops, 
+           fm_kw={'ann':True,'color':'blue', 'linewidth':2}, 
+           gr_kw={'linewidth':1}, lims=[From,To])
+
+tk.vshtrack(logpt,vsh='vsh_gr',ax=ax[1],fill=True, inverse=False,lims=[From,To])
+tk.vshtrack(logpt,vsh='vsh_dn',ax=ax[2],fill=True, inverse=True,lims=[From,To])
+tk.restrack(logs, res=['RS_AFRSC', 'RM_AFRMC', 'RD_AFRDC'], ax=ax[3], res_range=[2,2000],lims=[From,To])
+tk.swtrack(logpt, sw=['archie'],ax=ax[5], fill=True,lims=[From,To])
+tk.swtrack(logpt, sw=['indo'],ax=ax[6], fill=True,lims=[From,To])
+tk.phietrack(logpt,phi=['phi_rho', 'phia', 'phie_avg','phie_rho', 'phie_ntr'], ax=ax[4],lims=[From,To])
+tk.flagtrack(logpt, sand='sand_flag',res='reservoir_flag',pay='pay_flag', ax=ax[7], legend=True,lims=[From,To])
+tk.khtrack(logpt, kh='kh_norm', ax=ax[8], fill=False,lims=[From,To])
+```
+![log_3](images/log_3.png)
+
+
+### Add the petrophysics logs to the `well` Object
+
+After the logs analyzed the results can be added to the logs stored on the `well` object
+
+```python
+w1.add_to_logs(logpt)
+```
+
+### Analyze intervals
+
+You can create the object `reservoirpy.wellpy.path.perforations` like `tops` class to add perfoations interval to the `well` object.
+
+```python
+#Create two Perforations interval
+p_tentative= ph.perforations({'md_top':[12224,12234],'md_bottom':[12232,12242]})
+
+#Add to the well object
+w1.perforations = p_tentative 
+
+#Estimate tvd and tvdss
+w1.to_tvd(which=['perforations'])
+w1.to_tvd(which=['perforations'],ss=True)
+
+#Estimate interval tick and midpoint
+w1.perforations.get_tick()
+w1.perforations.get_mid_point()
+
+print(w1.perforations)
+
+   md_top  md_bottom       tvd_top    tvd_bottom  tvd_tick     tvdss_top  \
+0   12224      12232  11981.381637  11988.972643  7.591006 -11523.181637   
+1   12234      12242  11990.870394  11998.461400  7.591006 -11532.670394   
+
+   tvdss_bottom  md_tick  md_mid_point  tvd_mid_point  tvdss_mid_point  
+0 -11530.772643        8       12228.0   11985.177140    -11526.977140  
+1 -11540.261400        8       12238.0   11994.665897    -11536.465897  
+```
+
+#### Get Intervals attributes
+
+```python
+perf_atr = w1.interval_attributes(
+    perforations=True,
+    curves=['vsh_dn','phie_avg','archie','timur','coates','kh'],
+    aggfunc={
+        'vsh_dn':'mean',
+        'phie_avg':['min','max','mean'],
+        'archie':['min','max','mean'],
+        'coates':['min','max','mean'],
+        'kh':'sum'
+    })
+print(perf_atr)
+
+
+   md_top  md_bottom       tvd_top    tvd_bottom  tvd_tick     tvdss_top  \
+0   12224      12232  11981.381637  11988.972643  7.591006 -11523.181637   
+1   12234      12242  11990.870394  11998.461400  7.591006 -11532.670394   
+
+   tvdss_bottom  md_tick  md_mid_point  tvd_mid_point     ...       \
+0 -11530.772643        8       12228.0   11985.177140     ...        
+1 -11540.261400        8       12238.0   11994.665897     ...        
+
+   (phie_avg, min)  (phie_avg, max)  (phie_avg, mean)  (archie, min)  \
+0         0.089359         0.174152          0.150632       0.222784   
+1         0.169648         0.236727          0.218984       0.083474   
+
+   (archie, max)  (archie, mean)  (coates, min)  (coates, max)  \
+0       1.000000        0.321323       5.738459      82.785534   
+1       0.456206        0.160189      74.547543     282.637857   
+
+   (coates, mean)    (kh, sum)  
+0       49.892554   732.054260  
+1      212.089875  3620.486361
+```
