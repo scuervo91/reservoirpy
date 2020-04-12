@@ -43,7 +43,7 @@ pip install git+https://github.com/scuervo91/reservoirpy.git
 ## Documentation
 
 * [Reservoirpy](https://scuervo91.github.io/reservoirpy/)
-*[Welllogspy](https://scuervo91.github.io/reservoirpy/welllogspy)
-*[Wellpy](https://scuervo91.github.io/reservoirpy/wellpy)
-*[Wellproductivitypy](https://scuervo91.github.io/reservoirpy/wellproductivitypy)
-*[Pvtpy](https://scuervo91.github.io/reservoirpy/pvtpy)
+* [Welllogspy](https://scuervo91.github.io/reservoirpy/welllogspy)
+* [Wellpy](https://scuervo91.github.io/reservoirpy/wellpy)
+* [Wellproductivitypy](https://scuervo91.github.io/reservoirpy/wellproductivitypy)
+* [Pvtpy](https://scuervo91.github.io/reservoirpy/pvtpy)
