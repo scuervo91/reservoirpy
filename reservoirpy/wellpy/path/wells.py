@@ -125,7 +125,7 @@ class well:
     def tops(self):
         return self._tops
 
-    @perforations.setter
+    @tops.setter
     def tops(self,value):
         assert isinstance(value,(tops,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
         self._tops = value    
