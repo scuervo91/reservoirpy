@@ -186,7 +186,7 @@ class well:
 
     def sample_deviation(self,step=100):
         if self._deviation is not None:
-            _surv = self.survey
+            _survey = self.survey
             new_dev = interpolate_deviation(_survey.index, 
                                             _survey['inc'], 
                                             _survey['azi'], md_step=step)
