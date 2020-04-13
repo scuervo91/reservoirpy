@@ -83,13 +83,13 @@ class oil:
         self._api = value
 
     @property
-    def .sulphur(self):
+    def sulphur(self):
         return self._.sulphur
 
-    @.sulphur.setter
-    def .sulphur(self,value):
+    @sulphur.setter
+    def sulphur(self,value):
         assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
-        self._.sulphur = value
+        self._sulphur = value
 
     @property
     def pb(self):
