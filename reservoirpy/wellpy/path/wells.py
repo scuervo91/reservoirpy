@@ -180,6 +180,9 @@ class well:
                 crs=self._crs)
         return self._survey
 
+#####################################################
+############## methods ###########################
+
     def sample_deviation(self,step=100):
         if self._deviation is not None:
             _surv = self.survey
