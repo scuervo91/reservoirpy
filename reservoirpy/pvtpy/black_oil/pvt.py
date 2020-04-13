@@ -52,31 +52,98 @@ class oil:
     def __init__(self, **kwargs):
 
         self.formation = kwargs.pop('formation',None)
-        assert isinstance(self.formation,(str,type(None)))
-
         self.api = kwargs.pop("api", None)
-        assert isinstance(self.api,(int,float,np.ndarray,type(None)))
-
         self.sulphur = kwargs.pop("sulphur", None)
-        assert isinstance(self.sulphur,(int,float,np.ndarray,type(None)))
-
         self.pb = kwargs.pop("pb", None)
-        assert isinstance(self.pb,(int,float,np.ndarray,type(None)))
-
         self.rsb = kwargs.pop("rsb", None)
-        assert isinstance(self.rsb,(int,float,np.ndarray,type(None)))
-
         self.sg_gas = kwargs.pop("sg_gas", None)
-        assert isinstance(self.sg_gas,(int,float,np.ndarray,type(None)))
-
         self.temp = kwargs.pop("temp", None)
-        assert isinstance(self.temp,(int,float,np.ndarray,type(None)))
-
         self.pvt = kwargs.pop('pvt',None)
-        assert isinstance(self.pvt,(oil_pvt,type(None)))
-
         self.bg = kwargs.pop("bg", None)
-        assert isinstance(self.bg,(int,float,np.ndarray,type(None)))
+
+#####################################################
+############## Properties ###########################
+
+    @property
+    def formation(self):
+        return self._formation
+
+    @formation.setter
+    def formation(self,value):
+        assert isinstance(value,(str,type(None))), f'{type(value)} not accepted. Name must be str'
+        self._formation = value
+
+    @property
+    def api(self):
+        return self._api
+
+    @api.setter
+    def api(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        self._api = value
+
+    @property
+    def .sulphur(self):
+        return self._.sulphur
+
+    @.sulphur.setter
+    def .sulphur(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        self._.sulphur = value
+
+    @property
+    def pb(self):
+        return self._pb
+
+    @pb.setter
+    def pb(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        self._pb = value
+
+    @property
+    def rsb(self):
+        return self._rsb
+
+    @rsb.setter
+    def rsb(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        self._rsb = value
+
+    @property
+    def sg_gas(self):
+        return self._sg_gas
+
+    @sg_gas.setter
+    def sg_gas(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        self._sg_gas = value
+
+    @property
+    def temp(self):
+        return self._temp
+
+    @temp.setter
+    def temp(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        self._temp = value
+
+    @property
+    def bg(self):
+        return self._bg
+
+    @bg.setter
+    def bg(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        self._bg = value
+
+    @property
+    def pvt(self):
+        return self._pvt
+
+    @pvt.setter
+    def pvt(self,value):
+        assert isinstance(value,(oil_pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.oil_pvt'
+        self._pvt = value
 
     def pvt_from_correlations(self,start_pressure=20,end_pressure=5000,n=20,**kwargs):
 
@@ -102,36 +169,36 @@ class oil:
             if k not in kwargs:
                 kwargs[k]=v
 
-        if (self.pb is None) & (self.rsb is None):
+        if (self._pb is None) & (self._rsb is None):
             raise ValueError('Either Bubble point or Gas Oil Ratio must be defined')
-        elif self.pb is None:
-            self.pb = pb(rs=self.rsb,temp=self.temp,sg_gas=self.sg_gas,api=self.api,
+        elif self._pb is None:
+            self._pb = pb(rs=self._rsb,temp=self._temp,sg_gas=self._sg_gas,api=self._api,
                 methods=kwargs['pb'],multiple=False, correction=True)['pb'].values
-            rs_cor = rs(p=p_range,pb=self.pb,temp=self.temp,api=self.api,sg_gas=self.sg_gas,
-                rsb=self.rsb,multiple=False,methods=['valarde'])
-        elif self.rsb is None:
-            rs_cor = rs(p=p_range,pb=self.pb,temp=self.temp,api=self.api,sg_gas=self.sg_gas,
+            rs_cor = rs(p=p_range,pb=self._pb,temp=self._temp,api=self._api,sg_gas=self._sg_gas,
+                rsb=self._rsb,multiple=False,methods=['valarde'])
+        elif self._rsb is None:
+            rs_cor = rs(p=p_range,pb=self._pb,temp=self._temp,api=self._api,sg_gas=self._sg_gas,
                 multiple=False,methods=kwargs['rs'])
 
-        bo_cor = bo(p=p_range,rs=rs_cor['rs'].values,pb=self.pb,temp=self.temp,api=self.api,
-            sg_gas=self.sg_gas,multiple=False,methods=kwargs['bo'])
+        bo_cor = bo(p=p_range,rs=rs_cor['rs'].values,pb=self._pb,temp=self._temp,api=self._api,
+            sg_gas=self._sg_gas,multiple=False,methods=kwargs['bo'])
         
-        co_cor = co(p=p_range,rs=rs_cor['rs'].values,pb=self.pb,temp=self.temp,api=self.api,
-            sg_gas=self.sg_gas,bo=bo_cor['bo'].values,bg=self.bg,
+        co_cor = co(p=p_range,rs=rs_cor['rs'].values,pb=self._pb,temp=self._temp,api=self._api,
+            sg_gas=self._sg_gas,bo=bo_cor['bo'].values,bg=self._bg,
             method_above_pb=kwargs['co']['above_pb'],method_below_pb=kwargs['co']['below_pb'])
 
-        muo_cor = muo(p=p_range,rs=rs_cor['rs'].values,pb=self.pb,temp=self.temp,api=self.api,
+        muo_cor = muo(p=p_range,rs=rs_cor['rs'].values,pb=self._pb,temp=self._temp,api=self._api,
             method_above_pb=kwargs['muo']['above_pb'],method_below_pb=kwargs['muo']['above_pb'],
             method_dead=kwargs['muod'])
 
         rho_cor = rho_oil(p=p_range,co=co_cor['co'].values,bo=bo_cor['bo'].values,rs=rs_cor['rs'].values,
-            api=self.api,pb=self.pb,multiple=False,methods=kwargs['rho'])
+            api=self._api,pb=self._pb,multiple=False,methods=kwargs['rho'])
 
         _pvt = pd.concat([rs_cor,bo_cor,co_cor,muo_cor,rho_cor],axis=1)
         print(_pvt)
-        self.pvt=oil_pvt(_pvt.reset_index())
+        self._pvt=oil_pvt(_pvt.reset_index())
 
-        return self.pvt
+        return self._pvt
 
             
 
