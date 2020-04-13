@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.optimize import curve_fit
+from datetime import date
 
 ############################################################################################
 # Forecast Function
@@ -66,7 +67,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr):
     date_until = pd.Timestamp.fromordinal(int((np.power(qi / qt, b) - 1)/(b * (di/365))) + ti.toordinal())
   else:
     raise ValueError('b must be between 0 and 1')
-  print(date_until)
+
   TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
 
   f, Np = forecast_curve(TimeRange,qi,di,ti,b)
@@ -87,26 +88,67 @@ class declination:
     b:  Arps Coefficient: 0<=b<=1  
   
    """
-  def __init__(self, Qi, Di, Ti, b=0):
-    self.Qi = Qi
-    self.Di = Di
-    self.b = b
-    self.Ti = Ti
+  def __init__(self, **kwargs):
+    self.qi = kwargs.pop('qi',None)
+    self.di = kwargs.pop('di',None)
+    self.b = kwargs.pop('b',0)
+    self.ti = kwargs.pop('ti',None)
 
-    if b == 0:
-      self.kind='Exponential'
-    elif b == 1:
-      self.kind = 'Harmonic'
-    elif (b<1)&(b>0):
-      self.kind = 'Hyperbolic'
-    else:
-      raise ValueError('b must be between 0 and 1')
+#####################################################
+############## Properties ###########################
+
+  @property
+  def qi(self):
+    return self._qi
+
+  @qi.setter
+  def qi(self,value):
+    assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+    self._qi = value
+
+  @property
+  def di(self):
+    return self._di
+
+  @di.setter
+  def di(self,value):
+    assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+    self._di = value
+
+  @property
+  def b(self):
+    return self._b
+
+  @b.setter
+  def b(self,value):
+    assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+    assert value >= 0 and value <= 1
+    self._b = value
+
+  @property
+  def ti(self):
+    return self._ti
+
+  @ti.setter
+  def ti(self,value):
+    assert isinstance(value,(date,type(None))), f'{type(value)} not accepted. Name must be date'
+    self._ti = value
+
+  @property
+  def kind(self):
+    if self._b == 0:
+      self._kind='Exponential'
+    elif self._b == 1:
+      self._kind = 'Harmonic'
+    elif (self._b<1)&(self._b>0):
+      self._kind = 'Hyperbolic'
+    return self._kind
     
   def __str__(self):
-    return '{self.kind} Declination \n Ti: {self.Ti} \n Qi: {self.Qi} bbl/d \n Rate: {self.Di} Annually \n b: {self.b}'.format(self=self)
+    return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
   
   def __repr__(self):
-    return '{self.kind} Declination \n Ti: {self.Ti} \n Qi: {self.Qi} bbl/d \n Rate: {self.Di} Annually \n b: {self.b}'.format(self=self)
+    return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
 
   def forecast(self,start_date, end_date, fq='M'):
     """
@@ -121,8 +163,11 @@ class declination:
       np: Cummulative production
 
     """
+    assert isinstance(start_date,date), 'start_date must be date'
+    assert isinstance(end_date,date), 'send_date must be date'
+
     TimeRange = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, closed=None))
-    f, Np = forecast_curve(TimeRange,self.Qi,self.Di,self.Ti,self.b)
+    f, Np = forecast_curve(TimeRange,self.qi,self.di,self.ti,self.b)
     return f, Np
 
   def forecast_econ(self, t, qt, fq='M'):
@@ -140,7 +185,7 @@ class declination:
             -Column 'cum' cummulative flow rate
 
     """
-    f, Np = forecast_econlimit(t,qt,self.Qi,self.Di,self.Ti,self.b, fr=fq)
+    f, Np = forecast_econlimit(t,qt,self.qi,self.di,self.ti,self.b, fr=fq)
 
     return f, Np
 
@@ -204,7 +249,7 @@ def decline_fit(RangeTime,FlowRate,b=None, ad=True):
       return q
     
     popt, pcov = curve_fit(decline_function, RangeTime, FlowRate, bounds=(0, [np.inf, np.inf, 1]))
-    dec = declination(popt[0], popt[1], RangeTime[0], popt[2])
+    dec = declination(qi=popt[0], di=popt[1], ti=RangeTime[0], b=popt[2])
   elif (b >= 0) & (b <= 1):
     
     def decline_function(RangeTime,qi,di):
@@ -236,6 +281,6 @@ def decline_fit(RangeTime,FlowRate,b=None, ad=True):
       return q 
     
     popt, pcov = curve_fit(decline_function, RangeTime, FlowRate, bounds=(0, [np.inf, np.inf]))
-    dec = declination(popt[0], popt[1], RangeTime[0], b)
+    dec = declination(qi=popt[0], di=popt[1], ti=RangeTime[0], b=b)
   
   return dec
