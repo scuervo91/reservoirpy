@@ -63,7 +63,7 @@ class well:
 
         self.name = kwargs.pop('name', None)
         self.rte = kwargs.pop('rte', None)
-        self.surf_coord = kwargs.pop('surf_name', None)
+        self.surf_coord = kwargs.pop('surf_coord', None)
         self.crs = kwargs.pop('crs', None)
         self.perforations = kwargs.pop('perforations', None)
         self.tops = kwargs.pop('tops', None)
@@ -82,7 +82,7 @@ class well:
 
     @name.setter
     def name(self,value):
-        assert isinstance(value,str), f'{type(value)} not accepted. Name must be str'
+        assert isinstance(value,(str,type(None))), f'{type(value)} not accepted. Name must be str'
         self._name = value
 
     @property
@@ -91,7 +91,7 @@ class well:
 
     @rte.setter
     def rte(self,value):
-        assert isinstance(value,(int,float)), f'{type(value)} not accepted. Name must be number'
+        assert isinstance(value,(int,float,type(None))), f'{type(value)} not accepted. Name must be number'
         self._rte = value
 
     @property
@@ -100,7 +100,7 @@ class well:
 
     @surf_coord.setter
     def surf_coord(self,value):
-        assert isinstance(value,Point), f'{type(value)} not accepted. Name must be Point'
+        assert isinstance(value,(Point,type(None))), f'{type(value)} not accepted. Name must be Point'
         self._surf_coord = value
 
     @property
@@ -109,7 +109,7 @@ class well:
 
     @crs.setter
     def crs(self,value):
-        assert isinstance(value,str), f"{type(value)} not accepted. Name must be str. Example 'EPSG:3117'"
+        assert isinstance(value,(str,type(None))), f"{type(value)} not accepted. Name must be str. Example 'EPSG:3117'"
         self._crs = value
 
     @property
@@ -118,7 +118,7 @@ class well:
 
     @perforations.setter
     def perforations(self,value):
-        assert isinstance(value,perforations), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.perforations'
+        assert isinstance(value,(perforations,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.perforations'
         self._perforations = value
 
     @property
@@ -127,7 +127,7 @@ class well:
 
     @perforations.setter
     def tops(self,value):
-        assert isinstance(value,tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
+        assert isinstance(value,(tops,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
         self._tops = value    
 
     @property
@@ -136,7 +136,7 @@ class well:
 
     @openlog.setter
     def openlog(self,value):
-        assert isinstance(value,log), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
+        assert isinstance(value,(log,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
         self._openlog = value
 
     @property
@@ -145,7 +145,7 @@ class well:
 
     @masterlog.setter
     def masterlog(self,value):
-        assert isinstance(value,masterlog), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
+        assert isinstance(value,(log,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
         self._masterlog = value
 
     @property
@@ -154,7 +154,7 @@ class well:
 
     @caselog.setter
     def caselog(self,value):
-        assert isinstance(value,caselog), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
+        assert isinstance(value,(log,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
         self._caselog = value
 
     @property
@@ -163,17 +163,18 @@ class well:
 
     @deviation.setter
     def deviation(self,value):
-        assert isinstance(value,pd.DataFrame), f'{type(value)} not accepted. Name must be pd.DataFrame'
-        assert all(i in ['md','inc','azi'] for i in value.columns), "pd.DataFrame must contain columns ['md','inc','azi']"
+        assert isinstance(value,(pd.DataFrame,type(None))), f'{type(value)} not accepted. Name must be pd.DataFrame'
+        if isinstance(value,pd.DataFrame):
+            assert all(i in ['md','inc','azi'] for i in value.columns), "pd.DataFrame must contain columns ['md','inc','azi']"
         self._deviation = value
 
     @property
     def survey(self):
         if self._deviation is not None:
             self._survey = min_curve_method(
-                self_deviation['md'],
-                self_deviation['inc'],
-                self_deviation['azi'],
+                self._deviation['md'],
+                self._deviation['inc'],
+                self._deviation['azi'],
                 surface_easting=self._surf_coord.x, 
                 surface_northing=self._surf_coord.y, 
                 kbe=self._rte,
@@ -274,7 +275,7 @@ class well:
             if md is not None:
                 _tvd = _tvd_int(md)
                 _northing = _northing_int(_tvd)
-                _easting = ._easting_int(_tvd)
+                _easting = _easting_int(_tvd)
                 coord = Point(_easting,_northing)
                 r.append(coord)
                 
@@ -295,7 +296,7 @@ class well:
                     if self._tops is not None:
                         try:
                             self._tops['northing'] = self._tops['tvd_top'].apply(_northing_int)
-                            self._tops['easting'] = self._tops['tvd_bottom'].apply(._easting_int)
+                            self._tops['easting'] = self._tops['tvd_bottom'].apply(_easting_int)
                             self._tops['geometry'] = self._tops[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
                             r.append(self._tops)
                         except:
