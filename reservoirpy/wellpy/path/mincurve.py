@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 
 from .checkarrays import checkarrays
 
@@ -69,7 +70,7 @@ def minimum_curvature(md, inc, azi):
 
     return tvd, northing, easting, dogleg
 
-def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,surface_easting=0, kbe=0):
+def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,surface_easting=0, kbe=0, crs=None):
     """
     Calculate TVD using minimum curvature method.
 
@@ -160,8 +161,14 @@ def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,
     easting = surface_easting + (easting_off*0.3048)
     tvdss = (tvd - kbe)*-1
 
-    survdf = pd.DataFrame({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
+    survdf = gpd.GeoDataFrame({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
                             'north_offset':northing_off,'east_offset':easting_off,
-                            'northing':northing,'easting':easting,'dleg':dls}).set_index('md')
+                            'northing':northing,'easting':easting,'dleg':dls}, 
+                             geometry=gpd.points_from_xy(easting,northing)
+                             ).set_index('md')
+    
+    if crs is not None:
+        assert isinstance(crs,str)
+        survdf.crs = crs
   
     return survdf

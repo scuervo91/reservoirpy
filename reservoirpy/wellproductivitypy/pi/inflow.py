@@ -42,13 +42,68 @@ def oil_inflow_curve(pr,j,pb,n=10):
 
 class oil_inflow:
 
-    def __init__(self,pr,j,pb,n=10):
-        self.pr = pr
-        self.j = j
-        self.pb = pb 
-        self.curve,self.aof = oil_inflow_curve(pr,j,pb,n=n)
+    def __init__(self,**kwargs):
+        self.pr = kwargs.pop('pr',None)
+        self.j = kwargs.pop('j',None)
+        self.pb = kwargs.pop('pb',0) 
+        self.n = kwargs.pop('n',20) 
+
+
+#####################################################
+############## Properties ###########################
+
+    @property
+    def pr(self):
+        return self._pr
+
+    @pr.setter
+    def pr(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+        self._pr = value
+
+    @property
+    def j(self):
+        return self._j
+
+    @j.setter
+    def j(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+        self._j = value
+
+    @property
+    def pb(self):
+        return self._pb
+
+    @pb.setter
+    def pb(self,value):
+        assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        self._pb = value
+
+    @property
+    def n(self):
+        return self._n
+
+    @n.setter
+    def n(self,value):
+        assert isinstance(value,int), f'{type(value)} not accepted. Name must be int'
+        self._n = value
+
+    @property
+    def aof(self):
+        _,_aof = oil_inflow_curve(self._pr,self._j,self.pb,n=self._n)
+        return _aof
+
+    @property
+    def df(self):
+        _df,_ = oil_inflow_curve(self._pr,self._j,self.pb,n=self._n)
+        return _df
+
         self._pwf_to_flow = interp1d(self.curve['p'],self.curve['q'])
         self._flow_to_pwf = interp1d(self.curve['q'],self.curve['p'])
+
+
+#####################################################
+############## repr ###########################
 
     def __str__(self):
         return f"""Oil Inflow: 
@@ -65,34 +120,43 @@ class oil_inflow:
             Bubble Point Pressure: {self.pb} psi  
             AOF = {self.aof} bbl/d 
                 """
+
+
+#####################################################
+############## methods ###########################
             
     def pwf_to_flow(self, pwf):
+        _df = self.df
+        _pwf_to_flow = interp1d(_df['p'],_df['q'])
         pwf = np.atleast_1d(pwf)
-        q = self._pwf_to_flow(pwf)
+        q = _pwf_to_flow(pwf)
         return q
     
     def flow_to_pwf(self, q):
+        _df = self.df
+        _flow_to_pwf = interp1d(_df['q'],_df['p'])
         q = np.atleast_1d(q)
-        pwf = self._flow_to_pwf(q)
+        pwf = _flow_to_pwf(q)
         return pwf
     
     def flow_to_dd(self, q):
+        _df = self.df
+        _flow_to_pwf = interp1d(_df['q'],_df['p'])        
         q = np.atleast_1d(q)
-        pwf = self._flow_to_pwf(q)
-        dd = self.pr - pwf
+        pwf = _flow_to_pwf(q)
+        dd = self._pr - pwf
         return dd
     
     def dd_to_flow(self, dd):
+        _df = self.df
+        _pwf_to_flow = interp1d(_df['p'],_df['q'])
         dd = np.atleast_1d(dd)
-        pwf = self.pr - dd
-        q = self._pwf_to_flow(pwf)
+        pwf = self._pr - dd
+        q = _pwf_to_flow(pwf)
         return q
-        
-    def create_curve(self,n=10):
-        c,_ = oil_inflow_curve(self.pr,self.j,self.pb,n=n)
-        return c
+
     
-    def plot(self,ax=None,n=10,**kwargs):
+    def plot(self,ax=None,**kwargs):
         
         pb = kwargs.pop('pb',True)
         q = kwargs.pop('flow',None)
@@ -109,28 +173,30 @@ class oil_inflow:
                 kwargs[k]=v
                 
         oax=ax or plt.gca()
-        curve = self.create_curve(n)
-        oax.plot(curve['q'],curve['p'],**kwargs)
+        _df = self.df
+        _flow_to_pwf = interp1d(_df['q'],_df['p']) 
+        _pwf_to_flow = interp1d(_df['p'],_df['q'])
+        oax.plot(_df['q'],_df['p'],**kwargs)
         oax.set_xlabel("Flow Rate [bbl/d]")
         oax.set_ylabel("Pwf [psi]")
         
         if pb==True:
-            qpb = self.pwf_to_flow(self.pb)
-            oax.scatter(qpb,self.pb, color='red', label='Bubble Point')
+            qpb = _pwf_to_flow(self._pb)
+            oax.scatter(qpb,self._pb, color='red', label='Bubble Point')
         
         if q is not None:
             q = np.atleast_1d(q)
-            p = self._flow_to_pwf(q)
+            p = _flow_to_pwf(q)
             oax.scatter(q,p, color='springgreen', s=70)
             
         if pwf is not None:
             pwf = np.atleast_1d(pwf)
-            flow = self._pwf_to_flow(pwf)
+            flow = _pwf_to_flow(pwf)
             oax.scatter(flow,pwf, color='lime',s=70)
             
         if dd is not None:
             dd = np.atleast_1d(dd)
-            pwf_dd = self.pr - dd
-            flow_dd = self._pwf_to_flow(pwf_dd)
+            pwf_dd = self._pr - dd
+            flow_dd = _pwf_to_flow(pwf_dd)
             oax.scatter(flow_dd,pwf_dd, color='lime',s=70)
         
