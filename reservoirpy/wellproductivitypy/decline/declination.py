@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.optimize import curve_fit
-from datetime import date
+from datetime import date, timedelta
 
 ############################################################################################
 # Forecast Function
@@ -39,6 +39,7 @@ def forecast_curve(RangeTime,qi,di,ti,b):
   cum = diff_q.cumsum()
   forecast = pd.DataFrame({'time':RangeTime,'rate':q, 'cum':cum})
   forecast = forecast.set_index('time')
+  forecast = forecast.round(2)
   Np = forecast.iloc[-1,-1]
   
   return forecast, Np
@@ -49,7 +50,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr):
 
   Attributes:
     t:         Initial date to start forecast
-    qt: Economic limit rate -> Number
+    qt:        Economic limit rate -> Number
     qi:        Initial flow rate -> Number
     di:        Decline rate in fraction and positive-> Number
     ti:        Date of the initial flow Rate-> Timestamp
@@ -150,45 +151,39 @@ class declination:
   def __repr__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
 
-  def forecast(self,start_date, end_date, fq='M'):
+  def forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None, **kwargs):
     """
-    Forecast curve from the declination object.
-
-    Parameters: 
-      start_date: datetime
-      end_date: datetime 
+    Forecast curve from the declination object. 
+ 
+    Input: 
+        start_date ->  (datetime.date) Initial date Forecast
+        end_date ->  (datetime.date) end date Forecast
+        fq -> (str) frequecy for the time table. 
+              Use https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#timeseries-offset-aliases
+        econ_limit -> (int,float,np.dnarray) Economic limit Rate. If end_date 
 
     Return: 
       f: DataFrame with t column and curve column
       np: Cummulative production
 
     """
-    assert isinstance(start_date,date), 'start_date must be date'
-    assert isinstance(end_date,date), 'send_date must be date'
+    assert isinstance(start_date,(date,type(None))), 'start_date must be date'
+    assert isinstance(end_date,(date,type(None))), 'send_date must be date'
+    assert isinstance(econ_limit,(int,float,np.ndarray,type(None))), 'econ_limit must be a number'
 
-    TimeRange = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, closed=None))
-    f, Np = forecast_curve(TimeRange,self.qi,self.di,self.ti,self.b)
-    return f, Np
+    if start_date is None: 
+      start_date = self.ti
 
-  def forecast_econ(self, t, qt, fq='M'):
-    """
-    Estimate a Forecast curve until a given Economic limit rate and Decline curve parameters
+    if end_date is None: 
+      end_date = self.ti + timedelta(days=365)
 
-  Attributes:
-    t:         Initial date to start forecast
-    qt:        Economic limit rate -> Number
-    fq:       Forecast frequency-> default 'M' Monthly
-
-  Return -> Three-Column DataFrame: 
-            -Column 'time' Timestamp Series 
-            -Column 'curve' Forecast values Series
-            -Column 'cum' cummulative flow rate
-
-    """
-    f, Np = forecast_econlimit(t,qt,self.qi,self.di,self.ti,self.b, fr=fq)
+    if econ_limit is None:
+      time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
+      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b)
+    else:
+      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq)
 
     return f, Np
-
 
 ################################################################################
 #Decline Fit
