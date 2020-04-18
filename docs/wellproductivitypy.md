@@ -227,4 +227,4 @@ p.plot(pwf=[3200,3800], ax=ax[0,1])
 p.plot(flow=[500,1000,1100], ax=ax[1,0])
 p.plot(dd=[500,1000,1500], ax=ax[1,1])
 ```
-![pi_1](images/pi_1.png)
+![pi_1](images/pi_2.png)
