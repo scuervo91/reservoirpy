@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 
 
 
-def oil_j(mu,bo,h=None,k=None,kh=None,re=1490,rw=0.58,s=0):
+def oil_j(mu=None,bo=None,h=None,k=None,kh=None,re=1490,rw=0.58,s=0):
     if kh is None:
         kh = k*h
     j=(0.00708*kh)/(mu*bo*(np.log(re/rw)-0.75+s))
@@ -108,17 +108,17 @@ class oil_inflow:
     def __str__(self):
         return f"""Oil Inflow: 
             Reservoir Pressure: {self.pr} psi 
-            Productivity Index: {self.j} bbl/d*psi 
+            Productivity Index: {round(self.j,2)} bbl/d*psi 
             Bubble Point Pressure: {self.pb} psi  
-            AOF = {self.aof} bbl/d 
+            AOF = {round(self.aof,2)} bbl/d 
                 """
   
     def __repr__(self):
         return f"""Oil Inflow: 
             Reservoir Pressure: {self.pr} psi 
-            Productivity Index: {self.j} bbl/d*psi 
+            Productivity Index: {round(self.j,2)} bbl/d*psi 
             Bubble Point Pressure: {self.pb} psi  
-            AOF = {self.aof} bbl/d 
+            AOF = {round(self.aof,2)} bbl/d 
                 """
 
 
@@ -159,9 +159,10 @@ class oil_inflow:
     def plot(self,ax=None,**kwargs):
         
         pb = kwargs.pop('pb',True)
-        q = kwargs.pop('flow',None)
+        flow = kwargs.pop('flow',None)
         pwf = kwargs.pop('pwf',None)
         dd = kwargs.pop('dd',None)
+        legend = kwargs.pop('legend',True)
         
         def_kw = {
         'color': 'darkgreen',
@@ -172,7 +173,7 @@ class oil_inflow:
             if k not in kwargs:
                 kwargs[k]=v
                 
-        oax=ax or plt.gca()
+        oax = ax or plt.gca()
         _df = self.df
         _flow_to_pwf = interp1d(_df['q'],_df['p']) 
         _pwf_to_flow = interp1d(_df['p'],_df['q'])
@@ -184,19 +185,21 @@ class oil_inflow:
             qpb = _pwf_to_flow(self._pb)
             oax.scatter(qpb,self._pb, color='red', label='Bubble Point')
         
-        if q is not None:
-            q = np.atleast_1d(q)
-            p = _flow_to_pwf(q)
-            oax.scatter(q,p, color='springgreen', s=70)
+        if flow is not None:
+            flow = np.atleast_1d(flow)
+            pwf_f = _flow_to_pwf(flow)
+            oax.scatter(flow,pwf_f, color='springgreen', s=70,label=f" Flow {flow} bbl/d \n Pwf{np.round(pwf_f,decimals=1)} psi")
             
         if pwf is not None:
             pwf = np.atleast_1d(pwf)
-            flow = _pwf_to_flow(pwf)
-            oax.scatter(flow,pwf, color='lime',s=70)
+            flow_p = _pwf_to_flow(pwf)
+            oax.scatter(flow_p,pwf, color='lime',s=70, label=f" Pwf {pwf} psi \n Flow{np.round(flow_p,decimals=1)} bbl/d")
             
         if dd is not None:
             dd = np.atleast_1d(dd)
             pwf_dd = self._pr - dd
             flow_dd = _pwf_to_flow(pwf_dd)
-            oax.scatter(flow_dd,pwf_dd, color='lime',s=70)
-        
+            oax.scatter(flow_dd,pwf_dd, color='lime',s=70,label=f" DD {dd} psi \n Pwf{np.round(pwf_dd,decimals=1)} psi \n Flow{np.round(flow_dd,decimals=1)} bbl/d")
+
+        if legend:
+            oax.legend()
