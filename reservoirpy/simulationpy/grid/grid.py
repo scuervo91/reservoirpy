@@ -83,8 +83,6 @@ def rotation(points,azimuth,dip,plunge):
     return rot_points
 
 
-
-
 ## Grid Class
 
 class grid():
@@ -319,7 +317,7 @@ class grid():
         #Vertices coordinates starting at 0,0,0
         x_vert_cord = np.concatenate((np.zeros(1),self.dx.reshape((self.nx,self.ny,self.nz),order='f')[:,0,0]),axis=0).cumsum()
         y_vert_cord = np.concatenate((np.zeros(1),self.dy.reshape((self.nx,self.ny,self.nz),order='f')[0,:,0]),axis=0).cumsum()
-        z_vert_cord = np.concatenate((np.zeros(1),self.dz.reshape((self.nx,self.ny,self.nz),order='f')[0,0,:]),axis=0).cumsum()
+        z_vert_cord = -np.concatenate((np.zeros(1),self.dz.reshape((self.nx,self.ny,self.nz),order='f')[0,0,:]),axis=0).cumsum()
 
         points = np.zeros(((self.nx+1)*(self.ny+1)*(self.nz+1),3))
         for k in range(self.nz+1):
@@ -344,7 +342,7 @@ class grid():
         #Vertices coordinates starting at 0,0,0
         x_vert_cord = np.concatenate((np.zeros(1),self.dx.reshape((self.nx,self.ny,self.nz),order='f')[:,0,0]),axis=0).cumsum()
         y_vert_cord = np.concatenate((np.zeros(1),self.dy.reshape((self.nx,self.ny,self.nz),order='f')[0,:,0]),axis=0).cumsum()
-        z_vert_cord = np.concatenate((np.zeros(1),self.dz.reshape((self.nx,self.ny,self.nz),order='f')[0,0,:]),axis=0).cumsum()
+        z_vert_cord = -np.concatenate((np.zeros(1),self.dz.reshape((self.nx,self.ny,self.nz),order='f')[0,0,:]),axis=0).cumsum()
 
         center = np.zeros(((self.nx)*(self.ny)*(self.nz),3))
         for k in range(self.nz):
@@ -440,6 +438,7 @@ class grid():
                     assert all(_prop>=0), f'{i} must be greater than 0'
                     self._petrophysics[i] = _prop
 
+
 #####################################################
 ############## Methods ###########################
 
@@ -517,7 +516,7 @@ class grid():
             raise ValueError('Pillar are only set in a Corner Point Grid')
         return np.array(pls)
 
-    def get_vertices_id(self,i,j,k):
+    def get_vertices_id(self,i,j,k,order='GRD'):
         """
         Cartesian Grid
 
@@ -562,7 +561,10 @@ class grid():
             p6=cell_id(i,j+1,k+1,nx,ny)
             p7=cell_id(i+1,j+1,k+1,nx,ny)
 
-            points = [p0,p1,p2,p3,p4,p5,p6,p7]
+            if order == 'GRD':
+                points = [p0,p1,p2,p3,p4,p5,p6,p7]
+            elif order == 'VTK':
+                points = [p4,p5,p7,p6,p0,p1,p3,p2]
 
             return np.array(points)
 
@@ -578,12 +580,24 @@ class grid():
             p6=cell_id(2*i,2*j+1,2*k+1,nx,ny)
             p7=cell_id(2*i+1,2*j+1,2*k+1,nx,ny)
 
-            points = [p0,p1,p2,p3,p4,p5,p6,p7]
+            if order == 'GRD':
+                points = [p0,p1,p2,p3,p4,p5,p6,p7]
+            elif order == 'VTK':
+                points = [p4,p5,p7,p6,p0,p1,p3,p2]
 
             return np.array(points)
 
 
     def get_vertices_z(self,i,j,k):
+        """
+        Node order convention for a 3D cell
+         6----7
+         -   -   <-Bottom Face
+        4----5
+          2----3
+         -    -  <-Top Face
+        0----1
+        """
         # Get the z coord for a cell
         if self.grid_type == 'corner_point':
             p = self.get_vertices_id(i,j,k)
@@ -596,7 +610,7 @@ class grid():
 
         # Pending for cartessian grid
 
-    def get_vertices_coords(self,i,j,k):
+    def get_vertices_coords(self,i,j,k,order='GRD'):
         if self.grid_type == 'corner_point':
             coords=[]
             pillars = self.get_cell_pillars(i,j)
@@ -605,12 +619,23 @@ class grid():
             for i in range(8):
                 p_id = i%4
                 coords.append(interpolate_z_pillar(cell_z[i],pillars[p_id]))
+            
+            if order == 'GRD':
+                v_coord = np.array(coords)
+            elif order == 'VTK':
+                v_coord = np.array(coords)[[4,5,7,6,0,1,3,2],:]
 
-            return np.array(coords)
+            return v_coord
+
         elif self.grid_type == 'cartesian':
             p= self.get_vertices_id(i,j,k)
             coords = [[self.cartesian_vertices_coord[i,0],self.cartesian_vertices_coord[i,1],self.cartesian_vertices_coord[i,2]] for i in p]
-            return np.array(coords)
+            if order == 'GRD':
+                v_coord = np.array(coords)
+            elif order == 'VTK':
+                v_coord = np.array(coords)[[4,5,7,6,0,1,3,2],:]
+
+            return v_coord
 
 
     def get_vertices_face_z(self,i,j,k, face=None):
@@ -647,6 +672,54 @@ class grid():
 
         return np.array(z_face)
 
+    def get_vertices_face_coords(self,i,j,k, face=None):
+        """
+         Get the Z coords for a cell
+        
+         6----7
+         -   -   <-Bottom Face
+        4----5
+          2----3
+         -    -  <-Top Face
+        0----1   
+        Follow getCornerPointCellIdx convention:
+        X-, [0,2,4,6]
+        X+, [1,3,5,7]
+        Y-, [0,1,4,5]
+        Y+, [2,3,6,7]
+        Z+, [0,1,2,3]
+        Z-, [4,5,6,7]
+        """
+        assert face is not None, 'A face must be choosen'
+        points_id = self.get_vertices_id(i,j,k)
+        if (face=="X-"): 
+            face_id=[points_id[0],points_id[2],points_id[4],points_id[6]]
+            ind = [0,2,4,6]
+        elif (face=="X+"): 
+            face_id=[points_id[1],points_id[3],points_id[5],points_id[7]]
+            ind = [1,3,5,7]
+        elif (face=="Y-"): 
+            face_id=[points_id[0],points_id[1],points_id[4],points_id[5]]
+            ind = [0,1,4,5]
+        elif (face=="Y+"): 
+            face_id=[points_id[2],points_id[3],points_id[6],points_id[7]]
+            ind = [2,3,6,7]
+        elif (face=="Z-"): 
+            face_id=[points_id[4],points_id[5],points_id[6],points_id[7]]
+            ind = [4,5,6,7]
+        elif (face=="Z+"): 
+            face_id=[points_id[0],points_id[1],points_id[2],points_id[3]]
+            ind = [0,1,2,3]
+
+        if self.grid_type == 'cartesian':
+            z_face = [self.cartesian_vertices_coord[i,:] for i in face_id]
+        elif self.grid_type == 'corner_point':
+            v_cord = self.get_vertices_coords(i,j,k)
+            z_face = v_cord[ind,:]
+
+        return np.array(z_face)
+
+
     def get_center_coord(self,i,j,k):
         """
         Get the cell Id given i,j,k indexes. 
@@ -666,6 +739,39 @@ class grid():
             center = points.mean(axis=0)
         
         return center
+
+    def get_vtk(self):
+        """
+        Get the pyvista Object
+        """
+ 
+        #Identify the cell data connections
+        offset = np.arange(0,9*self.n,step=9)
+
+        points = np.zeros((self.n*8,3))
+        #Cells
+        for k in range(self.nz):
+            for j in range(self.ny):
+                for i in range(self.nx):
+                    c_idx = self.get_cell_id(i,j,k)
+                    #cells_array[c_idx,:] = self.get_vertices_id(i,j,k, order='VTK')
+
+                    ind_from = 8*c_idx
+                    ind_to = 8*(c_idx+1)
+                    points[ind_from:ind_to,:] = self.get_vertices_coords(i,j,k, order = 'VTK')
+
+        # Make a vector of shape self.n, make 2D and append to cell array then flatten C order
+        cell_array = np.arange(self.n*8).reshape((self.n,8))
+        cells = np.append(np.full(self.n,8).reshape((self.n,1)),cell_array,1).flatten()
+
+        # cell type array. Contains the cell type of each cell
+        cell_type = np.array([vtk.VTK_HEXAHEDRON]*self.n)
+
+        grid = pv.UnstructuredGrid(offset, cells, cell_type, points)
+
+        return grid
+
+
 
 
 
