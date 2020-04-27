@@ -769,6 +769,10 @@ class grid():
 
         grid = pv.UnstructuredGrid(offset, cells, cell_type, points)
 
+        if self.petrophysics is not None:
+            for i in self.petrophysics.items():
+                grid.cell_arrays[i[0]] = i[1]
+
         return grid
 
 
