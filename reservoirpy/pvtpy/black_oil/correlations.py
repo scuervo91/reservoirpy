@@ -752,26 +752,131 @@ def rsw(p=None,t=None,s=None,method='culberson'):
         c = (-9.02505 + 0.130237*t - 8.53425e-4*np.power(t,2) + 2.34122e-6*np.power(t,3) - 2.37049e-9*np.power(t,4))*1e-7
         rswp = a + b*p + c*np.power(p,2)
 
-        # Convert p in ppm to percentage %
+       # Convert p in ppm to percentage %
         per_s = s/1e4
-        rsw = np.power(10,-0.0840655*per_s*np.power(t,-0.285854)) * rswp
+        correction = np.power(10,-0.0840655*per_s*np.power(t,-0.285854))
+        rsw = rswp * correction
         rsw_dict['rws_culberson'] = rsw
 
     if 'mccoy' in methods:
 
-        a = 2.12 - 3.45e-3*t - 3.59e-5*np.power(t,2)
-        b = 0.0107e-2 - 5.26e-5*t + 1.48e-7*np.power(t,2)
-        c = -8.75e-7 - 3.9e-9*t - 1.02e-11*np.power(t,2)
+        a = 2.12 + 3.45e-3*t - 3.59e-5*np.power(t,2)
+        b = 0.0107 - 5.26e-5*t + 1.48e-7*np.power(t,2)
+        c = -8.75e-7 + 3.9e-9*t - 1.02e-11*np.power(t,2)
         rswp = a + b*p + c*np.power(p,2)
-
         # Convert p in ppm to percentage %
         per_s = s/1e4
-        rsw = 1 - (0.0753 - 1.71e-4*t)*per_s
+        correction = (1 - (0.0753 - 1.73e-4*t)*per_s)
+        rsw = rswp * correction
         rsw_dict['rsw_mccoy'] = rsw
 
     rsw_df = pd.DataFrame(rsw_dict,index=p) if multiple==True else pd.DataFrame({'rsw':rsw},index=p)
     rsw_df.index.name='pressure'
     return rsw_df
+
+def bw(p=None, t=None, pb=0,cw=0,s = None, method='mccain'):
+    """
+    Estimate Water volumetric factor
+
+    Input: 
+        p ->  (int,float,list,np.array) Interest Pressure [psi]
+        t ->  (int,float,list,np.array) Interest Temperature [F]
+        pb ->  (int,float,list,np.array) Bubble point [psi]
+        cw ->  (int,float,list,np.array) Water isothermal compressibility [1/psi]
+        s ->  (int,float,list,np.array) Salinity [ppm]
+
+        method -> (str,list, default 'banzer') Correlation
+          
+    Return:
+        bw -> (pd.DataFrame) water volumetric factor indexed by pressure
+
+    Source: Correlaciones Numericas PVT - Carlos Banzer
+    """
+    assert isinstance(p,(int,float,list,np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(t,(int,float,list,np.ndarray))
+    t = np.atleast_1d(t)
+
+    assert isinstance(pb,(int,float,list,np.ndarray))
+    pb = np.atleast_1d(pb)
+
+    assert isinstance(cw,(int,float,list,np.ndarray))
+    cw = np.atleast_1d(cw)
+
+    assert isinstance(s,(int,float,list,np.ndarray))
+    s = np.atleast_1d(s)
+
+    assert isinstance(method,(str,list))
+
+    methods = []
+     
+    if isinstance(method,str):
+        methods.append(method)
+        multiple = False
+    else:
+        methods.extend(method)
+        multiple = True
+    bw_dict = {}
+
+    if 'mccain' in methods:
+        bwp = np.zeros(p.shape)
+        delta_vw_t = np.zeros(p.shape)
+        delta_vw_p = np.zeros(p.shape)
+        correction = np.zeros(p.shape)
+
+        delta_vw_t[p<pb] = -1.0001e-2 + 1.33391e-4*t + 5.50654e-7*np.power(t,2)
+        delta_vw_t_pb = -1.0001e-2 + 1.33391e-4*t + 5.50654e-7*np.power(t,2)
+        delta_vw_p[p<pb] = -1.95301e-9*p[p<=pb]*t - 1.72834e-13*np.power(p[p<=pb],2)*t - 3.58922e-7*p - 2.25341e-10*np.power(p[p<=pb],2)
+        delta_vw_p_pb = -1.95301e-9*pb*t - 1.72834e-13*np.power(pb,2)*t - 3.58922e-7*p - 2.25341e-10*np.power(pb,2)
+        
+        bwp[p<=pb] = (1 + delta_vw_p)*(1+delta_vw_t)
+        bwb = (1 + delta_vw_p_pb)*(1+delta_vw_t_pb)
+
+        bwp[p>pb] = bwb * np.exp(cw*(pb-p))   
+
+        # Convert p in ppm to percentage %
+        per_s = s/1e4
+        correction = 1 + per_s * (5.1e-8*p + (5.47e-6 - 1.95e-10*p)*(t-60)-(3.23e-8 - 8.5e-13*p)*(np.power(t-60,2)))
+        bw = bwp * correction
+        bw_dict['bw_mccain'] = bw
+
+        print(delta_vw_t)
+        print(delta_vw_p)
+        print(correction)
+        print(bwp)
+
+    if 'mccoy' in methods:
+        bwp = np.zeros(p.shape)
+        correction = np.zeros(p.shape)
+
+        a = 0.9911 + 6.35e-5*t + 8.5e-7*np.power(t,2)
+        b = -1.093e-6 - 3.497e-9*t + 4.57e-12*np.power(t,2)
+        c = -5e-11 + 6.429e-13*t - 1.43e-15*np.power(t,2)
+
+        bwp[p<=pb] = a + b*p[p<=pb] + c*np.power(p[p<=pb],2)
+        bwb = a + b*pb + c*np.power(pb,2)
+
+        bwp[p>pb] = bwb = np.exp(cw*(pb-p))
+
+        # Convert p in ppm to percentage %
+        per_s = s/1e4
+        correction = 1 + per_s * (5.1e-8*p + (5.47e-6 - 1.95e-10*p)*(t-60)-(3.23e-8 - 8.5e-13*p)*(np.power(t-60,2)))
+        bw = bwp * correction
+        bw_dict['bw_mccoy'] = bw
+        print('mcoy')
+        print(a)
+        print(b)
+        print(c)
+        print(bwp)
+        print(correction)
+        print(bwp)
+
+    bw_df = pd.DataFrame(bw_dict,index=p) if multiple==True else pd.DataFrame({'bw':bw},index=p)
+    bw_df.index.name='pressure'
+    return bw_df
+
+
 
     
 
