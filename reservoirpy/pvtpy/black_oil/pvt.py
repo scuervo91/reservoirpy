@@ -3,6 +3,10 @@ import numpy as np
 from scipy.interpolate import interp1d
 from .correlations import pb, rs, co, muo, rho_oil, bo
 
+############################################################
+############################################################
+############################################################
+## Oil PVT
 class oil_pvt(pd.DataFrame):
     _metadata = ['rs_int','rho_int','b_int','mu_int','co_int','tens_int']
     
@@ -31,8 +35,8 @@ class oil_pvt(pd.DataFrame):
         if 'bo' in self.columns: 
             self.b_int = interp1d(self.index,self['bo'])
 
-        if 'rho' in self.columns: 
-            self.rho_int = interp1d(self.index,self['rho'])      
+        if 'rhoo' in self.columns: 
+            self.rho_int = interp1d(self.index,self['rhoo'])      
 
         if 'muo' in self.columns: 
             self.muo_int = interp1d(self.index,self['muo'])
@@ -40,7 +44,7 @@ class oil_pvt(pd.DataFrame):
         if 'co' in self.columns: 
             self.co_int = interp1d(self.index,self['co'])     
 
-        if 'ten' in self.columns: 
+        if 'teno' in self.columns: 
             self.ten_int = interp1d(self.index,self['ten']) 
         
          
@@ -150,19 +154,19 @@ class oil:
         p_range=np.linspace(start_pressure,end_pressure,n)
 
         def_corr = {
-            'pb':['standing'],
-            'rs':['standing'],
-            'bo':['standing'],
+            'pb':'standing',
+            'rs':'standing',
+            'bo':'standing',
             'co':{
-                'above_pb':['vazquez_beggs'],
-                'below_pb':['mccain']
+                'above_pb':'vazquez_beggs',
+                'below_pb':'mccain'
             },
-            'muod':['beal'],
+            'muod':'beal',
             'muo':{
-                'above_pb':['beal'],
-                'below_pb':['beggs']
+                'above_pb':'beal',
+                'below_pb':'beggs'
             },
-            'rho':['banzer']
+            'rho':'banzer'
         }
 
         for (k,v) in def_corr.items():
@@ -201,8 +205,101 @@ class oil:
         return self._pvt
 
             
+############################################################
+############################################################
+############################################################
+## Water PVT
+class water_pvt(pd.DataFrame):
+    _metadata = ['rho_int','b_int','mu_int','co_int','tens_int']
+    
+    def __init__(self, *args, **kwargs):
+        pressure = kwargs.pop("pressure", None)
+        assert(pressure,(list,np.ndarray,type(None)))
+        super().__init__(*args, **kwargs)
+                
+        # The pressure must be present in the pvt class
+
+        if pressure is not None:
+            pressure = np.atleast_1d(pressure)
+            self['pressure'] = pressure
+            assert self['pressure'].is_monotonic, "Pressure must be increasing"
+            self.set_index('pressure',inplace=True)
+        elif 'pressure' in self.columns:
+            assert self['pressure'].is_monotonic, "Pressure must be increasing"
+            self.set_index('pressure',inplace=True)
+        elif self.index.name == 'pressure':
+            assert self.index.is_monotonic, "Pressure must be increasing"
+  
+    def set_interpolators(self):
+        if 'bw' in self.columns: 
+            self.b_int = interp1d(self.index,self['bo'])
+
+        if 'rhow' in self.columns: 
+            self.rho_int = interp1d(self.index,self['rho'])      
+
+        if 'muw' in self.columns: 
+            self.muo_int = interp1d(self.index,self['muo'])
+        
+        if 'cw' in self.columns: 
+            self.co_int = interp1d(self.index,self['co'])     
+
+        if 'tenw' in self.columns: 
+            self.ten_int = interp1d(self.index,self['ten']) 
+        
+         
+    @property   
+    def _constructor(self):
+        return water_pvt
 
 
+
+
+            
+############################################################
+############################################################
+############################################################
+## Gas PVT
+class gas_pvt(pd.DataFrame):
+    _metadata = ['rho_int','b_int','mu_int','co_int','z']
+    
+    def __init__(self, *args, **kwargs):
+        pressure = kwargs.pop("pressure", None)
+        assert(pressure,(list,np.ndarray,type(None)))
+        super().__init__(*args, **kwargs)
+                
+        # The pressure must be present in the pvt class
+
+        if pressure is not None:
+            pressure = np.atleast_1d(pressure)
+            self['pressure'] = pressure
+            assert self['pressure'].is_monotonic, "Pressure must be increasing"
+            self.set_index('pressure',inplace=True)
+        elif 'pressure' in self.columns:
+            assert self['pressure'].is_monotonic, "Pressure must be increasing"
+            self.set_index('pressure',inplace=True)
+        elif self.index.name == 'pressure':
+            assert self.index.is_monotonic, "Pressure must be increasing"
+  
+    def set_interpolators(self):
+        if 'bg' in self.columns: 
+            self.b_int = interp1d(self.index,self['bo'])
+
+        if 'rhog' in self.columns: 
+            self.rho_int = interp1d(self.index,self['rho'])      
+
+        if 'mug' in self.columns: 
+            self.muo_int = interp1d(self.index,self['muo'])
+        
+        if 'cg' in self.columns: 
+            self.co_int = interp1d(self.index,self['co'])     
+
+        if 'z' in self.columns: 
+            self.ten_int = interp1d(self.index,self['ten']) 
+        
+         
+    @property   
+    def _constructor(self):
+        return gas_pvt
 
 
 
