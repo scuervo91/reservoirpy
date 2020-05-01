@@ -719,7 +719,7 @@ def rsw(p=None,t=None,s=None,method='culberson'):
         p ->  (int,float,list,np.array) Interest Pressure [psi]
         t ->  (int,float,list,np.array) Interest Temperature [F]
 
-        method -> (str,list, default 'banzer') Correlation
+        method -> (str,list, default 'culberson') Correlation
           
     Return:
         rsw -> (pd.DataFrame) water solubility indexed by pressure
@@ -785,7 +785,7 @@ def bw(p=None, t=None, pb=0,cw=0,s = None, method='mccain'):
         cw ->  (int,float,list,np.array) Water isothermal compressibility [1/psi]
         s ->  (int,float,list,np.array) Salinity [ppm]
 
-        method -> (str,list, default 'banzer') Correlation
+        method -> (str,list, default 'mccain') Correlation
           
     Return:
         bw -> (pd.DataFrame) water volumetric factor indexed by pressure
@@ -827,10 +827,10 @@ def bw(p=None, t=None, pb=0,cw=0,s = None, method='mccain'):
 
         delta_vw_t[p<pb] = -1.0001e-2 + 1.33391e-4*t + 5.50654e-7*np.power(t,2)
         delta_vw_t_pb = -1.0001e-2 + 1.33391e-4*t + 5.50654e-7*np.power(t,2)
-        delta_vw_p[p<pb] = -1.95301e-9*p[p<=pb]*t - 1.72834e-13*np.power(p[p<=pb],2)*t - 3.58922e-7*p - 2.25341e-10*np.power(p[p<=pb],2)
-        delta_vw_p_pb = -1.95301e-9*pb*t - 1.72834e-13*np.power(pb,2)*t - 3.58922e-7*p - 2.25341e-10*np.power(pb,2)
+        delta_vw_p[p<pb] = -1.95301e-9*p[p<=pb]*t - 1.72834e-13*np.power(p[p<=pb],2)*t - 3.58922e-7*p[p<=pb] - 2.25341e-10*np.power(p[p<=pb],2)
+        delta_vw_p_pb = -1.95301e-9*pb*t - 1.72834e-13*np.power(pb,2)*t - 3.58922e-7*pb - 2.25341e-10*np.power(pb,2)
         
-        bwp[p<=pb] = (1 + delta_vw_p)*(1+delta_vw_t)
+        bwp[p<=pb] = (1 + delta_vw_p[p<pb])*(1+delta_vw_t[p<pb])
         bwb = (1 + delta_vw_p_pb)*(1+delta_vw_t_pb)
 
         bwp[p>pb] = bwb * np.exp(cw*(pb-p))   
@@ -840,11 +840,6 @@ def bw(p=None, t=None, pb=0,cw=0,s = None, method='mccain'):
         correction = 1 + per_s * (5.1e-8*p + (5.47e-6 - 1.95e-10*p)*(t-60)-(3.23e-8 - 8.5e-13*p)*(np.power(t-60,2)))
         bw = bwp * correction
         bw_dict['bw_mccain'] = bw
-
-        print(delta_vw_t)
-        print(delta_vw_p)
-        print(correction)
-        print(bwp)
 
     if 'mccoy' in methods:
         bwp = np.zeros(p.shape)
@@ -864,17 +859,78 @@ def bw(p=None, t=None, pb=0,cw=0,s = None, method='mccain'):
         correction = 1 + per_s * (5.1e-8*p + (5.47e-6 - 1.95e-10*p)*(t-60)-(3.23e-8 - 8.5e-13*p)*(np.power(t-60,2)))
         bw = bwp * correction
         bw_dict['bw_mccoy'] = bw
-        print('mcoy')
-        print(a)
-        print(b)
-        print(c)
-        print(bwp)
-        print(correction)
-        print(bwp)
 
     bw_df = pd.DataFrame(bw_dict,index=p) if multiple==True else pd.DataFrame({'bw':bw},index=p)
     bw_df.index.name='pressure'
     return bw_df
+
+def cw(p=None, t=None, rsw=0,s = 0, method='standing'):
+    """
+    Estimate Water compressibility
+
+    Input: 
+        p ->  (int,float,list,np.array) Interest Pressure [psi]
+        t ->  (int,float,list,np.array) Interest Temperature [F]
+        rsw ->  (int,float,list,np.array) water solubility 
+
+
+        method -> (str,list, default 'standing') Correlation
+          
+    Return:
+        bw -> (pd.DataFrame) water volumetric factor indexed by pressure
+
+    Source: Correlaciones Numericas PVT - Carlos Banzer
+    """
+    assert isinstance(p,(int,float,list,np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(t,(int,float,list,np.ndarray))
+    t = np.atleast_1d(t)
+
+    assert isinstance(rsw,(int,float,list,np.ndarray))
+    rsw = np.atleast_1d(rsw)
+
+    assert isinstance(s,(int,float,list,np.ndarray))
+    s = np.atleast_1d(s)
+
+    methods = []
+     
+    if isinstance(method,str):
+        methods.append(method)
+        multiple = False
+    else:
+        methods.extend(method)
+        multiple = True
+
+    cw_dict = {}
+
+    if 'standing' in methods:
+        a = 3.8546 - 1.34e-4*p
+        b = -0.01052 + 4.77e-7*p
+        c = 3.9267e-5 - 8.8e-10*p 
+
+        cwp = (a + b*t + c*np.power(t,2))/1e-6
+
+        correction_rsw = 1 + 8.9e-3*rsw
+
+        # Convert p in ppm to percentage %
+        per_s = s/1e4
+        correction_s = 1 + np.power(per_s,0.7)*(-5.2e-2 + 2.7e-4*t - 1.14e-6*np.power(t,2) + 1.121e-9*np.power(t,3))
+
+        cw = cwp * correction_rsw * correction_s
+
+        cw_dict['cw_standing'] = cw
+
+    if 'osif' in methods:
+        per_s = s/1e4
+        cw = 1 / (7.033*p + 541.5*per_s - 537*t + 403300)
+        cw_dict['cw_osif'] = cw
+
+    cw_df = pd.DataFrame(cw_dict,index=p) if multiple==True else pd.DataFrame({'cw':cw},index=p)
+    cw_df.index.name='pressure'
+    return cw_df
+
+
 
 
 
