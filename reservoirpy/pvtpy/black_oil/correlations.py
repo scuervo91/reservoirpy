@@ -931,7 +931,7 @@ def cw(p=None, t=None, rsw=0, s=0, method='standing'):  # Note: Pending develop 
         b = -0.01052 + 4.77e-7 * p
         c = 3.9267e-5 - 8.8e-10 * p
 
-        cwp = (a + b * t + c * np.power(t, 2)) / 1e-6
+        cwp = (a + b*t + c * np.power(t, 2)) / 1e6
 
         correction_rsw = 1 + 8.9e-3 * rsw
 
@@ -975,6 +975,9 @@ def muw(p=None, t=None, s = 0,  method = 'van_wingen'):
     assert isinstance(t, (int, float, list, np.ndarray))
     t = np.atleast_1d(t)
 
+    assert isinstance(s, (int, float, list, np.ndarray))
+    s = np.atleast_1d(s)
+
     assert isinstance(method, (str, list))
 
     methods = []
@@ -1004,4 +1007,218 @@ def muw(p=None, t=None, s = 0,  method = 'van_wingen'):
     muw_df = pd.DataFrame(muw_dict, index=p) if multiple == True else pd.DataFrame({'muw': muw}, index=p)
     muw_df.index.name = 'pressure'
     return muw_df
+
+def rhow(p=None,s=0, bw=1, method = 'banzer'):
+    """
+    Estimate Water Density in lb/ft3
+
+    Input:
+        s ->  (int,float,list,np.array) dissolved solids [ppm]
+        bw ->  (int,float,list,np.array) Water Volumetric Factor []
+        method -> (str,list, default 'banzer') Correlation
+
+    Return:
+        rhow -> (pd.DataFrame) water density [lb/ft3]
+
+    Source: Correlaciones Numericas PVT - Carlos Banzer
+    """
+    assert isinstance(p, (int, float, list, np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(s, (int, float, list, np.ndarray))
+    s = np.atleast_1d(s)
+
+    assert isinstance(bw, (int, float, list, np.ndarray))
+    bw = np.atleast_1d(bw)
+
+    assert isinstance(method, (str, list))
+
+    methods = []
+
+    if isinstance(method, str):
+        methods.append(method)
+        multiple = False
+    else:
+        methods.extend(method)
+        multiple = True
+
+    rhow_dict = {}
+
+    if 'banzer' in methods:
+        ge_w = 1 + 0.695e-6*s
+        rhow = 62.4 * ge_w/bw
+        rhow_dict['rhow_banzer'] = rhow
+
+    if 'mccain' in methods:
+        if len(s)==1:
+            s_array = np.full(p.shape, s)
+        per_s = s/1e4
+        rhow = 62.368 + 0.438603*per_s + 1.60074e-3*np.power(per_s,2)
+
+    rhow_df = pd.DataFrame(rhow_dict, index=p) if multiple == True else pd.DataFrame({'rhow': rhow}, index=p)
+    rhow_df.index.name = 'pressure'
+    return rhow_df
+
+#####################################################################################
+#####################################################################################
+############################ GAS CORRELATIONS #######################################
+
+
+def rhog(p=None, ma=None, z=1, r=10.73, t=None, method='real_gas'):
+    """
+    Estimate Gas density 
+
+    Input:
+        s ->  (int,float,list,np.array) dissolved solids [ppm]
+        bw ->  (int,float,list,np.array) Water Volumetric Factor []
+        method -> (str,list, default 'banzer') Correlation
+
+    Return:
+        rhog -> (pd.DataFrame) water density [lb/ft3]
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """
+
+    assert isinstance(p, (int, float, list, np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(t, (int, float, list, np.ndarray))
+    t = np.atleast_1d(t)
+
+    assert isinstance(z, (int, float, list, np.ndarray))
+    z = np.atleast_1d(z)
+
+    assert isinstance(ma, (int, float, list, np.ndarray))
+    ma = np.atleast_1d(ma)
+
+    assert isinstance(r, (int, float))
+    r = np.atleast_1d(r)
+
+    assert isinstance(method, (str, list))
+
+    methods = []
+
+    if isinstance(method, str):
+        methods.append(method)
+        multiple = False
+    else:
+        methods.extend(method)
+        multiple = True
+
+    rhog_dict = {}
+
+    if 'real_gas' in methods:
+        rhog = (p*ma)/(z*r*t)
+        rhoh_dict['real_gas'] = rhog
+
+    if 'ideal_gas' in methods:
+        rhog = (p*ma)/(r*t)
+        rhoh_dict['ideal_gas'] = rhog
+
+    rhog_df = pd.DataFrame(rhog_dict, index=p) if multiple == True else pd.DataFrame({'rhog': rhog}, index=p)
+    rhog_df.index.name = 'pressure'
+    return rhog_df
+
+def z_factor(p=None, t=None, ppc=None, tpc=None, method='papay'):
+    """
+    Estimate Gas compressibility Factor 
+
+    Input:
+        p ->  (int,float,list,np.array) Pressure [psi]
+        t ->  (int,float,list,np.array) Temperature [F]
+        ppc ->  (int,float,list,np.array) pressure pseudo critical[F]
+        tpc ->  (int,float,list,np.array) temperature pseudo critical[F]
+        method -> (str,list, default 'papay') Correlation
+
+    Return:
+        z -> (pd.DataFrame) Compressibility Factor
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """
+    assert isinstance(p, (int, float, list, np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(t, (int, float, list, np.ndarray))
+    t = np.atleast_1d(t)
+
+    assert isinstance(ppc, (int, float, list, np.ndarray))
+    ppc = np.atleast_1d(ppc)
+
+    assert isinstance(tpc, (int, float, list, np.ndarray))
+    tpc = np.atleast_1d(tpc)
+
+    assert isinstance(method, (str, list))
+
+    methods = []
+
+    if isinstance(method, str):
+        methods.append(method)
+        multiple = False
+    else:
+        methods.extend(method)
+        multiple = True
+
+    z_dict = {}
+
+    #Estimate Pseudo-reduced Properties
+    ppr = p/ppc
+    tpr = t/tpc
+
+    if 'papay' in methods:
+        z = 1 - ((3.52*ppr)/(np.power(10,0.9813*tpr))) + ((0.274*np.power(ppr,2))/(np.power(10,0.8157*tpr)))
+        z_dict['z_papay'] = z
+
+    z_df = pd.DataFrame(z_dict, index=p) if multiple == True else pd.DataFrame({'z': z}, index=p)
+    z_df.index.name = 'pressure'
+    return z_df    
+
+def bg(p=None, t=None, z=None, unit='ft3/scf'):
+    """
+    Estimate Gas Volumetric factor 
+
+    Input:
+        p ->  (int,float,list,np.array) Pressure [psi]
+        t ->  (int,float,list,np.array) Temperature [F]
+        z ->  (int,float,list,np.array) Compressibility factor
+        units -> (str, default 'ft3/scf') Correlation
+
+    Return:
+        rhog -> (pd.DataFrame) Gas Volumetric factor
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """  
+    assert isinstance(p, (int, float, list, np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(t, (int, float, list, np.ndarray))
+    t = np.atleast_1d(t)
+
+    assert isinstance(z, (int, float, list, np.ndarray))
+    z = np.atleast_1d(z)
+
+    assert isinstance(units, (str, list))
+
+    units = []
+
+    if isinstance(unit, str):
+        units.append(unit)
+        multiple = False
+    else:
+        units.extend(unit)
+        multiple = True
+
+    bg_dict = {}
+
+    if 'ft3/scf' in units:
+        bg = 0.02827*z*t/p
+        bg_dict['bg_ft3/scf'] = bg 
+    
+    if 'bbl/scf' in units: 
+        bg = 0.00503*z*t/p
+        bg_dict['bg_bbl/scf'] = bg  
+
+    bg_df = pd.DataFrame(bg_dict, index=p) if multiple == True else pd.DataFrame({'bg': bg}, index=p)
+    bg_df.index.name = 'pressure'
+    return bg_df 
+
 
