@@ -2,17 +2,17 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from .correlations import pb, rs, co, muo, rho_oil, bo
+import os
 
 ############################################################
 ############################################################
 ############################################################
 ## Oil PVT
 class oil_pvt(pd.DataFrame):
-    _metadata = ['rs_int','rho_int','b_int','mu_int','co_int','tens_int']
     
     def __init__(self, *args, **kwargs):
         pressure = kwargs.pop("pressure", None)
-        assert(pressure,(list,np.ndarray,type(None)))
+        assert isinstance(pressure,(list,np.ndarray,type(None)))
         super().__init__(*args, **kwargs)
                 
         # The pressure must be present in the pvt class
@@ -27,26 +27,32 @@ class oil_pvt(pd.DataFrame):
             self.set_index('pressure',inplace=True)
         elif self.index.name == 'pressure':
             assert self.index.is_monotonic, "Pressure must be increasing"
-  
-    def set_interpolators(self):
-        if 'rs' in self.columns: 
-            self.rs_int = interp1d(self.index,self['rs'])
+    
+    ## Methods
 
-        if 'bo' in self.columns: 
-            self.b_int = interp1d(self.index,self['bo'])
+    def interpolate(self,value,property):
+        assert isinstance(value, (int,float,np.ndarray))
+        p = np.atleast_1d(value)
 
-        if 'rhoo' in self.columns: 
-            self.rho_int = interp1d(self.index,self['rhoo'])      
+        assert isinstance(property,(str,list))
 
-        if 'muo' in self.columns: 
-            self.muo_int = interp1d(self.index,self['muo'])
-        
-        if 'co' in self.columns: 
-            self.co_int = interp1d(self.index,self['co'])     
+        properties = []
 
-        if 'teno' in self.columns: 
-            self.ten_int = interp1d(self.index,self['ten']) 
-        
+        if isinstance(property, str):
+            properties.append(property)
+        else:
+            properties.extend(property)
+
+        int_dict = {}
+
+        for i in properties:
+            if i in self.columns:
+                _interpolated = interp1d(self.index,self[i])(p)
+                int_dict[i] = _interpolated
+
+        int_df = pd.DataFrame(int_dict, index=p)
+
+        return int_df 
          
     @property   
     def _constructor(self):
@@ -65,8 +71,8 @@ class oil:
         self.pvt = kwargs.pop('pvt',None)
         self.bg = kwargs.pop("bg", None)
 
-#####################################################
-############## Properties ###########################
+    #####################################################
+    ############## Properties ###########################
 
     @property
     def formation(self):
@@ -199,22 +205,21 @@ class oil:
             api=self._api,pb=self._pb,multiple=False,methods=kwargs['rho'])
 
         _pvt = pd.concat([rs_cor,bo_cor,co_cor,muo_cor,rho_cor],axis=1)
-        print(_pvt)
+
         self._pvt=oil_pvt(_pvt.reset_index())
 
         return self._pvt
 
-            
+           
 ############################################################
 ############################################################
 ############################################################
 ## Water PVT
 class water_pvt(pd.DataFrame):
-    _metadata = ['rho_int','b_int','mu_int','co_int','tens_int']
     
     def __init__(self, *args, **kwargs):
         pressure = kwargs.pop("pressure", None)
-        assert(pressure,(list,np.ndarray,type(None)))
+        assert isinstance(pressure,(list,np.ndarray,type(None)))
         super().__init__(*args, **kwargs)
                 
         # The pressure must be present in the pvt class
@@ -230,29 +235,92 @@ class water_pvt(pd.DataFrame):
         elif self.index.name == 'pressure':
             assert self.index.is_monotonic, "Pressure must be increasing"
   
-    def set_interpolators(self):
-        if 'bw' in self.columns: 
-            self.b_int = interp1d(self.index,self['bo'])
+    def interpolate(self,value,property):
+        assert isinstance(value, (int,float,np.ndarray))
+        p = np.atleast_1d(value)
 
-        if 'rhow' in self.columns: 
-            self.rho_int = interp1d(self.index,self['rho'])      
+        assert isinstance(property,(str,list))
 
-        if 'muw' in self.columns: 
-            self.muo_int = interp1d(self.index,self['muo'])
-        
-        if 'cw' in self.columns: 
-            self.co_int = interp1d(self.index,self['co'])     
+        properties = []
 
-        if 'tenw' in self.columns: 
-            self.ten_int = interp1d(self.index,self['ten']) 
+        if isinstance(property, str):
+            properties.append(property)
+        else:
+            properties.extend(property)
+
+        int_dict = {}
+
+        for i in properties:
+            if i in self.columns:
+                _interpolated = interp1d(self.index,self[i])(p)
+                int_dict[i] = _interpolated
+
+        int_df = pd.DataFrame(int_dict, index=p)
+
+        return int_df 
         
          
     @property   
     def _constructor(self):
         return water_pvt
 
+class water:
+    def __init__(self, **kwargs):
 
+        self.formation = kwargs.pop('formation',None)
+        self.pb = kwargs.pop("pb", None)
+        self.salinity = kwargs.pop("s", None)
+        self.temp = kwargs.pop("temp", None)
+        self.pvt = kwargs.pop('pvt',None)
 
+    #Properties
+    @property
+    def formation(self):
+        return self._formation
+
+    @formation.setter
+    def formation(self,value):
+        assert isinstance(value,(str,type(None))), f'{type(value)} not accepted. Name must be str'
+        self._formation = value
+
+    @property
+    def pb(self):
+        return self._pb
+
+    @pb.setter
+    def pb(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be numeric'
+        assert value > 0, 'value must be possitive'
+        self._pb = value
+
+    @property
+    def temp(self):
+        return self._temp
+
+    @temp.setter
+    def temp(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be numeric'
+        assert value > 0, 'value must be possitive'
+        self._temp = value
+
+    @property
+    def salinity(self):
+        return self._salinity
+
+    @salinity.setter
+    def salinity(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be numeric'
+        assert value > 0, 'value must be possitive'
+        self._salinity = value
+
+    @property
+    def pvt(self):
+        return self._pvt
+
+    @pvt.setter
+    def pvt(self,value):
+        assert isinstance(value,(water_pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.water_pvt'
+        self._pvt = value
 
             
 ############################################################
@@ -260,7 +328,6 @@ class water_pvt(pd.DataFrame):
 ############################################################
 ## Gas PVT
 class gas_pvt(pd.DataFrame):
-    _metadata = ['rho_int','b_int','mu_int','co_int','z']
     
     def __init__(self, *args, **kwargs):
         pressure = kwargs.pop("pressure", None)
@@ -280,27 +347,78 @@ class gas_pvt(pd.DataFrame):
         elif self.index.name == 'pressure':
             assert self.index.is_monotonic, "Pressure must be increasing"
   
-    def set_interpolators(self):
-        if 'bg' in self.columns: 
-            self.b_int = interp1d(self.index,self['bo'])
+    def interpolate(self,value,property):
+        assert isinstance(value, (int,float,np.ndarray))
+        p = np.atleast_1d(value)
 
-        if 'rhog' in self.columns: 
-            self.rho_int = interp1d(self.index,self['rho'])      
+        assert isinstance(property,(str,list))
 
-        if 'mug' in self.columns: 
-            self.muo_int = interp1d(self.index,self['muo'])
-        
-        if 'cg' in self.columns: 
-            self.co_int = interp1d(self.index,self['co'])     
+        properties = []
 
-        if 'z' in self.columns: 
-            self.ten_int = interp1d(self.index,self['ten']) 
+        if isinstance(property, str):
+            properties.append(property)
+        else:
+            properties.extend(property)
+
+        int_dict = {}
+
+        for i in properties:
+            if i in self.columns:
+                _interpolated = interp1d(self.index,self[i])(p)
+                int_dict[i] = _interpolated
+
+        int_df = pd.DataFrame(int_dict, index=p)
+
+        return int_df 
         
          
     @property   
     def _constructor(self):
         return gas_pvt
 
+
+#upload table property list
+file_dir = os.path.dirname(__file__)
+components_path = os.path.join(file_dir,'components_properties.csv')
+
+properties_df = pd.read_csv(components_path, index_col='name')
+
+class chromatography(pd.DataFrame):
+
+    def __init__(self, *args, **kwargs):
+        mole_fraction = kwargs.pop("mole_fraction", None)
+        assert isinstance(mole_fraction,(list,np.ndarray,type(None)))
+
+        normalize = kwargs.pop('normalize',True)
+        assert isinstance(normalize,bool)
+
+        join = kwargs.pop('join',True)
+        assert isinstance(join,bool)
+
+        super().__init__(*args, **kwargs)
+
+        # The Mole fraction must be present in the pvt class
+
+        if mole_fraction is not None:
+            mole_fraction = np.atleast_1d(mole_fraction)
+            self['mole_fraction'] = mole_fraction
+        else:
+            assert 'mole_fraction' in self.columns 
+
+        if normalize:
+            _sum_mf = self['mole_fraction'].sum()
+            self['mole_fraction'] = self['mole_fraction']/_sum_mf
+
+        if join:
+            print('enter Join')
+            _merged = properties_df.merge(self, how='inner', left_index=True, right_index=True)
+            for i in _merged.columns:
+                if i not in self.columns:
+                    self[i] = _merged[i]
+        
+    @property   
+    def _constructor(self):
+        return chromatography
 
 
 
