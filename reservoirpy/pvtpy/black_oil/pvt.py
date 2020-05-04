@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-from .correlations import pb, rs, co, muo, rho_oil, bo
+from .correlations import pb, rs, co, muo, rho_oil, bo, z_factor, rhog, bg
 import os
 
 ############################################################
@@ -410,11 +410,52 @@ class chromatography(pd.DataFrame):
             self['mole_fraction'] = self['mole_fraction']/_sum_mf
 
         if join:
-            print('enter Join')
             _merged = properties_df.merge(self, how='inner', left_index=True, right_index=True)
             for i in _merged.columns:
                 if i not in self.columns:
                     self[i] = _merged[i]
+    @property
+    def ma(self):
+        return (self['mole_fraction']*self['mw']).sum()
+
+    @property  
+    def gas_sg(self):
+        return (self['mole_fraction']*self['mw']).sum()/28.96
+
+    @property  
+    def ppc(self):
+        return (self['mole_fraction']*self['ppc']).sum()
+
+    @property  
+    def tpc(self):
+        return (self['mole_fraction']*self['tpc']).sum()
+
+    def get_z(self,p=14.7,t=60, z_method='papay'):
+        _ppc = self.ppc
+        _tpc = self.tpc
+        z = z_factor(p=p, t=t, ppc=_ppc, tpc=_tpc, method=z_method)
+        return z
+
+    def get_rhog(self,p=14.7,t=60, z_method='papay',rhog_method='real_gas'):
+        _ma = self.ma
+        if rhog_method == 'ideal_gas':
+            _rhog = rhog(p=p,ma=_ma,t=t)
+        elif rhog_method == 'real_gas':
+            _z = self.get_z(p=p,t=t,z_method = z_method)
+            _rhog = rhog(p=p,ma=_ma,z=_z.values.reshape(-1), t=t, method=rhog_method)
+        return _rhog
+
+    def get_sv(self,p=14.7,t=60, z_method='papay',rhog_method='real_gas'):
+        _ma = self.ma
+        if rhog_method == 'ideal_gas':
+            _rhog = rhog(p=p,ma=_ma,t=t)
+            _rhog['sv'] = 1/_rhog['rhog']
+        elif rhog_method == 'real_gas':
+            _z = self.get_z(p=p,t=t,z_method = z_method)
+            _rhog = rhog(p=p,ma=_ma,z=_z.values.reshape(1), t=t, method=rhog_method)
+            _rhog['sv'] = 1/_rhog['rhog']
+        return _rhog[['sv']]
+
         
     @property   
     def _constructor(self):
