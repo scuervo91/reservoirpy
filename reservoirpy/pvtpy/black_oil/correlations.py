@@ -1064,14 +1064,17 @@ def rhow(p=None,s=0, bw=1, method = 'banzer'):
 ############################ GAS CORRELATIONS #######################################
 
 
-def rhog(p=None, ma=None, z=1, r=10.73, t=None, method='real_gas'):
+def rhog(p=None, ma=None, z=1, r=10.73, t=None, method='ideal_gas'):
     """
     Estimate Gas density 
 
     Input:
-        s ->  (int,float,list,np.array) dissolved solids [ppm]
-        bw ->  (int,float,list,np.array) Water Volumetric Factor []
-        method -> (str,list, default 'banzer') Correlation
+        p ->  (int,float,list,np.array) Pressure [psi]
+        t ->  (int,float,list,np.array) Temperature [F]
+        ma ->  (int,float,list,np.array) Apparent molecular weight
+        r ->  (int,float,list,np.array) Constant 
+        z ->  (int,float,list,np.array) compressibility Factor
+        method -> (str,list, default 'ideal_gas') Correlation
 
     Return:
         rhog -> (pd.DataFrame) water density [lb/ft3]
@@ -1083,7 +1086,7 @@ def rhog(p=None, ma=None, z=1, r=10.73, t=None, method='real_gas'):
     p = np.atleast_1d(p)
 
     assert isinstance(t, (int, float, list, np.ndarray))
-    t = np.atleast_1d(t)
+    t = np.atleast_1d(t) + 460 # temp to R
 
     assert isinstance(z, (int, float, list, np.ndarray))
     z = np.atleast_1d(z)
@@ -1109,11 +1112,11 @@ def rhog(p=None, ma=None, z=1, r=10.73, t=None, method='real_gas'):
 
     if 'real_gas' in methods:
         rhog = (p*ma)/(z*r*t)
-        rhoh_dict['real_gas'] = rhog
+        rhog_dict['real_gas'] = rhog
 
     if 'ideal_gas' in methods:
         rhog = (p*ma)/(r*t)
-        rhoh_dict['ideal_gas'] = rhog
+        rhog_dict['ideal_gas'] = rhog
 
     rhog_df = pd.DataFrame(rhog_dict, index=p) if multiple == True else pd.DataFrame({'rhog': rhog}, index=p)
     rhog_df.index.name = 'pressure'
@@ -1139,13 +1142,13 @@ def z_factor(p=None, t=None, ppc=None, tpc=None, method='papay'):
     p = np.atleast_1d(p)
 
     assert isinstance(t, (int, float, list, np.ndarray))
-    t = np.atleast_1d(t)
+    t = np.atleast_1d(t) + 460 # temp to R
 
     assert isinstance(ppc, (int, float, list, np.ndarray))
-    ppc = np.atleast_1d(ppc)
+    ppc = np.atleast_1d(ppc) + 460 # temp to R
 
     assert isinstance(tpc, (int, float, list, np.ndarray))
-    tpc = np.atleast_1d(tpc)
+    tpc = np.atleast_1d(tpc) + 460 # temp to R
 
     assert isinstance(method, (str, list))
 
@@ -1191,7 +1194,7 @@ def bg(p=None, t=None, z=None, unit='ft3/scf'):
     p = np.atleast_1d(p)
 
     assert isinstance(t, (int, float, list, np.ndarray))
-    t = np.atleast_1d(t)
+    t = np.atleast_1d(t) + 460
 
     assert isinstance(z, (int, float, list, np.ndarray))
     z = np.atleast_1d(z)
