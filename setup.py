@@ -21,7 +21,10 @@ setuptools.setup(
         'matplotlib',
         'scipy',
         'lasio',
-        'geopandas'
+        'geopandas',
+        'vtk',
+        'pyvista',
+        'shapely'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
