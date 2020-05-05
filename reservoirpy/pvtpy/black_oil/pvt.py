@@ -461,8 +461,79 @@ class chromatography(pd.DataFrame):
     def _constructor(self):
         return chromatography
 
+class gas:
+    def __init__(self, **kwargs):
+
+        self.formation = kwargs.pop('formation',None)
+        self.temp = kwargs.pop("temp", None)
+        self.pvt = kwargs.pop('pvt',None)
+        self.chromatography = kwargs.pop('chromatography',None)
+        self.sg = kwargs.pop('sg',None)
+        self.ma = kwargs.pop('sg',None)
+
+    #####################################################
+    ############## Properties ###########################
+
+    @property
+    def formation(self):
+        return self._formation
+
+    @formation.setter
+    def formation(self,value):
+        assert isinstance(value,(str,type(None))), f'{type(value)} not accepted. Name must be str'
+        self._formation = value
+
+    @property
+    def pvt(self):
+        return self._pvt
+    
+    @pvt.setter
+    def pvt(self,value):
+        assert isinstance(value,(gas_pvt,type(None))), 'PVT must be a instance of reservoirpy.pvtpy.black_oil.gas_pvt object'
+        self._pvt = value 
+
+    @property
+    def chromatography(self):
+        return self._chromatography
+    
+    @chromatography.setter
+    def chromatography(self,value):
+        assert isinstance(value,(chromatography,type(None))), 'chromatography must be a instance of reservoirpy.pvtpy.black_oil.chromatography object'
+        self._chromatography = value 
+
+    @property
+    def sg(self):
+        if self.chromatography is not None:
+            _sg = self.chromatography.gas_sg
+        elif self.ma is not None:
+            _sg = self._ma/28.96
+        else:
+            _sg = self._sg
+        return _sg
+    
+    @sg.setter
+    def sg(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), 'sg must be numeric'
+        self._sg = value 
 
 
+    @property
+    def ma(self):
+        if self.chromatography is not None:
+            _ma = self.chromatography.ma
+        elif self.sg is not None:
+            _ma = self._sg*28.96
+        else:
+            _ma = self._ma
+        return _ma
+    
+    @ma.setter
+    def ma(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), 'ma must be numeric'
+        self._ma = value 
 
 
+    
+
+    
 
