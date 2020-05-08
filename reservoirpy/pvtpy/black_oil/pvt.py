@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-from .correlations import pb, rs, co, muo, rho_oil, bo, z_factor, rhog, bg
+from .correlations import *
 import os
 
 ############################################################
@@ -94,7 +94,7 @@ class oil:
 
     @property
     def sulphur(self):
-        return self._.sulphur
+        return self._sulphur
 
     @sulphur.setter
     def sulphur(self,value):
@@ -183,15 +183,15 @@ class oil:
             raise ValueError('Either Bubble point or Gas Oil Ratio must be defined')
         elif self._pb is None:
             self._pb = pb(rs=self._rsb,temp=self._temp,sg_gas=self._sg_gas,api=self._api,
-                methods=kwargs['pb'],multiple=False, correction=True)['pb'].values
+                methods=kwargs['pb'], correction=True)['pb'].values
             rs_cor = rs(p=p_range,pb=self._pb,temp=self._temp,api=self._api,sg_gas=self._sg_gas,
-                rsb=self._rsb,multiple=False,methods=['valarde'])
+                rsb=self._rsb,methods=['valarde'])
         elif self._rsb is None:
             rs_cor = rs(p=p_range,pb=self._pb,temp=self._temp,api=self._api,sg_gas=self._sg_gas,
-                multiple=False,methods=kwargs['rs'])
+                methods=kwargs['rs'])
 
         bo_cor = bo(p=p_range,rs=rs_cor['rs'].values,pb=self._pb,temp=self._temp,api=self._api,
-            sg_gas=self._sg_gas,multiple=False,methods=kwargs['bo'])
+            sg_gas=self._sg_gas,methods=kwargs['bo'])
         
         co_cor = co(p=p_range,rs=rs_cor['rs'].values,pb=self._pb,temp=self._temp,api=self._api,
             sg_gas=self._sg_gas,bo=bo_cor['bo'].values,bg=self._bg,
@@ -202,7 +202,7 @@ class oil:
             method_dead=kwargs['muod'])
 
         rho_cor = rho_oil(p=p_range,co=co_cor['co'].values,bo=bo_cor['bo'].values,rs=rs_cor['rs'].values,
-            api=self._api,pb=self._pb,multiple=False,methods=kwargs['rho'])
+            api=self._api,pb=self._pb,methods=kwargs['rho'])
 
         _pvt = pd.concat([rs_cor,bo_cor,co_cor,muo_cor,rho_cor],axis=1)
 
@@ -421,19 +421,24 @@ class chromatography(pd.DataFrame):
     @property  
     def gas_sg(self):
         return (self['mole_fraction']*self['mw']).sum()/28.96
+     
+    def get_pseudo_critical_properties(self, correct=True,correct_method='wichert-aziz'):
+        _ppc = (self['mole_fraction']*self['ppc']).sum()
+        _tpc = (self['mole_fraction']*self['tpc']).sum()
+        
+        if correct:
+            _co2 = self.loc['carbon-dioxide','mole_fraction'] if 'carbon-dioxide' in self.index else 0
+            _n2 = self.loc['nitrogen','mole_fraction'] if 'nitrogen' in self.index else 0
+            _h2s = self.loc['hydrogen-sulfide','mole_fraction'] if 'hydrogen-sulfide' in self.index else 0
+            cp_dict =  critical_properties_correction(ppc=_ppc, tpc=_tpc, co2=_co2, n2=_n2, h2s=_h2s, method=correct_method)
+        else:
+            cp_dict = {'ppc':_ppc,'tpc':_tpc}
 
-    @property  
-    def ppc(self):
-        return (self['mole_fraction']*self['ppc']).sum()
+        return cp_dict
 
-    @property  
-    def tpc(self):
-        return (self['mole_fraction']*self['tpc']).sum()
-
-    def get_z(self,p=14.7,t=60, z_method='papay'):
-        _ppc = self.ppc
-        _tpc = self.tpc
-        z = z_factor(p=p, t=t, ppc=_ppc, tpc=_tpc, method=z_method)
+    def get_z(self,p=14.7,t=60, z_method='papay', cp_correction_method='wichert-aziz'):
+        cp = self.get_pseudo_critical_properties(correct_method=cp_correction_method)
+        z = z_factor(p=p, t=t, ppc=cp['ppc'], tpc=cp['tpc'], method=z_method)
         return z
 
     def get_rhog(self,p=14.7,t=60, z_method='papay',rhog_method='real_gas'):
@@ -466,10 +471,15 @@ class gas:
 
         self.formation = kwargs.pop('formation',None)
         self.temp = kwargs.pop("temp", None)
+        self.gas_type = kwargs.pop("gas_type",'natural_gas')
         self.pvt = kwargs.pop('pvt',None)
         self.chromatography = kwargs.pop('chromatography',None)
         self.sg = kwargs.pop('sg',None)
-        self.ma = kwargs.pop('sg',None)
+        self.ma = kwargs.pop('ma',None)
+        self.co2 = kwargs.pop('co2',0)
+        self.h2s = kwargs.pop('h2s',0)
+        self.n2 = kwargs.pop('n2',0)
+
 
     #####################################################
     ############## Properties ###########################
@@ -482,6 +492,26 @@ class gas:
     def formation(self,value):
         assert isinstance(value,(str,type(None))), f'{type(value)} not accepted. Name must be str'
         self._formation = value
+
+    @property
+    def gas_type(self):
+        return self._gas_type
+
+    @gas_type.setter
+    def gas_type(self,value):
+        assert isinstance(value,(str,type(None))), f'{type(value)} not accepted. Name must be str'
+        assert value in ['natural_gas','condesate_gas']
+        self._gas_type = value
+
+    @property
+    def temp(self):
+        return self._temp
+
+    @temp.setter
+    def temp(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be numeric'
+        assert value > 0, 'value must be possitive'
+        self._temp = value
 
     @property
     def pvt(self):
@@ -505,7 +535,7 @@ class gas:
     def sg(self):
         if self.chromatography is not None:
             _sg = self.chromatography.gas_sg
-        elif self.ma is not None:
+        elif self._ma is not None:
             _sg = self._ma/28.96
         else:
             _sg = self._sg
@@ -521,7 +551,7 @@ class gas:
     def ma(self):
         if self.chromatography is not None:
             _ma = self.chromatography.ma
-        elif self.sg is not None:
+        elif self._sg is not None:
             _ma = self._sg*28.96
         else:
             _ma = self._ma
@@ -532,8 +562,83 @@ class gas:
         assert isinstance(value,(int,float,np.ndarray,type(None))), 'ma must be numeric'
         self._ma = value 
 
+    @property
+    def co2(self):
+        return self._co2 
 
+    @co2.setter
+    def co2(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), 'co2 must be numeric'
+        assert value >=0 and value<=1, 'mole fraction between 0 and 1'
+        self._co2 = value
+
+    @property
+    def h2s(self):
+        return self._h2s
+
+    @h2s.setter
+    def h2s(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), 'h2s must be numeric'
+        assert value >=0 and value<=1, 'mole fraction between 0 and 1'
+        self._h2s = value
+
+    @property
+    def n2(self):
+        return self._n2
+
+    @n2.setter
+    def n2(self,value):
+        assert isinstance(value,(int,float,np.ndarray,type(None))), 'n2 must be numeric'
+        assert value >=0 and value<=1, 'mole fraction between 0 and 1'
+        self._n2 = value
+
+    def pseudo_critical_properties(self,correct=True,correct_method='wichert-aziz'):
+        if self.chromatography is not None:
+            _cp = self.chromatography.get_pseudo_critical_properties(correct=correct,correct_method=correct_method)
+        elif self.sg is not None:
+            _cp = critical_properties(sg=self.sg, gas_type=self.gas_type,method='standing')
+            if correct:
+                _cp = critical_properties_correction(ppc=_cp['ppc'], tpc=_cp['tpc'], co2=self.co2, n2=self.n2, h2s=self.h2s, method=correct_method)
+        else:
+            raise ValueError('Neither chromatography nor sg gas been set')
+        return _cp
     
 
-    
+    def pvt_from_correlations(self,start_pressure=20,end_pressure=5000,n=20,**kwargs):
 
+        p_range=np.linspace(start_pressure,end_pressure,n)
+
+        def_corr = {
+            'cp_correction': 'wichert-aziz',
+            'z':'papay',
+            'rhog':'real_gas',
+            'bg':{'unit':'bbl/scf'},
+            'mug':'lee_gonzalez',
+            'cg':'ideal_gas'
+        }
+
+        for (k,v) in def_corr.items():
+            if k not in kwargs:
+                kwargs[k]=v
+
+        # Define Pseudo critical properties
+        pcp = self.pseudo_critical_properties(self,correct_method=kwargs['cp_correction'])  #Pseudo critical properties
+
+        # Compressibility factor z
+        z_cor = z_factor(p=p_range, t=self.temp, ppc=pcp['ppc'], tpc=pcp['tpc'], method=kwargs['z'])
+
+        # Density 
+        rhog_cor = rhog(p=p_range, ma=self.ma, z=z_cor['z'].values, r=10.73, t=self.temp, method=kwargs['rhog'])
+    
+        #Gas volumetric factor
+        bg_cor = bg(p=p_range, t=self.temp, z=z_cor['z'].values, unit=kwargs['bg']['unit'])
+
+        #Gas viscosity
+        mug_cor = mug(p=p_range,t=self.temp, rhog=rhog_cor['rhog'].values, ma=self.ma, method=kwargs['mug'])
+
+        #Gas compressibility 
+        cg_cor = cg(p=p_range, z=z_cor['z'].values, method=kwargs['cg'])
+
+        _pvt = pd.concat([z_cor,rhog_cor,bg_cor,mug_cor,cg_cor],axis=1)
+
+        self._pvt=gas_pvt(_pvt.reset_index())
