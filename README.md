@@ -1,4 +1,4 @@
-# Reservoirpy - Python
+# Reservoirpy - Python  (Under Development)
 
 Package to perform Oil and Gas reservoir Analysis in Python. 
 
