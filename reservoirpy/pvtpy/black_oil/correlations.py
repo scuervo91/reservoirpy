@@ -51,8 +51,8 @@ def h2s_correction(api=None, y=0, temp=None):
     return ch2s
 
 
-# Standing
-def pb(rs=None, temp=None, sg_gas=None, api=None, method='standing', multiple=False, correction=True, **kwargs):
+# Bubble point
+def pb(rs=None, temp=None, sg_gas=None, api=None, method='standing', correction=True, **kwargs):
     """
     Estimate the bubble point pressure using Correlations
 
@@ -63,8 +63,6 @@ def pb(rs=None, temp=None, sg_gas=None, api=None, method='standing', multiple=Fa
         api -> (int,float,np.array) Oil API gravity [API]
         method -> (list, default 'standing')List of correlation methods
                   ['standing',laster,'vazquez_beggs','glaso']
-        multiple->(bool, default False) Allow to return multiple result from multiple correlation
-                  If true the 'method' must be a length equal to 1
         correction->(bool, default True) Apply correction factors for non-hydrocarbon elements
     
     Return:
@@ -166,7 +164,7 @@ def pb(rs=None, temp=None, sg_gas=None, api=None, method='standing', multiple=Fa
 #####################################################################################
 # gas-Oil Ratio Correlations
 
-def rs(p=None, pb=None, temp=None, api=None, sg_gas=None, rsb=None, method='standing', multiple=False, **kwargs):
+def rs(p=None, pb=None, temp=None, api=None, sg_gas=None, rsb=None, method='standing', **kwargs):
     """
     Estimate the Gas-Oil Ratio using Standing Correlation
 
@@ -180,8 +178,6 @@ def rs(p=None, pb=None, temp=None, api=None, sg_gas=None, rsb=None, method='stan
         method -> (list, default 'standing')List of correlation methods
                   ['standing',laster,'vazquez_beggs','glaso','valarde']
                   * Valarde method builds rs below pb given rsb
-        multiple->(bool, default False) Allow to return multiple result from multiple correlation
-                  If true the 'method' must be a length equal to 1
     
     Return:
         rs -> (pd.DataFrame) Gas Oil Ratio indexed by pressure
@@ -418,7 +414,6 @@ def co(p=None, rs=None, pb=None, temp=None, sg_gas=None, api=None, bo=None, bg=N
                             ['vazquez_beggs','petrosky','kartoatmodjo']
         method_below_pb -> (list, default 'mccain') method to use below the bubble point
                             ['mccain']
-        multiple-> Only allows one method for each above and below pb 
     Return:
         rho -> (pd.DataFrame) Oil Density indexed by pressure
 
@@ -495,9 +490,6 @@ def muod(temp=None, api=None, method='beal', **kwargs):
         api -> (int,float,list,np.array) API crude API
         methods-> (list,default 'beal') List of methods
                 ['beal','beggs','glaso']
-        multiple->(bool, default False) Allow to return multiple result from multiple correlation
-                  If true the 'method' must be a length equal to 1
-
     Return:
         muod ->(pd.Dataframe) Dead Oil Viscosity [cP] indexed by temperatures
 
@@ -509,7 +501,7 @@ def muod(temp=None, api=None, method='beal', **kwargs):
     assert isinstance(api, (int, float, list, np.ndarray))
     api = np.atleast_1d(api)
 
-    assert isinstance(method, (str, list))
+    assert isinstance(method, str)
 
     methods = []
 
@@ -1175,7 +1167,7 @@ def z_factor(p=None, t=None, ppc=None, tpc=None, method='papay'):
     z_df.index.name = 'pressure'
     return z_df    
 
-def bg(p=None, t=None, z=None, unit='ft3/scf'):
+def bg(p=None, t=None, z=1, unit='ft3/scf'):
     """
     Estimate Gas Volumetric factor 
 
@@ -1186,7 +1178,7 @@ def bg(p=None, t=None, z=None, unit='ft3/scf'):
         units -> (str, default 'ft3/scf') Correlation
 
     Return:
-        rhog -> (pd.DataFrame) Gas Volumetric factor
+        bg -> (pd.DataFrame) Gas Volumetric factor
 
     Source: Reservoir Engineer handbook -  Tarek Ahmed
     """  
@@ -1199,7 +1191,7 @@ def bg(p=None, t=None, z=None, unit='ft3/scf'):
     assert isinstance(z, (int, float, list, np.ndarray))
     z = np.atleast_1d(z)
 
-    assert isinstance(units, (str, list))
+    assert isinstance(unit, (str, list))
 
     units = []
 
@@ -1223,5 +1215,221 @@ def bg(p=None, t=None, z=None, unit='ft3/scf'):
     bg_df = pd.DataFrame(bg_dict, index=p) if multiple == True else pd.DataFrame({'bg': bg}, index=p)
     bg_df.index.name = 'pressure'
     return bg_df 
+
+def eg(p=None, t=None, z=1, unit='scf/ft3'):
+    """
+    Estimate Gas Volumetric expansion factor
+
+    Input:
+        p ->  (int,float,list,np.array) Pressure [psi]
+        t ->  (int,float,list,np.array) Temperature [F]
+        z ->  (int,float,list,np.array) Compressibility factor
+        units -> (str, default 'scf/ft3') Correlation
+
+    Return:
+        eg -> (pd.DataFrame) Gas Volumetric factor
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """  
+    assert isinstance(p, (int, float, list, np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(t, (int, float, list, np.ndarray))
+    t = np.atleast_1d(t) + 460
+
+    assert isinstance(z, (int, float, list, np.ndarray))
+    z = np.atleast_1d(z)
+
+    assert isinstance(unit, (str, list))
+
+    units = []
+
+    if isinstance(unit, str):
+        units.append(unit)
+        multiple = False
+    else:
+        units.extend(unit)
+        multiple = True
+
+    eg_dict = {}
+
+    if 'scf/ft3' in units:
+        eg = 35.37*p/(z*t)
+        eg_dict['eg_scf/ft3'] = eg
+    
+    if 'scf/bbl' in units: 
+        eg = 198.6*p/(z*t)
+        eg_dict['eg_scf bbl'] = eg  
+
+    eg_df = pd.DataFrame(eg_dict, index=p) if multiple == True else pd.DataFrame({'eg': eg}, index=p)
+    eg_df.index.name = 'pressure'
+    return eg_df 
+
+def critical_properties(sg=None, gas_type='natural_gas',method='standing'):
+    """
+    Estimate Gas Critial Properties from Specific Gravity of gas. Brown Correlation
+
+    Input:
+        sg ->  (int,float,list,np.array) Gas Specific Gravity
+        gas -> (str, default 'natural_gas') Type of gas. Options: 'natural_gas', 'condensate_gas'
+        method -> (str, default 'standing') Correlation
+
+    Return:
+        critical_properties -> (dict) Dictionary with keys 'ppc' and 'tpc'
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """    
+    assert isinstance(sg, (int, float, list, np.ndarray))
+    sg = np.atleast_1d(sg)
+
+    assert isinstance(method, (str, list))
+
+    methods = []
+
+    if isinstance(method, str):
+        methods.append(method)
+        multiple = False
+    else:
+        methods.extend(method)
+        multiple = True
+
+    cp_dict = {}
+
+    if 'standing' in methods:
+        if gas_type == 'natural_gas':
+            _ppc = 677.0 + 15.0*sg - 37.5*np.power(sg,2)
+            _tpc = 168.0 + 325.0*sg - 12.5*np.power(sg,2) 
+        elif gas_type == 'condensate_gas':
+            _ppc = 706.0 + 51.7*sg - 11.1*np.power(sg,2)
+            _tpc = 187.0 + 330.0*sg - 71.5*np.power(sg,2)
+
+        if multiple:
+            cp_dict['standing'] = {'ppc':_ppc,'tpc':_tpc}
+        else:
+            cp_dict['ppc'] = _ppc
+            cp_dict['tpc'] = _tpc - 460
+    
+    return cp_dict 
+
+def critical_properties_correction(ppc=None, tpc=None, h2s=0,co2=0, n2=0, method='wichert-aziz'):
+    """
+    Correct the critical properties estimations by Non-hydrocarbon components
+
+    Input:
+        ppc ->  (int,float,list,np.array) Pressure pseudo critical
+        tpc -> (str) Temperature pseudo critical
+        h2s -> (int,float,list,np.array) H2S mole fraction
+        co2 -> (int,float,list,np.array) co2 mole fraction
+        n2 -> (int,float,list,np.array) n2 mole fraction
+        method -> (str, default 'wichert-aziz') correlation. Options: 'wichert-aziz', 'carr_kobayashi_burrows'
+
+    Return:
+        critical_properties -> (dict) Dictionary with keys 'ppc' and 'tpc'
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """  
+    assert isinstance(ppc, (int, float, list, np.ndarray))
+    ppc = np.atleast_1d(ppc)
+
+    assert isinstance(tpc, (int, float, list, np.ndarray))
+    tpc = np.atleast_1d(tpc)
+
+    if method =='wichert-aziz':
+        a = h2s + co2
+        b = h2s
+        e = 120*(np.power(a,0.9)-np.power(a,1.6)) + 15*(np.power(b,0.5) - np.power(b,4))
+
+        tpc_c = tpc - e
+        ppc_c = (ppc*tpc_c)/(tpc + b*(1-b)*e)
+
+    if method == 'carr_kobayashi_burrows':
+        tpc_c = tpc - 80*co2 + 130*h2s - 250*n2
+        ppc_c = ppc + 440*co2 + 600*h2s - 170*n2
+
+    cp_c_dict = {'ppc':ppc_c,'tpc':tpc_c}
+    return cp_c_dict
+
+def mug(p=None, t=None, rhog=None, ma=None, method='lee_gonzalez'):
+    """
+    Estimate gas viscosity
+
+    Input:
+        p ->  (int,float,list,np.array) Pressure [psi]
+        t -> (int,float,list,np.array) temperature [F]
+        rhog -> (int,float,list,np.array) density [lb/ft3]
+        ma -> (int,float,list,np.array) Molecular Weight
+        method -> (str, default 'lee_gonzalez') correlation. Options: 'lee_gonzalez'
+
+    Return:
+        critical_properties -> (dict) Dictionary with keys 'ppc' and 'tpc'
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """ 
+    assert isinstance(p, (int, float, list, np.ndarray))
+    p = np.atleast_1d(p)
+
+    assert isinstance(t, (int, float, list, np.ndarray))
+    t = np.atleast_1d(t) + 460
+
+    assert isinstance(rhog, (int, float, list, np.ndarray))
+    rhog = np.atleast_1d(rhog)
+
+    assert isinstance(ma, (int, float, list, np.ndarray))
+    ma = np.atleast_1d(ma)
+
+    assert isinstance(method,str)
+
+    if method == 'lee_gonzalez':
+        k = ((9.4 + 0.02*ma)*np.power(t,1.5))/(209 + 19*ma + t)
+        x = 3.5 + (986/t) + 0.01*ma
+        y = 2.4 - 0.2*x
+        mug = 1e-4 * k * np.exp(x*np.power(rhog/62.4,y))
+
+    mug_df = pd.DataFrame({'mug': mug}, index=p)
+    mug_df.index.name = 'pressure'
+    return mug_df
+
+def cg(p=None, z=1, method='ideal_gas'):
+    """
+    Estimate gas compressibility
+
+    Input:
+        p ->  (int,float,list,np.array) Pressure [psi]
+        method -> (str, default 'ideal_gas') correlation. Options: 'ideal_gas', 'real_gas'
+
+    Return:
+        cg -> (pd.DataFrame) dataframe with cg indexed by pressure
+
+    Source: Reservoir Engineer handbook -  Tarek Ahmed
+    """ 
+    assert isinstance(p, (int, float, list, np.ndarray))
+    p = np.atleast_1d(p) 
+
+    assert isinstance(z, (int, float, list, np.ndarray))
+    z = np.atleast_1d(z)  
+
+    assert isinstance(method, (str, list))
+
+    methods = []
+
+    if isinstance(method, str):
+        methods.append(method)
+        multiple = False
+    else:
+        methods.extend(method)
+        multiple = True
+
+    cg_dict = {}
+
+    if 'ideal_gas' in methods:
+        cg = 1/p
+        cg_dict['cg_ideal_gas'] = cg
+
+    cg_df = pd.DataFrame(cg_dict, index=p) if multiple == True else pd.DataFrame({'cg': cg}, index=p)
+    cg_df.index.name = 'pressure'
+    return cg_df 
+
+        
+
 
 
