@@ -396,7 +396,7 @@ def bo(p=None, rs=None, pb=None, temp=None, api=None, sg_gas=None, method='stand
 #####################################################################################
 # Oil Compressibility
 
-def co(p=None, rs=None, pb=None, temp=None, sg_gas=None, api=None, bo=None, bg=None,
+def co(p=None, rs=None, pb=None, temp=None, sg_gas=None, api=None, bo=None,
        method_above_pb='vazquez_beggs', method_below_pb='mccain', **kwargs):
     """
     Estimate the Oil compresibility in 1/psi
@@ -409,7 +409,7 @@ def co(p=None, rs=None, pb=None, temp=None, sg_gas=None, api=None, bo=None, bg=N
         sg_gas -> (int,float,np.array) Gas specifi gravity
         api -> (int,float,np.array) Oil API gravity [API]
         bo -> (list,np.array) Oil Volumetric factor
-        bg -> (list,np.array) Oil Volumetric factor
+        bg -> (list,np.array) Gas Volumetric factor
         method_above_pb -> (list, default 'vazquez_beggs') method to use above the bubble point
                             ['vazquez_beggs','petrosky','kartoatmodjo']
         method_below_pb -> (list, default 'mccain') method to use below the bubble point
@@ -440,10 +440,10 @@ def co(p=None, rs=None, pb=None, temp=None, sg_gas=None, api=None, bo=None, bg=N
     assert isinstance(pb, (int, float, list, np.ndarray))
     bo = np.atleast_1d(bo)
 
-    assert isinstance(pb, (int, float, list, np.ndarray))
-    bg = np.atleast_1d(bg)
+    #assert isinstance(pb, (int, float, list, np.ndarray))
+    #bg = np.atleast_1d(bg)
 
-    assert p.shape == bo.shape == rs.shape == bo.shape == bg.shape
+    assert p.shape == bo.shape == rs.shape == bo.shape #== bg.shape
 
     rs_int = interp1d(p, rs)
     rsb = rs_int(pb)
@@ -455,9 +455,7 @@ def co(p=None, rs=None, pb=None, temp=None, sg_gas=None, api=None, bo=None, bg=N
                     p[p >= pb] * np.power(10, 5))
 
     elif 'petrosky' == method_above_pb:
-        co[p >= pb] = 1.705e-7 * np.power(rs[p >= pb], 0.69357) * np.power(sg_gas, 0.1885) * np.power(api,
-                                                                                                      0.3272) * np.power(
-            temp, 0.6729) * np.power(p[p >= pb], -0.5906)
+        co[p >= pb] = 1.705e-7 * np.power(rs[p >= pb], 0.69357) * np.power(sg_gas, 0.1885) * np.power(api,0.3272) * np.power(temp, 0.6729) * np.power(p[p >= pb], -0.5906)
 
     elif 'kartoatmodjo' == method_above_pb:
         co[p >= pb] = (6.8257 * np.power(rs[p >= pb], 0.5002) * np.power(api, 0.3613) * np.power(temp, 0.76606) *
@@ -466,10 +464,7 @@ def co(p=None, rs=None, pb=None, temp=None, sg_gas=None, api=None, bo=None, bg=N
         raise ValueError('no method set')
 
     if 'mccain' == method_below_pb:
-        co[p < pb] = 5.1414768e-4 * np.power(p[p < pb], -1.450) * np.power(pb, -0.383) * np.power(temp,
-                                                                                                  1.402) * np.power(api,
-                                                                                                                    0.256) * np.power(
-            rsb, 0.449)
+        co[p < pb] = 5.1414768e-4 * np.power(p[p < pb], -1.450) * np.power(pb, -0.383) * np.power(temp,1.402) * np.power(api,0.256) * np.power(rsb, 0.449)
 
     else:
         raise ValueError('no method set')
@@ -501,7 +496,7 @@ def muod(temp=None, api=None, method='beal', **kwargs):
     assert isinstance(api, (int, float, list, np.ndarray))
     api = np.atleast_1d(api)
 
-    assert isinstance(method, str)
+    assert isinstance(method, (list,str))
 
     methods = []
 
@@ -538,7 +533,7 @@ def muod(temp=None, api=None, method='beal', **kwargs):
 
 #####################################################################################
 # Live Oil Viscosity
-def muo(p=None, rs=None, pb=pb, temp=None, api=None,
+def muo(p=None, rs=None, pb=None, temp=None, api=None,
         method_below_pb='beggs', method_above_pb='vazquez_beggs', method_dead='beal', **kwargs):
     """
     Estimate the live Oil Viscosity
@@ -580,14 +575,12 @@ def muo(p=None, rs=None, pb=pb, temp=None, api=None,
     # Estimate the Dead oil Viscosity
     _muod = muod(temp=temp, api=api, methods=method_dead)
     _muod = _muod['muod'].values
-    print(_muod)
 
     muo = np.zeros(p.shape)
     muob = np.zeros(1)
 
     rs_int = interp1d(p, rs)
     rsb = rs_int(pb)
-    print(rsb)
 
     if 'chew' == method_below_pb:
         a = np.power(10, rs[p <= pb] * (2.2e-7 * rs[p <= pb] - 7.4e-4))
@@ -833,16 +826,13 @@ def bw(p=None, t=None, pb=0, cw=0, s=None, method='mccain'):
 
         delta_vw_t[p < pb] = -1.0001e-2 + 1.33391e-4 * t + 5.50654e-7 * np.power(t, 2)
         delta_vw_t_pb = -1.0001e-2 + 1.33391e-4 * t + 5.50654e-7 * np.power(t, 2)
-        delta_vw_p[p < pb] = -1.95301e-9 * p[p <= pb] * t - 1.72834e-13 * np.power(p[p <= pb], 2) * t - 3.58922e-7 * p[
-            p <= pb] - 2.25341e-10 * np.power(p[p <= pb], 2)
-        delta_vw_p_pb = -1.95301e-9 * pb * t - 1.72834e-13 * np.power(pb,
-                                                                      2) * t - 3.58922e-7 * pb - 2.25341e-10 * np.power(
-            pb, 2)
+        delta_vw_p[p < pb] = -1.95301e-9 * p[p <= pb] * t - 1.72834e-13 * np.power(p[p <= pb], 2) * t - 3.58922e-7 * p[p <= pb] - 2.25341e-10 * np.power(p[p <= pb], 2)
+        delta_vw_p_pb = -1.95301e-9 * pb * t - 1.72834e-13 * np.power(pb,2) * t - 3.58922e-7 * pb - 2.25341e-10 * np.power(pb, 2)
 
         bwp[p <= pb] = (1 + delta_vw_p[p < pb]) * (1 + delta_vw_t[p < pb])
         bwb = (1 + delta_vw_p_pb) * (1 + delta_vw_t_pb)
 
-        bwp[p > pb] = bwb * np.exp(cw * (pb - p))
+        bwp[p > pb] = bwb * np.exp(cw[p > pb] * (pb - p[p > pb]))
 
         # Convert p in ppm to percentage %
         per_s = s / 1e4
@@ -862,7 +852,7 @@ def bw(p=None, t=None, pb=0, cw=0, s=None, method='mccain'):
         bwp[p <= pb] = a + b * p[p <= pb] + c * np.power(p[p <= pb], 2)
         bwb = a + b * pb + c * np.power(pb, 2)
 
-        bwp[p > pb] = bwb = np.exp(cw * (pb - p))
+        bwp[p > pb] = bwb = np.exp(cw[p > pb] * (pb - p[p > pb]))
 
         # Convert p in ppm to percentage %
         per_s = s / 1e4
@@ -995,6 +985,17 @@ def muw(p=None, t=None, s = 0,  method = 'van_wingen'):
         muw_po = a + (b/t)
         muw = muw_po*f
         muw_dict['muw_russel'] = muw
+
+    if 'meehan' in methods:
+        per_s = s / 1e4
+        d = 1.12166 - 0.0263951*per_s + 6.79461e-4*np.power(per_s,2) + 5.47119e-5*np.power(per_s,3) - 1.55586e-6*np.power(per_s,4)
+        muwt = (109.574 - 8.40564*per_s + 0.313314*np.power(per_s,2) + 8.72213e-3*np.power(per_s,3))*np.power(t,-d)
+        muw = muwt*(0.9994 + 4.0295e-5*p + 3.1062e-9*np.power(p,2))
+        muw_dict['muw_meehan'] = muw
+
+    if 'brill_beggs' in methods:
+        muw = np.exp(1.003 - 1.479e-2*t + 1.982e-5*np.power(t,2))
+        muw_dict['muw_brill_beggs'] = muw
 
     muw_df = pd.DataFrame(muw_dict, index=p) if multiple == True else pd.DataFrame({'muw': muw}, index=p)
     muw_df.index.name = 'pressure'
