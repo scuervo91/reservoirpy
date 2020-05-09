@@ -8,7 +8,7 @@ import os
 ############################################################
 ############################################################
 ## Oil PVT
-class oil_pvt(pd.DataFrame):
+class pvt(pd.DataFrame):
     
     def __init__(self, *args, **kwargs):
         pressure = kwargs.pop("pressure", None)
@@ -30,18 +30,20 @@ class oil_pvt(pd.DataFrame):
     
     ## Methods
 
-    def interpolate(self,value,property):
-        assert isinstance(value, (int,float,np.ndarray))
+    def interpolate(self,value,property=None):
+        assert isinstance(value, (int,list,float,np.ndarray))
         p = np.atleast_1d(value)
 
-        assert isinstance(property,(str,list))
+        assert isinstance(property,(str,list,type(None)))
 
         properties = []
 
         if isinstance(property, str):
             properties.append(property)
-        else:
+        elif isinstance(property, list):
             properties.extend(property)
+        else:
+            properties.extend(self.columns)
 
         int_dict = {}
 
@@ -51,14 +53,32 @@ class oil_pvt(pd.DataFrame):
                 int_dict[i] = _interpolated
 
         int_df = pd.DataFrame(int_dict, index=p)
-
+        int_df.index.name = 'pressure'
         return int_df 
          
     @property   
     def _constructor(self):
-        return oil_pvt
+        return pvt
+
+#Default Correlations
+oil_def_corr = {
+    'pb':'standing',
+    'rs':'standing',
+    'bo':'standing',
+    'co':{
+        'above_pb':'vazquez_beggs',
+        'below_pb':'mccain'
+    },
+    'muod':'beal',
+    'muo':{
+        'above_pb':'beal',
+        'below_pb':'beggs'
+    },
+    'rho':'banzer'
+}
 
 class oil:
+
     def __init__(self, **kwargs):
 
         self.formation = kwargs.pop('formation',None)
@@ -70,6 +90,7 @@ class oil:
         self.temp = kwargs.pop("temp", None)
         self.pvt = kwargs.pop('pvt',None)
         self.bg = kwargs.pop("bg", None)
+        self.correlations = kwargs.pop('correlations',oil_def_corr.copy())
 
     #####################################################
     ############## Properties ###########################
@@ -152,30 +173,23 @@ class oil:
 
     @pvt.setter
     def pvt(self,value):
-        assert isinstance(value,(oil_pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.oil_pvt'
+        assert isinstance(value,(pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
         self._pvt = value
+
+    @property
+    def correlations(self):
+        return self._correlations
+
+    @correlations.setter
+    def correlations(self,value):
+        assert isinstance(value,dict), f'{type(value)} not accepted. Name must be Dictionary'
+        self._correlations = value
 
     def pvt_from_correlations(self,start_pressure=20,end_pressure=5000,n=20,**kwargs):
 
         p_range=np.linspace(start_pressure,end_pressure,n)
 
-        def_corr = {
-            'pb':'standing',
-            'rs':'standing',
-            'bo':'standing',
-            'co':{
-                'above_pb':'vazquez_beggs',
-                'below_pb':'mccain'
-            },
-            'muod':'beal',
-            'muo':{
-                'above_pb':'beal',
-                'below_pb':'beggs'
-            },
-            'rho':'banzer'
-        }
-
-        for (k,v) in def_corr.items():
+        for (k,v) in self.correlations.items():
             if k not in kwargs:
                 kwargs[k]=v
 
@@ -185,8 +199,8 @@ class oil:
             self._pb = pb(rs=self._rsb,temp=self._temp,sg_gas=self._sg_gas,api=self._api,
                 methods=kwargs['pb'], correction=True)['pb'].values
             rs_cor = rs(p=p_range,pb=self._pb,temp=self._temp,api=self._api,sg_gas=self._sg_gas,
-                rsb=self._rsb,methods=['valarde'])
-        elif self._rsb is None:
+                rsb=self._rsb,method='valarde')
+        else:
             rs_cor = rs(p=p_range,pb=self._pb,temp=self._temp,api=self._api,sg_gas=self._sg_gas,
                 methods=kwargs['rs'])
 
@@ -198,7 +212,7 @@ class oil:
             method_above_pb=kwargs['co']['above_pb'],method_below_pb=kwargs['co']['below_pb'])
 
         muo_cor = muo(p=p_range,rs=rs_cor['rs'].values,pb=self._pb,temp=self._temp,api=self._api,
-            method_above_pb=kwargs['muo']['above_pb'],method_below_pb=kwargs['muo']['above_pb'],
+            method_above_pb=kwargs['muo']['above_pb'],method_below_pb=kwargs['muo']['below_pb'],
             method_dead=kwargs['muod'])
 
         rho_cor = rho_oil(p=p_range,co=co_cor['co'].values,bo=bo_cor['bo'].values,rs=rs_cor['rs'].values,
@@ -206,7 +220,7 @@ class oil:
 
         _pvt = pd.concat([rs_cor,bo_cor,co_cor,muo_cor,rho_cor],axis=1)
 
-        self._pvt=oil_pvt(_pvt.reset_index())
+        self._pvt=pvt(_pvt.reset_index())
 
         return self._pvt
 
@@ -214,64 +228,23 @@ class oil:
 ############################################################
 ############################################################
 ############################################################
-## Water PVT
-class water_pvt(pd.DataFrame):
-    
-    def __init__(self, *args, **kwargs):
-        pressure = kwargs.pop("pressure", None)
-        assert isinstance(pressure,(list,np.ndarray,type(None)))
-        super().__init__(*args, **kwargs)
-                
-        # The pressure must be present in the pvt class
-
-        if pressure is not None:
-            pressure = np.atleast_1d(pressure)
-            self['pressure'] = pressure
-            assert self['pressure'].is_monotonic, "Pressure must be increasing"
-            self.set_index('pressure',inplace=True)
-        elif 'pressure' in self.columns:
-            assert self['pressure'].is_monotonic, "Pressure must be increasing"
-            self.set_index('pressure',inplace=True)
-        elif self.index.name == 'pressure':
-            assert self.index.is_monotonic, "Pressure must be increasing"
-  
-    def interpolate(self,value,property):
-        assert isinstance(value, (int,float,np.ndarray))
-        p = np.atleast_1d(value)
-
-        assert isinstance(property,(str,list))
-
-        properties = []
-
-        if isinstance(property, str):
-            properties.append(property)
-        else:
-            properties.extend(property)
-
-        int_dict = {}
-
-        for i in properties:
-            if i in self.columns:
-                _interpolated = interp1d(self.index,self[i])(p)
-                int_dict[i] = _interpolated
-
-        int_df = pd.DataFrame(int_dict, index=p)
-
-        return int_df 
-        
-         
-    @property   
-    def _constructor(self):
-        return water_pvt
+water_def_corr = {
+    'rsw':'culberson',
+    'cw': 'standing',
+    'bw': 'mccain',
+    'rhow':'banzer',
+    'muw' : 'van_wingen'
+}
 
 class water:
     def __init__(self, **kwargs):
 
         self.formation = kwargs.pop('formation',None)
         self.pb = kwargs.pop("pb", None)
-        self.salinity = kwargs.pop("s", None)
+        self.salinity = kwargs.pop("salinity", 0)
         self.temp = kwargs.pop("temp", None)
         self.pvt = kwargs.pop('pvt',None)
+        self.correlations = kwargs.pop('correlations',water_def_corr.copy())
 
     #Properties
     @property
@@ -309,7 +282,7 @@ class water:
 
     @salinity.setter
     def salinity(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be numeric'
+        assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be numeric'
         assert value > 0, 'value must be possitive'
         self._salinity = value
 
@@ -319,63 +292,38 @@ class water:
 
     @pvt.setter
     def pvt(self,value):
-        assert isinstance(value,(water_pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.water_pvt'
+        assert isinstance(value,(pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
         self._pvt = value
 
-            
+    @property
+    def correlations(self):
+        return self._correlations
+
+    @correlations.setter
+    def correlations(self,value):
+        assert isinstance(value,dict), f'{type(value)} not accepted. Name must be Dictionary'
+        self._correlations = value
+
+    def pvt_from_correlations(self,start_pressure=20,end_pressure=5000,n=20,**kwargs):
+
+        p_range=np.linspace(start_pressure,end_pressure,n)
+
+        for (k,v) in self.correlations.items():
+            if k not in kwargs:
+                kwargs[k]=v
+
+        rsw_cor = rsw(p=p_range, t=self.temp, s=self.salinity, method=self.correlations['rsw'])
+        cw_cor = cw(p=p_range, t=self.temp, rsw=rsw_cor['rsw'].values, s=self.salinity, method=self.correlations['cw'])
+        bw_cor = bw(p=p_range, t=self.temp, pb=self.pb, cw=cw_cor['cw'].values, s=self.salinity, method=self.correlations['bw'])
+        rhow_cor = rhow(p=p_range,s=self.salinity, bw=bw_cor['bw'].values, method = self.correlations['rhow'])
+        muw_cor = muw(p=p_range, t=self.temp, s = self.salinity,  method = self.correlations['muw'])
+
+        _pvt = pd.concat([rsw_cor,cw_cor,bw_cor,muw_cor,rhow_cor],axis=1)
+
+        self._pvt=pvt(_pvt.reset_index())
 ############################################################
 ############################################################
 ############################################################
-## Gas PVT
-class gas_pvt(pd.DataFrame):
-    
-    def __init__(self, *args, **kwargs):
-        pressure = kwargs.pop("pressure", None)
-        assert(pressure,(list,np.ndarray,type(None)))
-        super().__init__(*args, **kwargs)
-                
-        # The pressure must be present in the pvt class
-
-        if pressure is not None:
-            pressure = np.atleast_1d(pressure)
-            self['pressure'] = pressure
-            assert self['pressure'].is_monotonic, "Pressure must be increasing"
-            self.set_index('pressure',inplace=True)
-        elif 'pressure' in self.columns:
-            assert self['pressure'].is_monotonic, "Pressure must be increasing"
-            self.set_index('pressure',inplace=True)
-        elif self.index.name == 'pressure':
-            assert self.index.is_monotonic, "Pressure must be increasing"
-  
-    def interpolate(self,value,property):
-        assert isinstance(value, (int,float,np.ndarray))
-        p = np.atleast_1d(value)
-
-        assert isinstance(property,(str,list))
-
-        properties = []
-
-        if isinstance(property, str):
-            properties.append(property)
-        else:
-            properties.extend(property)
-
-        int_dict = {}
-
-        for i in properties:
-            if i in self.columns:
-                _interpolated = interp1d(self.index,self[i])(p)
-                int_dict[i] = _interpolated
-
-        int_df = pd.DataFrame(int_dict, index=p)
-
-        return int_df 
-        
-         
-    @property   
-    def _constructor(self):
-        return gas_pvt
-
 
 #upload table property list
 file_dir = os.path.dirname(__file__)
@@ -466,6 +414,14 @@ class chromatography(pd.DataFrame):
     def _constructor(self):
         return chromatography
 
+gas_def_corr = {
+    'cp_correction': 'wichert-aziz',
+    'z':'papay',
+    'rhog':'real_gas',
+    'bg':{'unit':'bbl/scf'},
+    'mug':'lee_gonzalez',
+    'cg':'ideal_gas'
+}
 class gas:
     def __init__(self, **kwargs):
 
@@ -479,6 +435,7 @@ class gas:
         self.co2 = kwargs.pop('co2',0)
         self.h2s = kwargs.pop('h2s',0)
         self.n2 = kwargs.pop('n2',0)
+        self.correlations = kwargs.pop('correlations',gas_def_corr.copy())
 
 
     #####################################################
@@ -519,7 +476,7 @@ class gas:
     
     @pvt.setter
     def pvt(self,value):
-        assert isinstance(value,(gas_pvt,type(None))), 'PVT must be a instance of reservoirpy.pvtpy.black_oil.gas_pvt object'
+        assert isinstance(value,(pvt,type(None))), 'PVT must be a instance of reservoirpy.pvtpy.black_oil.pvt object'
         self._pvt = value 
 
     @property
@@ -592,6 +549,15 @@ class gas:
         assert value >=0 and value<=1, 'mole fraction between 0 and 1'
         self._n2 = value
 
+    @property
+    def correlations(self):
+        return self._correlations
+
+    @correlations.setter
+    def correlations(self,value):
+        assert isinstance(value,dict), f'{type(value)} not accepted. Name must be Dictionary'
+        self._correlations = value
+
     def pseudo_critical_properties(self,correct=True,correct_method='wichert-aziz'):
         if self.chromatography is not None:
             _cp = self.chromatography.get_pseudo_critical_properties(correct=correct,correct_method=correct_method)
@@ -608,16 +574,7 @@ class gas:
 
         p_range=np.linspace(start_pressure,end_pressure,n)
 
-        def_corr = {
-            'cp_correction': 'wichert-aziz',
-            'z':'papay',
-            'rhog':'real_gas',
-            'bg':{'unit':'bbl/scf'},
-            'mug':'lee_gonzalez',
-            'cg':'ideal_gas'
-        }
-
-        for (k,v) in def_corr.items():
+        for (k,v) in self.correlations.items():
             if k not in kwargs:
                 kwargs[k]=v
 
@@ -641,4 +598,4 @@ class gas:
 
         _pvt = pd.concat([z_cor,rhog_cor,bg_cor,mug_cor,cg_cor],axis=1)
 
-        self._pvt=gas_pvt(_pvt.reset_index())
+        self._pvt=pvt(_pvt.reset_index())
