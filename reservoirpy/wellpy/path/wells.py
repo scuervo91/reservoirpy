@@ -340,7 +340,7 @@ class well:
             #col_exist = self.openlog.df().columns
             col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self._openlog.df().columns))]
             df_merge = self._openlog.df().merge(df[col_add], how='left', left_index=True,right_index=True)
-
+            assert df_merge.shape[0] == self._openlog.df().shape[0]
             for i in df_merge[col_add].iteritems():
                 self._openlog.add_curve(i[0],i[1])
 
