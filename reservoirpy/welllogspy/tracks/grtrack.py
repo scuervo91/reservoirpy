@@ -200,6 +200,8 @@ def grtrack(df: pd.DataFrame,
     if fm is not None:
         fm_ann = fm_kw.pop('ann',False)
         for i in fm.iterrows():
+            if i[1]['md_top'] < lims[0] or i[1]['md_top'] > lims[1]:
+                continue
             grax.hlines([i[1]['md_top']],0,gr_max, **fm_kw)
             if fm_ann:
                grax.annotate(f"Top of {i[1]['formation']}",xy=(gr_max-3,i[1]['md_top']-2),
@@ -245,6 +247,8 @@ def grtrack(df: pd.DataFrame,
     if correlation is not None:
         cor_ann = corr_kw.pop('ann',False)
         for i in correlation.iterrows():
+            if i[1]['depth'] < lims[0] or i[1]['depth'] > lims[1]:
+                continue
             grax.hlines(i[1]['depth'],0,gr_max, **corr_kw)
             if cor_ann:
                 try:
