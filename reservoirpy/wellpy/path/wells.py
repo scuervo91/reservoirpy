@@ -87,7 +87,7 @@ class well:
 
     @property
     def rte(self):
-        return self._name
+        return self._rte
 
     @rte.setter
     def rte(self,value):
@@ -373,3 +373,51 @@ class well:
         return p_result
             
         
+class wells_group:
+    def __init__(self,*args):
+        _well_list = []
+
+        if args is not None:
+            for i in args:
+                _well_list.append(i)
+        
+        self.wells = _well_list 
+
+    @property
+    def wells(self):
+        return self._wells
+
+    @wells.setter 
+    def wells(self,value):
+        assert isinstance(value,list)
+        if not value:
+            self._wells = {}
+        else:
+            assert all(isinstance(i,well) for i in value)
+            w_dict={}
+            for i in value:
+                w_dict[i.name] = i
+            self._wells = w_dict
+
+    def add_well(self,*args):
+        _add_well = []
+
+        if args is not None:
+            for i in args:
+                _add_well.append(i)
+
+        assert all(isinstance(i,well) for i in _add_well)
+
+        _wells_dict = self.wells.copy()
+
+        for i in _add_well:
+            _wells_dict[i.name] = i
+        self._wells = _wells_dict
+
+        
+
+
+
+
+    
+
