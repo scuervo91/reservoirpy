@@ -5,6 +5,9 @@ from shapely.geometry import Point
 from .mincurve import min_curve_method
 from .interpolate import interpolate_deviation, interpolate_position
 from scipy.interpolate import interp1d
+from scipy.spatial import distance_matrix
+from pyproj import Proj, transform
+import folium
 from ...welllogspy.log import log
 
 
@@ -413,6 +416,112 @@ class wells_group:
         for i in _add_well:
             _wells_dict[i.name] = i
         self._wells = _wells_dict
+
+    # Methods
+
+    def wells_coordinates(self, wells:list=None, z_unit='ft', to_crs='EPSG:4326'):
+        """
+        Get a DataFrame with the wells surface coordinates
+        Input:
+            wells ->  (list, None) List of wells in the Group to show the matrix. 
+                    If None, all wells in the group will be selected
+        Return:
+            wells_coord -> (pd.DataFrame) DataFrame with wells coords
+        """
+        assert isinstance(wells,(list,type(None)))
+
+        # Define which wells for the distance matrix will be shown    
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+
+        #Create coordinates dataframe
+        _coord = gpd.GeoDataFrame()
+
+        z_coef = 0.3048 if z_unit=='ft' else 1
+
+        for well in _well_list:
+            x_coord = self.wells[well].surf_coord.x
+            y_coord = self.wells[well].surf_coord.y
+            z_coord = self.wells[well].surf_coord.z*z_coef if self.wells[well].surf_coord.has_z==True else 0
+            shape = self.wells[well].surf_coord
+            crs = self.wells[well].crs
+            _w = gpd.GeoDataFrame({'x':[x_coord],'y':[y_coord],'z':[z_coord],'geometry':[shape]}, index=[well])
+            _w.crs = crs
+            _w = _w.to_crs(to_crs)
+            _w['lon'] = _w['geometry'].x
+            _w['lat'] = _w['geometry'].y
+            _coord = _coord.append(_w)
+
+        return _coord
+
+
+    def wells_distance(self,wells:list=None, z=False, z_unit='ft'):
+        """
+        Calculate a distance matrix for the surface coordinates of the wells
+
+        Input:
+            wells ->  (list, None) List of wells in the Group to show the matrix. 
+                    If None, all wells in the group will be selected
+            z ->  (Bool, default False). Take into account the z component. Z must be in the same
+                    units of x, y coord
+            z_unit -> (str, default 'ft') Indicate the units of the z coord. 
+                    If 'ft' the z is multiplied by 0.3028 otherwise by 1
+
+        Return:
+            dist_matrix -> (pd.DataFrame) Distance matrix with index and column of wells
+        """
+        
+        
+        assert isinstance(wells,(list,type(None)))
+
+        _coord = self.wells_coordinates(wells=wells, z_unit=z_unit)
+
+        dims = ['x','y','z'] if z==True else ['x','y']
+        dist_array = distance_matrix(_coord[dims].values,_coord[dims].values)
+        dist_matrix = pd.DataFrame(dist_array,index=_coord.index, columns=_coord.index)
+
+        return dist_matrix
+
+    def wells_map(self, wells:list=None,zoom=10, map_style = 'OpenStreetMap'):
+        """
+        Make a Foluim map with the selected wells
+
+        Input:
+            wells ->  (list, None) List of wells in the Group to show the matrix. 
+                    If None, all wells in the group will be selected
+            zoom -> (int, float) Initial zoom for folium map
+        Return:
+            w_map -> (folium.Map) Folium map object
+        """
+        assert isinstance(wells,(list,type(None)))
+
+        _coord = self.wells_coordinates(wells=wells)
+
+        center = _coord[['lat','lon']].mean(axis=0)
+
+        #make the map
+        map_folium = folium.Map(
+            location=(center['lat'],center['lon']),
+            zoom_start=zoom,
+            tiles = map_style)
+
+        for i, r in _coord.iterrows():
+            folium.Marker(
+                [r['lat'],r['lon']],
+                tooltip=f"{i}",
+                icon=folium.Icon(icon='tint', color='green')
+                ).add_to(map_folium)
+
+        return map_folium
+
+
+
+        
+
 
         
 
