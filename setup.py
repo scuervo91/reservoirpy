@@ -24,7 +24,8 @@ setuptools.setup(
         'geopandas',
         'vtk',
         'pyvista',
-        'shapely'
+        'shapely',
+        'folium'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
