@@ -52,7 +52,7 @@ def phie(phi_curve,vsh_curve):
     vsh_curve=np.atleast_1d(vsh_curve)
     phie_curve=phi_curve*(1 -vsh_curve)
     phie_curve[phie_curve < 0.0] = 0.0
-    phie_curve[phie_curve > 1.0] = 1.0
+    phie_curve[phie_curve > 0.3] = 0.3
     return phie_curve
 
 def phia(phi_rho_curve, ntr_curve, method='geometric'):
