@@ -81,34 +81,35 @@ def sw(rt_curve,phi_curve,rw,vsh_curve=None,a=0.62,m=2.15,n=2,rsh=4.0,alpha=0.3,
     a=np.atleast_1d(a)
     m=np.atleast_1d(m)
     n=np.atleast_1d(n)
-    vsh_curve = np.atleast_1d(vsh_curve) if vsh_curve is not None else None
+    vsh = np.atleast_1d(vsh_curve) if vsh_curve is not None else None
     rsh=np.atleast_1d(rsh)
     alpha=np.atleast_1d(alpha)
     rt=np.atleast_1d(rt_curve)
+    phi = np.atleast_1d(phi_curve)
     rw=np.atleast_1d(rw)
     if method == "archie":
-        sw_curve=np.power(((a*rw)/(rt_curve*np.power(phi_curve,m))),1/n)
+        sw_curve=np.power(((a*rw)/(rt*np.power(phi,m))),1/n)
     elif method == "smdx": #https://www.spec2000.net/14-sws.htm
-        C=((1-vsh_curve)*a*rw)/np.power(phi_curve,m)
-        D=C*vsh_curve/(2 * rsh)
+        C=((1-vsh)*a*rw)/np.power(phi,m)
+        D=C*vsh/(2 * rsh)
         E=C/rt
         sw_curve=np.power(np.sqrt(D**2 + E) - D, 2/n)
     elif method == "indo":
-        A=np.sqrt(1 /rt_curve)
-        B=(np.power(vsh_curve,(1 -(vsh_curve/2)))/np.sqrt(rsh))
-        C=np.sqrt(np.power(phi_curve,m)/(a*rw))
+        A=np.sqrt(1 /rt)
+        B=(np.power(vsh,(1 -(vsh/2)))/np.sqrt(rsh))
+        C=np.sqrt(np.power(phi,m)/(a*rw))
         sw_curve=np.power((A/(B+C)),2/n)
     elif method == "fertl":
-        A=np.power(phi_curve,-m/2)
-        B=(a*rw)/rt_curve
-        C=((alpha*vsh_curve)/2)**2
+        A=np.power(phi,-m/2)
+        B=(a*rw)/rt
+        C=((alpha*vsh)/2)**2
         sw_curve=A*((np.sqrt(B+C))-np.sqrt(C))
     sw_curve[sw_curve < 0.0] = 0.0
     sw_curve[sw_curve > 1.0] = 1.0
     
     return sw_curve
 
-def depth_temperature(depth, gradient, surface_temperature):
+def depth_temperature(depth, surface_temperature=77 ,gradient=1):
     depth = np.atleast_1d(depth)
     
     t = (gradient/100) * depth + surface_temperature 
