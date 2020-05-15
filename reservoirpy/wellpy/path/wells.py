@@ -112,7 +112,12 @@ class well:
 
     @crs.setter
     def crs(self,value):
-        assert isinstance(value,(str,type(None))), f"{type(value)} not accepted. Name must be str. Example 'EPSG:3117'"
+        assert isinstance(value,(int,str,type(None))), f"{type(value)} not accepted. Name must be str. Example 'EPSG:3117'"
+        
+        if isinstance(value,int):
+            value = f'EPSG:{value}'
+        elif isinstance(value,str):
+            assert value.startswith('EPSG:'), 'if crs is string must starts with EPSG:. If integer must be the Coordinate system reference number EPSG http://epsg.io/'
         self._crs = value
 
     @property
