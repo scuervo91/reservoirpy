@@ -103,8 +103,16 @@ class well:
 
     @surf_coord.setter
     def surf_coord(self,value):
-        assert isinstance(value,(Point,type(None))), f'{type(value)} not accepted. Name must be Point'
-        self._surf_coord = value
+        assert isinstance(value,(list,Point,type(None))), f'{type(value)} not accepted. Name must be shapely.geometry.Point or list [x,y,z]'
+        if isinstance(value,Point):
+            self._surf_coord = value
+        elif isinstance(value,list):
+            assert len(value) <= 3 and len(value) >= 2
+            if len(value)==3:
+                self._surf_coord = Point(value[0],value[1],value[2])
+            elif len(value)==2:
+                self._surf_coord = Point(value[0],value[1])
+
 
     @property
     def crs(self):
