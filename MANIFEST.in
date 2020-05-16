@@ -1,1 +1,2 @@
 include welllogspy/log/mnemonics.csv
+include pvtpy/black_oil/components_properties.csv
