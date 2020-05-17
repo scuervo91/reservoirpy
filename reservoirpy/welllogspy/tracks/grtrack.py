@@ -204,7 +204,7 @@ def grtrack(df: pd.DataFrame,
                 continue
             grax.hlines([i[1]['md_top']],0,gr_max, **fm_kw)
             if fm_ann:
-               grax.annotate(f"Top of {i[1]['formation']}",xy=(gr_max-3,i[1]['md_top']-2),
+               grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1]['md_top']-2),
                              xycoords='data',horizontalalignment='right',
                              bbox={'boxstyle':'round', 'fc':'0.8'})
                           
