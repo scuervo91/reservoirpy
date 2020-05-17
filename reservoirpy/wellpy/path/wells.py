@@ -3,6 +3,7 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point
 from .mincurve import min_curve_method
+from .mincurve import survey
 from .interpolate import interpolate_deviation, interpolate_position
 from scipy.interpolate import interp1d
 from scipy.spatial import distance_matrix
@@ -15,7 +16,7 @@ class perforations(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):                                                                                                                                   
         super(perforations, self).__init__(*args, **kwargs)
-    
+   
     def get_tick(self):
         try:
             self['md_tick'] = self['md_bottom'] - self['md_top']
@@ -53,14 +54,51 @@ class perforations(gpd.GeoDataFrame):
     
 class tops(gpd.GeoDataFrame):
 
-    def __init__(self, *args, **kwargs):                                                                                                                                   
-        super(tops, self).__init__(*args, **kwargs)     
+    def __init__(self, *args, **kwargs):    
+        formation = kwargs.pop("formation", None)                                                                                                                               
+        super(tops, self).__init__(*args, **kwargs)  
+
+        if formation is not None:
+            formation = np.atleast_1d(formation)
+            self['formation'] = formation
+            self.set_index('formation',inplace=True)
+        elif 'formation' in self.columns:
+            self.set_index('formation',inplace=True)
+
+    def get_tick(self):
+        try:
+            self['md_tick'] = self['md_bottom'] - self['md_top']
+        except:
+            pass
+
+        try:
+            self['tvd_tick'] = self['tvd_bottom'] - self['tvd_top']
+        except:
+            pass
+        
+        return self
+    
+    def get_mid_point(self):
+        try:
+            self['md_mid_point'] = (self['md_bottom'] + self['md_top'])*0.5
+        except:
+            pass
+
+        try:
+            self['tvd_mid_point'] = (self['tvd_bottom'] + self['tvd_top'])*0.5
+        except:
+            pass
+    
+        try:
+            self['tvdss_mid_point'] = (self['tvdss_bottom'] + self['tvdss_top'])*0.5
+        except:
+            pass
+        return self 
     
     @property
     def _constructor(self):
         return tops
-  
-    
+   
 class well:
     def __init__(self, **kwargs):
 
@@ -73,8 +111,7 @@ class well:
         self.openlog = kwargs.pop('openlog', None)
         self.masterlog = kwargs.pop('masterlog', None) 
         self.caselog = kwargs.pop('caselog', None)
-        self.deviation = kwargs.pop('deviation', None) # pandas md inc azi
-        self._survey = None
+        self.survey = kwargs.pop('survey', None)
 
 #####################################################
 ############## Properties ###########################
@@ -174,34 +211,33 @@ class well:
         self._caselog = value
 
     @property
-    def deviation(self):
-        return self._deviation
-
-    @deviation.setter
-    def deviation(self,value):
-        assert isinstance(value,(pd.DataFrame,type(None))), f'{type(value)} not accepted. Name must be pd.DataFrame'
-        if isinstance(value,pd.DataFrame):
-            assert all(i in ['md','inc','azi'] for i in value.columns), "pd.DataFrame must contain columns ['md','inc','azi']"
-        self._deviation = value
-
-    @property
     def survey(self):
-        if self._deviation is not None:
-            self._survey = min_curve_method(
-                self._deviation['md'],
-                self._deviation['inc'],
-                self._deviation['azi'],
+        return self._survey
+
+    @survey.setter
+    def survey(self,value):
+        if isinstance(value,survey):
+            self._survey = value
+        elif isinstance(value,pd.DataFrame):
+            assert all(i in value.columns for i in ['md','inc','azi'])
+            _survey = min_curve_method(
+                value['md'],
+                value['inc'],
+                value['azi'],
                 surface_easting=self._surf_coord.x, 
                 surface_northing=self._surf_coord.y, 
                 kbe=self._rte,
                 crs=self._crs)
-        return self._survey
+            self._survey = _survey
+        elif isinstance(value,type(None)):
+            self._survey = value
+
 
 #####################################################
 ############## methods ###########################
 
     def sample_deviation(self,step=100):
-        if self._deviation is not None:
+        if self._survey is not None:
             _survey = self.survey
             new_dev = interpolate_deviation(_survey.index, 
                                             _survey['inc'], 
@@ -211,7 +247,7 @@ class well:
         return new_dev
 
     def sample_position(self,step=100):
-        if self._deviation is not None:
+        if self._survey is not None:
             _survey = self.survey
             new_pos = interpolate_position(_survey['tvd'], 
                                             _survey['easting'], 
@@ -233,8 +269,8 @@ class well:
 """
 
     def to_tvd(self,md:(int,float)=None,which:list=None, ss:bool=False):
-        if self._deviation is not None:
-            r=[]
+        if self._survey is not None:
+            r = None
             _survey=self.survey
             _tvd_int = interp1d(_survey.index,_survey['tvd'])
             _tvdss_int = interp1d(_survey.index,_survey['tvdss'])
@@ -242,10 +278,10 @@ class well:
             if md is not None:
                 if ss==True:
                     _tvdss = _tvdss_int(md)
-                    r.append(_tvdss)
+                    r = _tvdss
                 else:
                     _tvd = _tvd_int(md)
-                    r.append(_tvd)
+                    r = _tvd
                 
             if which is not None:
                 if 'perforations' in which:
@@ -257,7 +293,6 @@ class well:
                             self._perforations['tvd_top']=self._perforations['md_top'].apply(_tvd_int)
                             self._perforations['tvd_bottom']=self._perforations['md_bottom'].apply(_tvd_int)
                             self._perforations['tvd_tick'] = self._perforations['tvd_bottom'] - self._perforations['tvd_top']
-                        r.append(self._perforations)
                     else:
                         raise ValueError("No perforations have been set")
 
@@ -271,19 +306,18 @@ class well:
                             self._tops['tvd_top']=self._tops['md_top'].apply(_tvd_int)
                             self._tops['tvd_bottom']=self._tops['md_bottom'].apply(_tvd_int)
                             self._tops['tvd_tick'] = self._tops['tvd_bottom'] - self._tops['tvd_top']
-                        r.append(self._tops)
                     else:
                         raise ValueError("No tops have been set")
 
         else:
             raise ValueError("No survey has been set")
         return r
-    
+  
 
     
     def to_coord(self,md:(int,float)=None,which:list=None):
-        if self._deviation is not None:  
-            r=[]
+        if self._survey is not None:
+            r=None
             _survey=self.survey
             _northing_int = interp1d(_survey['tvd'],_survey.geometry.y)
             _easting_int = interp1d(_survey['tvd'],_survey.geometry.x)
@@ -293,7 +327,7 @@ class well:
                 _northing = _northing_int(_tvd)
                 _easting = _easting_int(_tvd)
                 coord = Point(_easting,_northing)
-                r.append(coord)
+                r = coord
                 
             if which is not None:
                 if 'perforations' in which:
@@ -302,7 +336,6 @@ class well:
                             self._perforations['northing'] = self._perforations['tvd_top'].apply(_northing_int)
                             self._perforations['easting'] = self._perforations['tvd_bottom'].apply(_easting_int)
                             self._perforations['geometry'] = self._perforations[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
-                            r.append(self._perforations)
                         except:
                             ValueError("No tvd has been set")
                     else:
@@ -314,7 +347,6 @@ class well:
                             self._tops['northing'] = self._tops['tvd_top'].apply(_northing_int)
                             self._tops['easting'] = self._tops['tvd_bottom'].apply(_easting_int)
                             self._tops['geometry'] = self._tops[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
-                            r.append(self._tops)
                         except:
                             ValueError("No tvd has been set")
                     else:
@@ -334,13 +366,13 @@ class well:
                     _d = self._masterlog.df().index
                     _m = pd.DataFrame(index=_d)
                     for i in self._tops.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[1]['formation']
+                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[0]
                     self._masterlog.add_curve('formation',_m['formation'].values,descr='formations')
                 if ('openlog' in which) & (self._openlog is not None):
                     _d = self._openlog.df().index
                     _m = pd.DataFrame(index=_d)
                     for i in self._tops.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[1]['formation']
+                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[0]
                     self._openlog.add_curve('formation',_m['formation'].values,descr='formations')
                 if ('caselog' in which) & (self._caselog is not None):
                     _d = self._caselog.df().index
@@ -472,7 +504,7 @@ class wells_group:
         return _coord
 
 
-    def wells_distance(self,wells:list=None, z=False, z_unit='ft'):
+    def wells_distance(self,wells:list=None, z:bool=False, z_unit:str='ft'):
         """
         Calculate a distance matrix for the surface coordinates of the wells
 
@@ -487,7 +519,6 @@ class wells_group:
         Return:
             dist_matrix -> (pd.DataFrame) Distance matrix with index and column of wells
         """
-        
         
         assert isinstance(wells,(list,type(None)))
 
@@ -530,6 +561,56 @@ class wells_group:
                 ).add_to(map_folium)
 
         return map_folium
+
+    def formation_distance(self, wells:list=None, formation:str=None, z_unit='ft'):
+        """
+        Calculate a distance matrix for the formation of interest
+
+        Input:
+            wells ->  (list, None) List of wells in the Group to show the matrix. 
+                    If None, all wells in the group will be selected
+            formation -> (str) Formation of interest. The attributes tops and survey must be set on each well
+        Return:
+            dist_matrix -> (pd.DataFrame) Distance matrix with index and column of wells
+        """
+        assert isinstance(wells,(list,type(None)))
+
+        # Define which wells for the distance matrix will be shown    
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+
+        z_coef = 0.3048 if z_unit=='ft' else 1
+
+        _fm_df = gpd.GeoDataFrame()
+        for key in _well_list:
+            has_survey = self.wells[key].survey is not None
+            has_tops = self.wells[key].tops is not None
+            if all([has_tops,has_survey]):
+                assert formation in self.wells[key].tops.index.tolist()
+                if 'tvdss_top' not in self.wells[key].tops.columns:
+                    self.wells[key].to_tvd(which=['tops'])
+                    self.wells[key].to_tvd(which=['tops'],ss=True)
+                if 'geometry' not in self.wells[key].tops.columns:
+                    self.wells[key].to_coord(which=['tops'])
+                _df = self.wells[key].tops.loc[[formation],['easting','northing','tvdss_top']].reset_index()
+                _df['well'] = key
+                _df['tvdss_top'] = _df['tvdss_top']*z_coef
+                #print(_df)
+                _fm_df = _fm_df.append(_df, ignore_index=True)
+                
+        
+        dist_array = distance_matrix(_fm_df[['easting','northing','tvdss_top']].values,_fm_df[['easting','northing','tvdss_top']].values)
+        dist_matrix = pd.DataFrame(dist_array,index=_fm_df['well'], columns=_fm_df['well'])
+
+        return dist_matrix
+
+
+
+
 
 
 
