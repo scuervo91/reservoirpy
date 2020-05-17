@@ -1,8 +1,29 @@
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-
 from .checkarrays import checkarrays
+
+class survey(gpd.GeoDataFrame):
+
+    def __init__(self, *args, **kwargs): 
+        md = kwargs.pop("md", None)                                                                                                                                  
+        super(survey, self).__init__(*args, **kwargs)
+
+        if md is not None:
+            md = np.atleast_1d(md)
+            self['md'] = md
+            assert self['md'].is_monotonic, "md must be increasing"
+            self.set_index('md',inplace=True)
+        elif 'md' in self.columns:
+            assert self['md'].is_monotonic, "md must be increasing"
+            self.set_index('md',inplace=True)
+        elif self.index.name == 'md':
+            assert self.index.is_monotonic, "md must be increasing"
+    
+   
+    @property
+    def _constructor(self):
+        return survey
 
 def minimum_curvature(md, inc, azi):
     """Minimum curvature
@@ -161,11 +182,11 @@ def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,
     easting = surface_easting + (easting_off*0.3048)
     tvdss = (tvd - kbe)*-1
 
-    survdf = gpd.GeoDataFrame({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
+    survdf = survey({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
                             'north_offset':northing_off,'east_offset':easting_off,
                             'northing':northing,'easting':easting,'dleg':dls}, 
                              geometry=gpd.points_from_xy(easting,northing)
-                             ).set_index('md')
+                             )
     
     if crs is not None:
         assert isinstance(crs,str)
