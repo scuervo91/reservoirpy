@@ -96,7 +96,7 @@ w1 = ph.well(name='well-1',
              rte=rte, 
              surf_coord=surf_coord, 
              crs=crs, 
-             deviation=deviation, 
+             survey=deviation, 
              tops=tops, 
              masterlog=masterlog, 
              openlog=openlog)
