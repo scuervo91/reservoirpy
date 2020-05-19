@@ -5,12 +5,12 @@ from datetime import date, timedelta
 
 ############################################################################################
 # Forecast Function
-def forecast_curve(RangeTime,qi,di,ti,b):
+def forecast_curve(range_time,qi,di,ti,b):
   """
   Estimate a Forecast curve given Decline curve parameters
 
   Attributes:
-    RangeTime: Range of dates to estimate the Forecast Curve-> Timestamp Series
+    range_time: Range of dates to estimate the Forecast Curve-> Timestamp Series
     qi:        Initial flow rate -> Number
     di:        Decline rate in fraction and positive-> Number
     ti:        Date of the initial flow Rate-> Timestamp
@@ -23,7 +23,7 @@ def forecast_curve(RangeTime,qi,di,ti,b):
 
   """
   ##Convert dates to number for apply regression methods
-  days_number = RangeTime.apply(lambda x: x.toordinal()) 
+  days_number = range_time.apply(lambda x: x.toordinal()) 
   ti_day = ti.toordinal()
 
   #Estimate the difference in days between the dates to forecast and Initial Ti                                
@@ -37,7 +37,7 @@ def forecast_curve(RangeTime,qi,di,ti,b):
   diff_period = np.append(np.array([1]),np.diff(days_number))
   diff_q = diff_period * q 
   cum = diff_q.cumsum()
-  forecast = pd.DataFrame({'time':RangeTime,'rate':q, 'cum':cum})
+  forecast = pd.DataFrame({'time':range_time,'rate':q, 'cum':cum})
   forecast = forecast.set_index('time')
   forecast = forecast.round(2)
   Np = forecast.iloc[-1,-1]
@@ -122,7 +122,7 @@ class declination:
 
   @b.setter
   def b(self,value):
-    assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+    assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
     assert value >= 0 and value <= 1
     self._b = value
 
@@ -185,97 +185,109 @@ class declination:
 
     return f, Np
 
-################################################################################
-#Decline Fit
-def decline_fit(RangeTime,FlowRate,b=None, ad=True):
-  """
-  Estimate the declination parameters of a time series of production daily rate
-  as a Decline Curve defined by Arps
-
-     Attributes:
-    RangeTime: Range of dates to estimate the declination-> Timestamp Series
-    FlowRate:  Production rate in daily basis-> Series
-    b:         Arp's Coefficient. 0<=b<=1  -> If None b parameter is also fitted
-                                           -> if  (b>=0)&(b<=1) b is not fitted but fixed
-                                           -> Default: None
-    ad:        apply anomally detection    ->  Bool, Default: True
-              
-
-    Return -> q -> 1D Numpy array with the Flow rate
-  """
-  if ad == True:
-    tnum = RangeTime.apply(lambda x: x.toordinal()) 
-    lnq = np.log(FlowRate)
-    slp = -np.diff(lnq) / np.diff(tnum)
-    slp = np.append(slp[0],slp)
-    mu = slp.mean()
-    sig=slp.std()
-    RangeTime = RangeTime[np.abs(slp)<mu+2*sig]
-    FlowRate = FlowRate[np.abs(slp)<mu+2*sig]
-
-  if b is None:
-    
-    def decline_function(RangeTime,qi,di,b):
-      """
-      Estimate the flow rate given the decline curve parameters assuming the Ti 
-      to the first value on RangeTime. 
-      
-      This function is intended to be used with scipy.optimize.curve_fit function to
-      create the cost function to fit the decline curve parameters to a given 
-      production data. 
+  ################################################################################
+  #Decline Fit
+  def fit(self,df:pd.DataFrame,time:str='time',rate:str='rate',b=None, ad=True):
+    """
+    Estimate the declination parameters of a time series of production daily rate
+    as a Decline Curve defined by Arps
 
       Attributes:
-        RangeTime: Range of dates to estimate the Forecast Curve-> Timestamp Series
-        qi:        Initial flow rate -> Number
-        di:        Decline rate in fraction and positive-> Number
-        b:         Arp's Coefficient. 0<=b<=1  -> Number 
+      df: (pd.DataFrame)  DataFrame with with time and rate columns
+      time: (str, default 'time') column name of the datetime
+      rate: (str, default 'rate') column name of the rate
+      b:         Arp's Coefficient. 0<=b<=1  -> If None b parameter is also fitted
+                                            -> if  (b>=0)&(b<=1) b is not fitted but fixed
+                                            -> Default: None
+      ad:        apply anomally detection    ->  Bool, Default: True
+                
 
-        Return -> q -> 1D Numpy array with the Flow rate: 
-      """
-      days_number = RangeTime.apply(lambda x: x.toordinal())
-      ti_day = RangeTime[0].toordinal() 
-      day_diff = days_number-ti_day 
+      Return -> q -> 1D Numpy array with the Flow rate
+    """
+    range_time = df[time]
+    flow_rate = df[rate]
+    if ad == True:
+      tnum = range_time.apply(lambda x: x.toordinal()) 
+      lnq = np.log(flow_rate)
+      slp = -np.diff(lnq) / np.diff(tnum)
+      slp = np.append(slp[0],slp)
+      mu = slp.mean()
+      sig=slp.std()
+      range_time = range_time[np.abs(slp)<mu+2*sig]
+      flow_rate = flow_rate[np.abs(slp)<mu+2*sig]
 
-      if b == 0:
-        q = qi*np.exp(-(di/365)*day_diff) 
-      elif (b>0) & (b<=1):
-        q = qi/np.power(1+b*(di/365)*day_diff,1/b)
+    if b is None:
       
-      return q
-    
-    popt, pcov = curve_fit(decline_function, RangeTime, FlowRate, bounds=(0, [np.inf, np.inf, 1]))
-    dec = declination(qi=popt[0], di=popt[1], ti=RangeTime[0], b=popt[2])
-  elif (b >= 0) & (b <= 1):
-    
-    def decline_function(RangeTime,qi,di):
-      """
-      Estimate the flow rate given the decline curve parameters assuming the Ti 
-      to the first value on RangeTime. 
-      
-      This function is intended to be used with scipy.optimize.curve_fit function to
-      create the cost function to fit the decline curve parameters to a given 
-      production data. 
+      def decline_function(range_time,qi,di,b):
+        """
+        Estimate the flow rate given the decline curve parameters assuming the Ti 
+        to the first value on range_time. 
+        
+        This function is intended to be used with scipy.optimize.curve_fit function to
+        create the cost function to fit the decline curve parameters to a given 
+        production data. 
 
-      Attributes:
-        RangeTime: Range of dates to estimate the Forecast Curve-> Timestamp Series
-        qi:        Initial flow rate -> Number
-        di:        Decline rate in fraction and positive-> Number
-        b:         Arp's Coefficient. 0<=b<=1  -> Number 
+        Attributes:
+          range_time: Range of dates to estimate the Forecast Curve-> Timestamp Series
+          qi:        Initial flow rate -> Number
+          di:        Decline rate in fraction and positive-> Number
+          b:         Arp's Coefficient. 0<=b<=1  -> Number 
 
-        Return -> declination object
-      """
-      days_number = RangeTime.apply(lambda x: x.toordinal())
-      ti_day  = RangeTime[0].toordinal() 
-      day_diff = days_number-ti_day 
-      b
-      if b == 0:
-        q = qi*np.exp(-(di/365)*day_diff) 
-      elif (b>0)&(b<=1):
-        q = qi/np.power(1+b*(di/365)*day_diff,1/b)
+          Return -> q -> 1D Numpy array with the Flow rate: 
+        """
+        days_number = range_time.apply(lambda x: x.toordinal())
+        ti_day = range_time[0].toordinal() 
+        day_diff = days_number-ti_day 
+
+        if b == 0:
+          q = qi*np.exp(-(di/365)*day_diff) 
+        elif (b>0) & (b<=1):
+          q = qi/np.power(1+b*(di/365)*day_diff,1/b)
+        
+        return q
       
-      return q 
+      popt, pcov = curve_fit(decline_function, range_time, flow_rate, bounds=(0, [np.inf, np.inf, 1]))
+      #dec = declination(qi=popt[0], di=popt[1], ti=range_time[0], b=popt[2])
+      print(popt)
+      self.qi = popt[0]
+      self.di = popt[1]
+      self.ti = range_time[0]
+      self.b = popt[2]
+
+    elif (b >= 0) & (b <= 1):
+      
+      def decline_function(range_time,qi,di):
+        """
+        Estimate the flow rate given the decline curve parameters assuming the Ti 
+        to the first value on range_time. 
+        
+        This function is intended to be used with scipy.optimize.curve_fit function to
+        create the cost function to fit the decline curve parameters to a given 
+        production data. 
+
+        Attributes:
+          range_time: Range of dates to estimate the Forecast Curve-> Timestamp Series
+          qi:        Initial flow rate -> Number
+          di:        Decline rate in fraction and positive-> Number
+          b:         Arp's Coefficient. 0<=b<=1  -> Number 
+
+          Return -> declination object
+        """
+        days_number = range_time.apply(lambda x: x.toordinal())
+        ti_day  = range_time[0].toordinal() 
+        day_diff = days_number-ti_day 
+        b
+        if b == 0:
+          q = qi*np.exp(-(di/365)*day_diff) 
+        elif (b>0)&(b<=1):
+          q = qi/np.power(1+b*(di/365)*day_diff,1/b)
+        
+        return q 
+      
+      popt, pcov = curve_fit(decline_function, range_time, flow_rate, bounds=(0, [np.inf, np.inf]))
+      dec = declination(qi=popt[0], di=popt[1], ti=range_time[0], b=b)
+      self.qi = popt[0]
+      self.di = popt[1]
+      self.ti = range_time[0]
+      self.b = b
     
-    popt, pcov = curve_fit(decline_function, RangeTime, FlowRate, bounds=(0, [np.inf, np.inf]))
-    dec = declination(qi=popt[0], di=popt[1], ti=RangeTime[0], b=b)
-  
-  return dec
