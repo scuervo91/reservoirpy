@@ -743,6 +743,7 @@ class grid():
     def get_vtk(self):
         """
         Get the pyvista Object
+        https://docs.pyvista.org/examples/00-load/create-unstructured-surface.html#sphx-glr-examples-00-load-create-unstructured-surface-py
         """
  
         #Identify the cell data connections
