@@ -5,6 +5,7 @@ from shapely.geometry import Point
 from .mincurve import min_curve_method
 from .mincurve import survey
 from .interpolate import interpolate_deviation, interpolate_position
+from .projection import unit_vector, projection_1d
 from scipy.interpolate import interp1d
 from scipy.spatial import distance_matrix
 from pyproj import Proj, transform
@@ -334,7 +335,7 @@ class well:
                     if self._perforations is not None:
                         try:
                             self._perforations['northing'] = self._perforations['tvd_top'].apply(_northing_int)
-                            self._perforations['easting'] = self._perforations['tvd_bottom'].apply(_easting_int)
+                            self._perforations['easting'] = self._perforations['tvd_top'].apply(_easting_int)
                             self._perforations['geometry'] = self._perforations[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
                         except:
                             ValueError("No tvd has been set")
@@ -345,7 +346,7 @@ class well:
                     if self._tops is not None:
                         try:
                             self._tops['northing'] = self._tops['tvd_top'].apply(_northing_int)
-                            self._tops['easting'] = self._tops['tvd_bottom'].apply(_easting_int)
+                            self._tops['easting'] = self._tops['tvd_top'].apply(_easting_int)
                             self._tops['geometry'] = self._tops[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
                         except:
                             ValueError("No tvd has been set")
@@ -464,6 +465,106 @@ class wells_group:
 
     # Methods
 
+    def wells_tops(self, wells:list=None, formations:list=None, projection1d = False, azi=90, center=None):
+        """
+        Get a DataFrame with the wells formations tops
+        Input:
+            wells ->  (list, None) List of wells in the Group to show
+                    If None, all wells in the group will be selected
+            formations ->  (list, None) List of formation in the Group to show 
+                    If None, all formations in the group will be selected
+            projection1d ->  (bool, default False) If true it adds a column with a 1d projection of coordinates 
+            azi -> (int, float, np.ndarray, default 90) Azimuth direction for projection
+            center -> (list, np.nd.ndarray)  Center for the projection
+
+        Return:
+            tops -> (gpd.GeoDataFrame) GeoDataFrame with tops indexed by well
+        """        
+        assert isinstance(wells,(list,type(None)))
+        assert isinstance(formations,(list,type(None)))
+        assert isinstance(center,(list,np.ndarray, type(None)))
+        assert isinstance(azi,(int,float,np.ndarray))
+        # Define which wells for the distance matrix will be shown    
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+
+        _wells_tops = gpd.GeoDataFrame()
+
+        for well in _well_list:
+            if self.wells[well].tops is None:
+                continue
+            else:
+                if self.wells[well].survey is not None:
+                    self.wells[well].to_tvd(which=['tops'])
+                    self.wells[well].to_tvd(which=['tops'],ss=True)
+                    self.wells[well].to_coord(which=['tops'])
+                else:
+                    assert projection1d == False, 'If projection1d is True surveys must be set'
+                _tops = self.wells[well].tops.copy()
+                _tops['well'] = well
+                _wells_tops = _wells_tops.append(_tops, ignore_index=False)
+        
+        if formations is not None:
+            _wells_tops = _wells_tops.loc[formations]
+
+        _wells_tops = _wells_tops.reset_index()
+        
+        if projection1d == True:
+            _pr,c = projection_1d(_wells_tops[['easting','northing']].values, azi, center=center)
+            _wells_tops['projection'] = _pr
+            r=[_wells_tops,c]
+        else:
+            r=_wells_tops
+
+        return r
+
+    def wells_surveys(self, wells:list=None, projection1d = False, azi=90, center=None):
+        """
+        Get a DataFrame with the wells surveys
+        Input:
+            wells ->  (list, None) List of wells in the Group to show
+                    If None, all wells in the group will be selected
+            formations ->  (list, None) List of formation in the Group to show 
+                    If None, all formations in the group will be selected
+        Return:
+            tops -> (gpd.GeoDataFrame) GeoDataFrame with tops indexed by well
+        """    
+        assert isinstance(wells,(list,type(None)))
+        assert isinstance(center,(list,np.ndarray, type(None)))
+        assert isinstance(azi,(int,float,np.ndarray))
+        # Define which wells for the distance matrix will be shown    
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+
+        _wells_survey = gpd.GeoDataFrame()
+
+        for well in _well_list:
+            if self.wells[well].survey is None:
+                continue
+            else:
+                _s = self.wells[well].survey.copy()
+                _s['well'] = well 
+                _s = _s.reset_index()
+                _wells_survey = _wells_survey.append(gpd.GeoDataFrame(_s))
+
+        if projection1d == True:
+            _pr,c = projection_1d(_wells_survey[['easting','northing']].values, azi, center=center)
+            _wells_survey['projection'] = _pr
+            r=[_wells_survey,c]
+        else:
+            r=_wells_survey
+
+        return r
+
+
     def wells_coordinates(self, wells:list=None, z_unit='ft', to_crs='EPSG:4326'):
         """
         Get a DataFrame with the wells surface coordinates
@@ -471,7 +572,7 @@ class wells_group:
             wells ->  (list, None) List of wells in the Group to show the matrix. 
                     If None, all wells in the group will be selected
         Return:
-            wells_coord -> (pd.DataFrame) DataFrame with wells coords
+            wells_coord -> (gpd.GeoDataFrame) GeoDataFrame with wells coords
         """
         assert isinstance(wells,(list,type(None)))
 
