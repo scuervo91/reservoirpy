@@ -592,7 +592,7 @@ class wells_group:
         for well in _well_list:
             x_coord = self.wells[well].surf_coord.x
             y_coord = self.wells[well].surf_coord.y
-            z_coord = self.wells[well].surf_coord.z*z_coef if self.wells[well].surf_coord.has_z==True else 0
+            z_coord = self.wells[well].surf_coord.z*z_coef if self.wells[well].surf_coord.has_z==True else self.wells[well].rte*z_coef
             shape = self.wells[well].surf_coord
             crs = self.wells[well].crs
             _w = gpd.GeoDataFrame({'x':[x_coord],'y':[y_coord],'z':[z_coord],'geometry':[shape]}, index=[well])
@@ -605,7 +605,7 @@ class wells_group:
         return _coord
 
 
-    def wells_distance(self,wells:list=None, z:bool=False, z_unit:str='ft'):
+    def wells_distance(self,wells:list=None, dims:list=['x','y','z'], z_unit:str='ft'):
         """
         Calculate a distance matrix for the surface coordinates of the wells
 
@@ -625,7 +625,6 @@ class wells_group:
 
         _coord = self.wells_coordinates(wells=wells, z_unit=z_unit)
 
-        dims = ['x','y','z'] if z==True else ['x','y']
         dist_array = distance_matrix(_coord[dims].values,_coord[dims].values)
         dist_matrix = pd.DataFrame(dist_array,index=_coord.index, columns=_coord.index)
 
@@ -663,7 +662,7 @@ class wells_group:
 
         return map_folium
 
-    def formation_distance(self, wells:list=None, formation:str=None, z_unit='ft'):
+    def formation_distance(self, wells:list=None, formation:str=None, dims:list=['easting','northing','tvdss_top'], z_unit='ft'):
         """
         Calculate a distance matrix for the formation of interest
 
@@ -704,7 +703,7 @@ class wells_group:
                 _fm_df = _fm_df.append(_df, ignore_index=True)
                 
         
-        dist_array = distance_matrix(_fm_df[['easting','northing','tvdss_top']].values,_fm_df[['easting','northing','tvdss_top']].values)
+        dist_array = distance_matrix(_fm_df[dims].values,_fm_df[dims].values)
         dist_matrix = pd.DataFrame(dist_array,index=_fm_df['well'], columns=_fm_df['well'])
 
         return dist_matrix
