@@ -10,6 +10,9 @@ from scipy.interpolate import interp1d
 from scipy.spatial import distance_matrix
 from pyproj import Proj, transform
 import folium
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pyvista as pv 
 from ...welllogspy.log import log
 
 
@@ -99,6 +102,16 @@ class tops(gpd.GeoDataFrame):
     @property
     def _constructor(self):
         return tops
+
+def vtk_survey(points):
+    """Given an array of points, make a line set"""
+    poly = pv.PolyData()
+    poly.points = points
+    cells = np.full((len(points)-1, 3), 2, dtype=np.int)
+    cells[:, 1] = np.arange(0, len(points)-1, dtype=np.int)
+    cells[:, 2] = np.arange(1, len(points), dtype=np.int)
+    poly.lines = cells
+    return poly
    
 class well:
     def __init__(self, **kwargs):
@@ -420,7 +433,27 @@ class well:
             self._perforations = p_result 
             
         return p_result
+
+    def get_vtk(self):
+        """
+        Get the vtk object in PyVista for the well survey
+        """
+    
+        if self.survey is None:
+            raise ValueError('The survey has not been set')
+        else:
+            _survey = self.survey.reset_index()
+            _survey = _survey.loc[:,_survey.columns != 'geometry']
             
+            surv_vtk = vtk_survey(_survey[['easting','northing','tvdss']].values)
+            
+            for col in _survey.iteritems():
+                surv_vtk.point_arrays[col[0]] = col[1].values
+
+        return surv_vtk
+
+
+
         
 class wells_group:
     def __init__(self,*args):
@@ -464,6 +497,34 @@ class wells_group:
         self._wells = _wells_dict
 
     # Methods
+
+    def wells_describe(self):
+        """
+        Get a dataframe describing the attributes of each well
+
+        Return:
+            df -> (gpd.GeoDataFrame) 
+        """
+        gdf = gpd.GeoDataFrame()
+
+        for well in self.wells:
+            dict_attr = {
+                'rte':[self.wells[well].rte],
+                'surf_coord':[self.wells[well].surf_coord],
+                'crs':[self.wells[well].crs],
+                'survey': [False if self.wells[well].survey is None else True],
+                'perforations': [False if self.wells[well].perforations is None else True],
+                'tops': [False if self.wells[well].tops is None else True],
+                'openlog': [False if self.wells[well].openlog is None else True],
+                'masterlog': [False if self.wells[well].masterlog is None else True],
+                'caselog': [False if self.wells[well].caselog is None else True],
+                }
+            _well_gpd = gpd.GeoDataFrame(dict_attr, index=[well])
+            gdf = gdf.append(_well_gpd)
+
+        gdf = gdf.set_geometry('surf_coord')
+
+        return gdf
 
     def wells_tops(self, wells:list=None, formations:list=None, projection1d = False, azi=90, center=None):
         """
@@ -707,6 +768,153 @@ class wells_group:
         dist_matrix = pd.DataFrame(dist_array,index=_fm_df['well'], columns=_fm_df['well'])
 
         return dist_matrix
+
+    def structural_view(self,wells:list=None, formations:list=None, show_surveys=True, 
+        show_formations=True, azi=0, center=None,ax=None,margin=500, **kwargs):
+        """
+        plot a structural view of the tops and wells in a 2D representation
+
+        Input:
+            wells ->  (list, None) List of wells in the Group to show. 
+                    If None, all wells in the group will be selected
+            formation -> (list) Formations of interest. The attributes tops and survey must be set on each well
+                    If None all the formations available are selected 
+            surveys -> (bool, default True) If the surveys are plotted 
+            formations -> (bool, default True) If the tops are plotted 
+            azi -> (int,float, default 0) The azimuth direction being azimuth 0 direction North-South
+            center -> (list, np.ndarray) The center for the prejection. Lits or numpy array with shape (2,)
+            ax -> (ax, default None) axis for plottling Matplotlib
+        Return:
+            dist_matrix -> (pd.DataFrame) Distance matrix with index and column of wells
+        """
+        assert isinstance(wells,(list,type(None))), f'{type(wells)}'
+        assert isinstance(formations,(list,type(None)))
+        assert isinstance(show_surveys, bool)
+        assert isinstance(show_formations, bool)
+        assert isinstance(azi, (int,float)) and azi >=0 and azi<=360 
+        assert isinstance(center,(list,np.ndarray,type(None)))
+
+        #Create the Axex
+        stax= ax or plt.gca()
+
+        #set center
+        if center is not None:
+            center = np.atleast_1d(center)
+            assert center.shape == (2,)     
+   
+        # Plot
+
+        # Color pallete
+        fm_color = kwargs.pop('formation_cmap','Set1')
+        well_color = kwargs.pop('well_cmap','GnBu_d')
+
+        if show_formations:
+            tops, center_tops = self.wells_tops(wells=wells, formations=formations, projection1d=True, azi=azi,center=center)
+
+            sns.lineplot(x='projection',y='tvdss_top', data=tops, 
+                    hue='formation',markers=True, ax=stax, palette=fm_color)
+        
+        if show_surveys:
+            surv,_ = self.wells_surveys(wells=wells,projection1d=True, azi=azi, center=center_tops if show_formations==True else None)
+            sns.lineplot(x='projection',y='tvdss', data=surv, 
+                    hue='well', ax=stax, palette=well_color)
+
+        ## y lims
+        ylims = kwargs.pop('ylims',None)
+        if ylims==None: #Depth Limits
+            if show_surveys and show_formations:
+                ylims=[surv['tvdss'].max()-margin,surv['tvdss'].min()+margin]
+            elif show_surveys:
+                ylims=[surv['tvdss_top'].max()-margin,surv['tvdss'].min()+margin]
+            elif show_formations:
+                ylims=[tops['tvdss_top'].max()-margin,surv['tvdss_top'].min()+margin]
+
+        stax.set_ylim([ylims[1],ylims[0]])
+
+    def wells_surveys_vtk(self, wells:list=None):
+        """
+        Get the vtk object in PyVista for the wells survey selected
+        Input:
+            wells ->  (list, None) List of wells in the Group to show. 
+                    If None, all wells in the group will be selected
+        Return:
+            surveys -> (pv.MultiBlock) pyvista.MultiBlock object with vtk surveys
+        """
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                if self.wells[key].survey is not None:
+                    _well_list.append(key)
+        else:
+            _well_list = wells
+
+        data = {}
+        for well in _well_list:
+            data[well] = self.wells[well].get_vtk()
+
+        survey_blocks = pv.MultiBlock(data)
+
+        return survey_blocks
+
+    def tops_vtk(self,wells:list=None, formations:list=None):
+        """
+        Get the vtk object in PyVista for the well tops
+        Input:
+            wells ->  (list, None) List of wells in the Group to show. 
+                    If None, all wells in the group will be selected
+            formation -> (list, None) List of formations in the Group to show. 
+                    If None, all formatiions in the group will be selected
+        Return:
+            tops -> (pv.MultiBlock) pyvista.MultiBlock object with vtk tops
+        """
+
+        assert isinstance(wells,(list,type(None))), f'{type(wells)}'
+        assert isinstance(formations,(list,type(None)))
+
+        tops = self.wells_tops(wells=wells, formations=formations, projection1d=False)
+
+        data = {}
+
+        for fm in tops['formation'].unique():
+            _df = tops.loc[tops['formation']==fm,['easting','northing','tvdss_top']].values
+            _surf = pv.PolyData(_df).delaunay_2d()
+            data[fm] = _surf 
+
+        fm_blocks = pv.MultiBlock(data)
+
+        return fm_blocks
+
+    def structural_view_vtk(self,wells:list=None, formations:list=None):
+        """
+        Get the vtk object in PyVista for the well tops and surveys
+        Input:
+            wells ->  (list, None) List of wells in the Group to show. 
+                    If None, all wells in the group will be selected
+            formation -> (list, None) List of formations in the Group to show. 
+                    If None, all formatiions in the group will be selected
+        Return:
+            surv_tops -> (pv.MultiBlock) pyvista.MultiBlock object with vtk surveys and tops
+        """
+        assert isinstance(wells,(list,type(None))), f'{type(wells)}'
+        assert isinstance(formations,(list,type(None)))
+
+        s_vtk = self.wells_surveys_vtk(wells=wells)
+        t_vtk = self.tops_vtk(wells=wells, formations=formations)
+
+        blocks = pv.MultiBlock()
+
+        for t in t_vtk.keys():
+            blocks.append(t_vtk[t])
+
+        for s in s_vtk.keys():
+            blocks.append(s_vtk[s])
+
+        return blocks
+
+
+
+
+
 
 
 
