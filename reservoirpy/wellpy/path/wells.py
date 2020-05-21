@@ -10,6 +10,7 @@ from scipy.interpolate import interp1d
 from scipy.spatial import distance_matrix
 from pyproj import Proj, transform
 import folium
+from folium.plugins import MarkerCluster, LocateControl,MeasureControl,MousePosition
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pyvista as pv 
@@ -286,8 +287,8 @@ class well:
         if self._survey is not None:
             r = None
             _survey=self.survey
-            _tvd_int = interp1d(_survey.index,_survey['tvd'])
-            _tvdss_int = interp1d(_survey.index,_survey['tvdss'])
+            _tvd_int = interp1d(_survey.index,_survey['tvd'],fill_value='extrapolate')
+            _tvdss_int = interp1d(_survey.index,_survey['tvdss'],fill_value='extrapolate')
 
             if md is not None:
                 if ss==True:
@@ -301,12 +302,17 @@ class well:
                 if 'perforations' in which:
                     if self._perforations is not None:
                         if ss==True:
-                            self._perforations['tvdss_top']=self._perforations['md_top'].apply(_tvdss_int)
-                            self._perforations['tvdss_bottom']=self._perforations['md_bottom'].apply(_tvdss_int)
+                            if 'md_top' in self._perforations.columns:
+                                self._perforations['tvdss_top']=self._perforations['md_top'].apply(_tvdss_int)
+                            if 'md_bottom' in self._perforations.columns:
+                                self._perforations['tvdss_bottom']=self._perforations['md_bottom'].apply(_tvdss_int)
                         else:
-                            self._perforations['tvd_top']=self._perforations['md_top'].apply(_tvd_int)
-                            self._perforations['tvd_bottom']=self._perforations['md_bottom'].apply(_tvd_int)
-                            self._perforations['tvd_tick'] = self._perforations['tvd_bottom'] - self._perforations['tvd_top']
+                            if 'md_top' in self._perforations.columns:
+                                self._perforations['tvd_top']=self._perforations['md_top'].apply(_tvd_int)
+                            if 'md_bottom' in self._perforations.columns:
+                                self._perforations['tvd_bottom']=self._perforations['md_bottom'].apply(_tvd_int)
+                            if 'md_bottom' in self._perforations.columns and 'md_bottom' in self._perforations.columns:
+                                self._perforations['tvd_tick'] = self._perforations['tvd_bottom'] - self._perforations['tvd_top']
                     else:
                         raise ValueError("No perforations have been set")
 
@@ -314,12 +320,17 @@ class well:
                 if 'tops' in which:
                     if self._tops is not None:
                         if ss==True:
-                            self._tops['tvdss_top']=self._tops['md_top'].apply(_tvdss_int)
-                            self._tops['tvdss_bottom']=self._tops['md_bottom'].apply(_tvdss_int)
+                            if 'md_top' in self._tops.columns:
+                                self._tops['tvdss_top']=self._tops['md_top'].apply(_tvdss_int)
+                            if 'md_bottom' in self._tops.columns:
+                                self._tops['tvdss_bottom']=self._tops['md_bottom'].apply(_tvdss_int)
                         else:
-                            self._tops['tvd_top']=self._tops['md_top'].apply(_tvd_int)
-                            self._tops['tvd_bottom']=self._tops['md_bottom'].apply(_tvd_int)
-                            self._tops['tvd_tick'] = self._tops['tvd_bottom'] - self._tops['tvd_top']
+                            if 'md_top' in self._tops.columns:
+                                self._tops['tvd_top']=self._tops['md_top'].apply(_tvd_int)
+                            if 'md_bottom' in self._tops.columns:
+                                self._tops['tvd_bottom']=self._tops['md_bottom'].apply(_tvd_int)
+                            if 'md_bottom' in self._tops.columns and 'md_bottom' in self._tops.columns:
+                                self._tops['tvd_tick'] = self._tops['tvd_bottom'] - self._tops['tvd_top']
                     else:
                         raise ValueError("No tops have been set")
 
@@ -333,9 +344,9 @@ class well:
         if self._survey is not None:
             r=None
             _survey=self.survey
-            _northing_int = interp1d(_survey['tvd'],_survey.geometry.y)
-            _easting_int = interp1d(_survey['tvd'],_survey.geometry.x)
-            _tvd_int = interp1d(_survey.index,_survey['tvd'])
+            _northing_int = interp1d(_survey['tvd'],_survey.geometry.y,fill_value='extrapolate')
+            _easting_int = interp1d(_survey['tvd'],_survey.geometry.x,fill_value='extrapolate')
+            _tvd_int = interp1d(_survey.index,_survey['tvd'],fill_value='extrapolate')
             if md is not None:
                 _tvd = _tvd_int(md)
                 _northing = _northing_int(_tvd)
@@ -498,7 +509,7 @@ class wells_group:
 
     # Methods
 
-    def wells_describe(self):
+    def describe(self):
         """
         Get a dataframe describing the attributes of each well
 
@@ -721,6 +732,11 @@ class wells_group:
                 icon=folium.Icon(icon='tint', color='green')
                 ).add_to(map_folium)
 
+        folium.LayerControl().add_to(map_folium)
+        LocateControl().add_to(map_folium)
+        MeasureControl().add_to(map_folium)
+        MousePosition().add_to(map_folium)
+
         return map_folium
 
     def formation_distance(self, wells:list=None, formation:str=None, dims:list=['easting','northing','tvdss_top'], z_unit='ft'):
@@ -807,17 +823,18 @@ class wells_group:
         # Color pallete
         fm_color = kwargs.pop('formation_cmap','Set1')
         well_color = kwargs.pop('well_cmap','GnBu_d')
+        legend = kwargs.pop('legend','brief')
 
         if show_formations:
             tops, center_tops = self.wells_tops(wells=wells, formations=formations, projection1d=True, azi=azi,center=center)
 
             sns.lineplot(x='projection',y='tvdss_top', data=tops, 
-                    hue='formation',markers=True, ax=stax, palette=fm_color)
+                    hue='formation',markers=True, ax=stax, palette=fm_color, legend=legend)
         
         if show_surveys:
             surv,_ = self.wells_surveys(wells=wells,projection1d=True, azi=azi, center=center_tops if show_formations==True else None)
             sns.lineplot(x='projection',y='tvdss', data=surv, 
-                    hue='well', ax=stax, palette=well_color)
+                    hue='well', ax=stax, palette=well_color, legend=legend)
 
         ## y lims
         ylims = kwargs.pop('ylims',None)
