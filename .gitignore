@@ -135,4 +135,5 @@ test/
 examples/welllogs/1-basics/logs.las
 examples/welllogs/1-basics/master.las
 examples/welllogs/1-basics/survey.csv
-.xlsx/
+examples/welllogs/2-field/*.csv
+*.xlsx
