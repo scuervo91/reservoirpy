@@ -126,7 +126,9 @@ class well:
         self.openlog = kwargs.pop('openlog', None)
         self.masterlog = kwargs.pop('masterlog', None) 
         self.caselog = kwargs.pop('caselog', None)
+        self.td = kwargs.pop('td',None)  # First set td before survey
         self.survey = kwargs.pop('survey', None)
+
 
 #####################################################
 ############## Properties ###########################
@@ -245,8 +247,27 @@ class well:
                 crs=self._crs)
             self._survey = _survey
         elif isinstance(value,type(None)):
-            self._survey = value
+            _survey = min_curve_method(
+                np.array([0,self.td]),
+                np.zeros(2),
+                np.zeros(2),
+                surface_easting=self._surf_coord.x, 
+                surface_northing=self._surf_coord.y, 
+                kbe=self._rte,
+                crs=self._crs)
+            self._survey = _survey
 
+    @property
+    def td(self):
+        return self._td
+
+    @td.setter
+    def td(self,value):
+        if value is None:
+            self._td = 10000
+        else:
+            assert isinstance(value,(int,float))
+            self._td = value
 
 #####################################################
 ############## methods ###########################
