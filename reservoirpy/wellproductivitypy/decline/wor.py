@@ -86,7 +86,7 @@ class wor_declination:
     def wor_i(self):
         return self._wor_i
 
-    def forecast(self,start_date=None, end_date=None, fluid_rate=None, fq='M', **kwargs):
+    def forecast(self,time_range=None,start_date=None, end_date=None, fluid_rate=None, fq='M', **kwargs):
         """
         Forecast curve from the declination object. 
     
@@ -95,14 +95,17 @@ class wor_declination:
         Return: 
 
         """
-
+        assert isinstance(time_range,(pd.Series,type(None))), 'start_date must be pd.Series with dates'
         assert isinstance(start_date,(date,type(None))), 'start_date must be date'
         assert isinstance(end_date,(date,type(None))), 'send_date must be date'
         assert isinstance(fluid_rate,(pd.Series,np.ndarray,int,float))
         fluid_rate = np.atleast_1d(fluid_rate)
 
         # Create the time range
-        time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
+        if time_range is None:
+            if end_date is None: 
+                end_date = start_date + timedelta(days=365)
+            time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
 
         if fluid_rate.shape==(1,):
             fluid_rate = np.full(time_range.shape,fluid_rate)
