@@ -354,6 +354,36 @@ class well:
                                 self._tops['tvd_tick'] = self._tops['tvd_bottom'] - self._tops['tvd_top']
                     else:
                         raise ValueError("No tops have been set")
+                
+                if 'openlog' in which:
+                    if self._openlog is not None:
+                        _d = self._openlog.df().index.values
+                        _tvd = _tvd_int(_d)
+                        _tvdss = _tvdss_int(_d)
+                        self._openlog.add_curve('tvd',_tvd,descr='tvd')
+                        self._openlog.add_curve('tvdss',_tvdss,descr='tvdss')
+                    else:
+                        raise ValueError("No openlogs have been set")
+
+                if 'masterlog' in which:
+                    if self._masterlog is not None:
+                        _d = self._masterlog.df().index.values
+                        _tvd = _tvd_int(_d)
+                        _tvdss = _tvdss_int(_d)
+                        self._masterlog.add_curve('tvd',_tvd,descr='tvd')
+                        self._masterlog.add_curve('tvdss',_tvdss,descr='tvdss')
+                    else:
+                        raise ValueError("No masterlogs have been set")
+
+                if 'caselog' in which:
+                    if self._caselog is not None:
+                        _d = self._caselog.df().index.values
+                        _tvd = _tvd_int(_d)
+                        _tvdss = _tvdss_int(_d)
+                        self._caselog.add_curve('tvd',_tvd,descr='tvd')
+                        self._caselog.add_curve('tvdss',_tvdss,descr='tvdss')
+                    else:
+                        raise ValueError("No caselogs have been set")
 
         else:
             raise ValueError("No survey has been set")
