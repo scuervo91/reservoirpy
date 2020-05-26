@@ -14,7 +14,8 @@ def flagtrack(df: pd.DataFrame,
               corr_kw={},
               sand_kw={},
               res_kw={},
-              pay_kw={}
+              pay_kw={},
+              depth_ref:str='md'
               ):
     
     #Create the axes
@@ -58,24 +59,24 @@ def flagtrack(df: pd.DataFrame,
             corr_kw[k]=v
             
 
-    
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     # Plot main Lines
     if sand is not None:
-        fax.plot(df[sand]*0.33, df.index,**sand_kw)
-        fax.fill_betweenx(df.index,0,df[sand]*0.33, color='yellow',label='Sand')
+        fax.plot(df[sand]*0.33, depth,**sand_kw)
+        fax.fill_betweenx(depth,0,df[sand]*0.33, color='yellow',label='Sand')
         
     if res is not None:
-        fax.plot(df[res]*0.66, df.index,**res_kw)
-        fax.fill_betweenx(df.index,0.33,df[res]*0.66, where=(df[res]*0.66>0.33), color='orange',label='Res')
+        fax.plot(df[res]*0.66, depth,**res_kw)
+        fax.fill_betweenx(depth,0.33,df[res]*0.66, where=(df[res]*0.66>0.33), color='orange',label='Res')
         
     if pay is not None:
-        fax.plot(df[pay], df.index,**pay_kw)
-        fax.fill_betweenx(df.index,0.66,df[pay], where=(df[pay]>0.66), color='green',label='pay')
+        fax.plot(df[pay], depth,**pay_kw)
+        fax.fill_betweenx(depth,0.66,df[pay], where=(df[pay]>0.66), color='green',label='pay')
 
     # Set The lims of depth    
     fax.set_xlim([0,1])           
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     fax.set_ylim([lims[1],lims[0]])
         

@@ -16,7 +16,8 @@ def ktrack(df: pd.DataFrame,
              legend:bool = True,
              colormap: str='gist_rainbow',
              corr_kw={},
-             k_kw=[]):
+             k_kw=[],
+             depth_ref:str='md'):
 
     #get number of curves to build the colormap
     n_curves = len(k)
@@ -37,6 +38,7 @@ def ktrack(df: pd.DataFrame,
         if k not in corr_kw:
             corr_kw[k]=v
     
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     #Plot main Lines
     if k is not None:
         for i,perm in enumerate(k):
@@ -46,10 +48,10 @@ def ktrack(df: pd.DataFrame,
             for (key,v) in defkwa.items():
                 if key not in k_kw[i]:
                     k_kw[i][key]=v
-            kax.plot(df[perm],df.index,label=perm,**k_kw[i])
+            kax.plot(df[perm],depth,label=perm,**k_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     kax.set_ylim([lims[1],lims[0]])
         

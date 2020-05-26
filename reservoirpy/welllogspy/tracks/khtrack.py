@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 
 
 def khtrack(df:pd.DataFrame, 
-            kh:str=None, 
+            kh:(list,str)=None, 
             lims:list=None,
             dtick:bool=False,
             fill:bool=True, 
@@ -15,7 +16,9 @@ def khtrack(df:pd.DataFrame,
             correlation: pd.DataFrame = None,
             kh_kw={},
             corr_kw={},
-            fill_kh_kw={}):
+            fill_kh_kw={},
+            kh_colormap:str='gray',
+            depth_ref:str='md'):
     
     hax=ax or plt.gca()
     
@@ -44,12 +47,19 @@ def khtrack(df:pd.DataFrame,
     for (k,v) in def_fill_kh_kw.items():
         if k not in fill_kh_kw:
             fill_kh_kw[k]=v
-    
+
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     if kh is not None:
-        hax.plot(df[kh],df.index,**kh_kw)
+        if isinstance(kh,str):
+            hax.plot(df[kh],depth,**kh_kw)   #Plotting
+        elif isinstance(kh,list):
+            cmap = mpl.cm.get_cmap(kh_colormap,len(kh))
+            for i,g in enumerate(kh):
+                kh_kw['color']=cmap(i)
+                hax.plot(df[g],depth,**kh_kw)
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     hax.set_ylim([lims[1],lims[0]])
 
@@ -75,7 +85,7 @@ def khtrack(df:pd.DataFrame,
         hax.set_yticklabels([])
 
     if fill==True:
-        hax.fill_betweenx(df.index,0,df[kh],**fill_kh_kw)
+        hax.fill_betweenx(depth,0,df[kh],**fill_kh_kw)
         
     #Add Correlation Line
     if correlation is not None:

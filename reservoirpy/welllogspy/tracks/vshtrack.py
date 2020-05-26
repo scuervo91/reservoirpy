@@ -4,17 +4,23 @@ import pandas as pd
 import numpy as np
 
 def vshtrack(df: pd.DataFrame, 
-            vsh: str = None, 
+            vsh: (list,str) = None, 
             lims: list = None,
             inverse: bool = False,
             dtick: bool = False,
             fill: bool = True,
             fontsize: int = 8,
             correlation: pd.DataFrame = None,
+            fm: pd.DataFrame = None,
+            perf: pd.DataFrame = None,
             grid_numbers : list = [11,51],
             steps: list  = None,
-            vsh_kw={},
-            corr_kw={},
+            vsh_kw:dict={},
+            corr_kw:dict={},
+            fm_kw:dict={},
+            perf_kw:dict={},
+            vsh_colormap:str='copper',
+            depth_ref:str='md',
             ax=None
             ):
     """
@@ -52,7 +58,8 @@ def vshtrack(df: pd.DataFrame,
     None.
 
     """
-
+    assert isinstance(df,pd.DataFrame)
+    assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
     
     vax=ax or plt.gca()
     def_vsh_kw = {
@@ -73,13 +80,38 @@ def vshtrack(df: pd.DataFrame,
     for (k,v) in def_corr_kw.items():
         if k not in corr_kw:
             corr_kw[k]=v
-    
+
+    def_fm_kw = {
+    'color': 'black',
+    'linestyle':'-',
+    'linewidth': 2
+    }    
+    for (k,v) in def_fm_kw.items():
+        if k not in fm_kw:
+            fm_kw[k]=v
+
+    def_perf_kw = {
+    'color': 'black',
+    'linestyle':'-',
+    'linewidth': 1
+    }    
+    for (k,v) in def_perf_kw.items():
+        if k not in perf_kw:
+            perf_kw[k]=v
+
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     if vsh is not None:
-        vax.plot(df[vsh],df.index,**vsh_kw)
+        if isinstance(vsh,str):
+            vax.plot(df[vsh],depth,**vsh_kw)   #Plotting
+        elif isinstance(vsh,list):
+            cmap = mpl.cm.get_cmap(vsh_colormap,len(vsh))
+            for i,g in enumerate(vsh):
+                vsh_kw['color']=cmap(i)
+                vax.plot(df[g],depth,**vsh_kw)
         
     # Set Axis parameters 
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[df.depth.min(),df.depth.max()]
     
     vax.set_ylim([lims[1],lims[0]])
         
@@ -106,16 +138,51 @@ def vshtrack(df: pd.DataFrame,
     else:
         vax.set_yticklabels([])
         
-    if fill==True:
+    if fill==True and isinstance(vsh,str):
        # cmap=mpl.cm.get_cmap('YlOrBr',128)
         cmap=mpl.colors.LinearSegmentedColormap.from_list('vsh',
           [(252/256,210/256,23/256),(66/256,59/256,20/256),(41/256,29/256,13/256)],N=256)
-        df_filtered = df.loc[(df.index>=lims[0])&(df.index<=lims[1]),vsh]
+        df_filtered = df.loc[(depth>=lims[0])&(depth<=lims[1]),vsh]
+        depth_f = df_filtered.index if depth_ref=='md' else df_filtered[depth_ref]
         for i in range(0,df_filtered.shape[0]-1):
-            vax.fill_betweenx([df_filtered.index[i],df_filtered.index[i+1]],
+            vax.fill_betweenx([depth_f[i],depth_f[i+1]],
                               [df_filtered.iloc[i],df_filtered.iloc[i+1]],
                               1,color=cmap(df_filtered.iloc[i+1]))
-    
+
+    #Add Formations tops
+    if fm is not None:
+        fm_ann = fm_kw.pop('ann',False)
+        for i in fm.iterrows():
+            if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
+                continue
+            vax.hlines([i[1][f'{depth_ref}_top']],0,1, **fm_kw)
+            if fm_ann:
+               vax.annotate(f"Top of {i[0]}",xy=(1-0.7,i[1][f'{depth_ref}_top']-2),
+                             xycoords='data',horizontalalignment='right',
+                             bbox={'boxstyle':'round', 'fc':'0.8'})
+                          
+
+     #Add Interval Perforated
+    if perf is not None:
+        perf_ann = perf_kw.pop('ann',False)
+        for i in perf.iterrows():
+            if perf_ann:
+                try:
+                    vax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']} \nNote:{i[1]['comment']}",
+                                  xy=(0,(i[1][f'{depth_ref}_top']+i[1][f'{depth_ref}_bottom'])/2),xycoords='data',
+                                  xytext=(-180, 0), textcoords='offset points',
+                                  arrowprops=dict(arrowstyle="->"))
+                except:
+                    vax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']}",
+                    xy=(0,(i[1][f'{depth_ref}_top']+i[1][f'{depth_ref}_bottom'])/2),xycoords='data',
+                    xytext=(-180, 0), textcoords='offset points',
+                    arrowprops=dict(arrowstyle="->"))
+                else: 
+                    pass
+        
+            for j in np.arange(i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],0.2):
+                vax.hlines(j,0,15,**perf_kw)
+
     #Add Correlation Line
     if correlation is not None:
         cor_ann = corr_kw.pop('ann',False)

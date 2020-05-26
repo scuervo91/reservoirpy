@@ -15,7 +15,8 @@ def phietrack(df: pd.DataFrame,
              legend:bool = True,
              colormap: str='Dark2',
              corr_kw={},
-             phi_kw:list = []):
+             phi_kw:list = [],
+             depth_ref:str='md'):
 
     #get number of curves to build the colormap
     n_curves = len(phi)
@@ -35,7 +36,8 @@ def phietrack(df: pd.DataFrame,
     for (k,v) in def_corr_kw.items():
         if k not in corr_kw:
             corr_kw[k]=v
-    
+
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     #Plot main Lines
     if phi is not None:
         for i,r in enumerate(phi):
@@ -45,10 +47,10 @@ def phietrack(df: pd.DataFrame,
             for (k,v) in defkwa.items():
                 if k not in phi_kw[i]:
                     phi_kw[i][k]=v
-            pax.plot(df[r],df.index,label=r,**phi_kw[i])
+            pax.plot(df[r],depth,label=r,**phi_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     pax.set_ylim([lims[1],lims[0]])
 

@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 
 
 def caltrack(df: pd.DataFrame,
-             cal: str = None, 
-             bit: str = None, 
-             lims: list =None,
+             cal: (list,str) = None, 
+             bit: (list,str) = None, 
+             lims: (list,str) =None,
             dtick:bool=False,
             fill:bool=False,
             fontsize: int=8,
@@ -14,10 +15,16 @@ def caltrack(df: pd.DataFrame,
             steps: list  = None,
             correlation: pd.DataFrame = None,
             ax=None,
-            cal_kw={},
-            corr_kw={},
-            bit_kw={}):
-    
+            cal_kw:dict={},
+            corr_kw:dict={},
+            bit_kw:dict={},
+            depth_ref:str='md',
+            cal_colormap: str='winter',
+            bit_colormap: str='bone'):
+
+    assert isinstance(df,pd.DataFrame)
+    assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
+
     cal=ax or plt.gca()
     
     def_cal_kw = {
@@ -62,11 +69,19 @@ def caltrack(df: pd.DataFrame,
         mayor_grid = np.arange(lims[0],lims[1],steps[0])
         minor_grid = np.arange(lims[0],lims[1],steps[1])
     
+    depth = df.index if depth_ref=='md' else df[depth_ref] 
+
     if cal is not None:
-        cal.plot(df[cal],df.index,**cal_kw)
+        if isinstance(cal,str):
+            cal.plot(df[cal],depth,**cal_kw)   #Plotting
+        elif isinstance(cal,list):
+            cmap = mpl.cm.get_cmap(cal_colormap,len(cal))
+            for i,c in enumerate(cal):
+                cal_kw['color']=cmap(i)
+                cal.plot(df[c],depth,**cal_kw)
         
     if bit is not None:
-        cal.plot(df[bit],df.index,**bit_kw) 
+        cal.plot(df[bit],depth,**bit_kw) 
     
 
     cal.set_xlim([5,17])

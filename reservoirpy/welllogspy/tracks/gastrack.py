@@ -15,8 +15,9 @@ def gastrack(df: pd.DataFrame,
              steps: list  = None,
              legend:bool = True,
              colormap: str='gist_rainbow',
-             corr_kw={},
-             gas_kw=[]):
+             corr_kw:dict={},
+             gas_kw=[],
+             depth_ref:str='md'):
 
     #get number of curves to build the colormap
     n_curves = len(gas)
@@ -36,7 +37,8 @@ def gastrack(df: pd.DataFrame,
     for (k,v) in def_corr_kw.items():
         if k not in corr_kw:
             corr_kw[k]=v
-    
+
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     #Plot main Lines
     if gas is not None:
         for i,g in enumerate(gas):
@@ -46,10 +48,10 @@ def gastrack(df: pd.DataFrame,
             for (k,v) in defkwa.items():
                 if k not in gas_kw[i]:
                     gas_kw[i][k]=v
-            gax.plot(df[g],df.index,label=g,**gas_kw[i])
+            gax.plot(df[g],depth,label=g,**gas_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     gax.set_ylim([lims[1],lims[0]])
         

@@ -37,7 +37,7 @@ def fmtrack(df,
         lims=[df.loc[:,f'{depth_ref}_top'].min(),df.loc[:,f'{depth_ref}_bottom'].max()]
     fax.set_ylim([lims[1],lims[0]])
 
-    dff = df[(df[f'{depth_ref}_top']<=lims[1]) & (fm[f'{depth_ref}_bottom']>=lims[0])]
+    dff = df[(df[f'{depth_ref}_top']<=lims[1]) & (df[f'{depth_ref}_bottom']>=lims[0])]
     
     for i in dff.iterrows():
         fax.axhspan(i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],**area_kw)

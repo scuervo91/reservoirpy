@@ -1,4 +1,5 @@
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+import matplotlib as mpl 
 import pandas as pd
 import numpy as np
 
@@ -12,9 +13,11 @@ def oilshowtrack(df: pd.DataFrame,
                  correlation: pd.DataFrame = None,
                  grid_numbers : list = [11,51],
                  steps: list  = None,
+                 oilshow_colormap: str='summer',
                  corr_kw={},
                  show_kw={},
-                 fill_kw={}):
+                 fill_kw={},
+                 depth_ref:str='md'):
 
     oax=ax or plt.gca()
     
@@ -43,12 +46,19 @@ def oilshowtrack(df: pd.DataFrame,
     for (k,v) in def_fill_kw.items():
         if k not in fill_kw:
             fill_kw[k]=v
-            
+
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     if oilshow is not None:
-        oax.plot(df[oilshow],df.index,**show_kw)
+        if isinstance(oilshow,str):
+            oax.plot(df[oilshow],depth,**show_kw)   #Plotting
+        elif isinstance(oilshow,list):
+            cmap = mpl.cm.get_cmap(oilshow_colormap,len(oilshow))
+            for i,g in enumerate(oilshow):
+                show_kw['color']=cmap(i)
+                oax.plot(df[g],depth,**show_kw)
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     oax.set_ylim([lims[1],lims[0]])
 
@@ -73,8 +83,9 @@ def oilshowtrack(df: pd.DataFrame,
         oax.set_yticklabels(mayor_grid,11)
     else:
         oax.set_yticklabels([])
-    if fill==True:
-        oax.fill_betweenx(df.index,0,df[oilshow],**fill_kw)
+
+    if fill==True and isinstance(oilshow,str):
+        oax.fill_betweenx(depth,0,df[oilshow],**fill_kw)
         
         
     #Add Correlation Line

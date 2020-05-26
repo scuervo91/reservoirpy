@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
 
@@ -13,9 +14,11 @@ def cbltrack(df:pd.DataFrame,
              grid_numbers : list = [11,51],
              steps: list  = None,
              legend:bool = True,
-             cbl_kw={},
-             cblx5_kw={},
-             corr_kw={}):
+             cbl_colormap:str='cool',
+             cbl_kw:dict={},
+             cblx5_kw:dict={},
+             corr_kw:dict={},
+             depth_ref:str='md'):
     
     cblax=ax or plt.gca()
     cbl2ax=cblax.twiny()
@@ -39,16 +42,26 @@ def cbltrack(df:pd.DataFrame,
     for (k,v) in def_cblx5_kw.items():
         if k not in cblx5_kw:
             cblx5_kw[k]=v
-    
+
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     if cbl is not None:
         cblax.plot(df[cbl],df.index,**cbl_kw)
         cbl2ax.plot(df[cbl],df.index,**cblx5_kw)
+        if isinstance(cbl,str):
+            cblax.plot(df[cbl],depth,**cbl_kw)   #Plotting
+            cbl2ax.plot(df[cbl],depth,**cblx5_kw)
+        elif isinstance(cbl,list):
+            cmap = mpl.cm.get_cmap(cbl_colormap,len(cbl))
+            for i,g in enumerate(cbl):
+                cbl_kw['color']=cmap(i)
+                cblax.plot(df[g],depth,**cbl_kw)
+                cbl2ax.plot(df[g],depth,**cblx5_kw)
     
+    # Set The lims of depth               
     if lims==None: #Depth Limits
-        lims=[df.index.max(),df.index.min()]
-        cblax.set_ylim(lims)
-    else:
-        cblax.set_ylim([lims[1],lims[0]])
+        lims=[depth.min(),depth.max()]
+
+    cblax.set_ylim([lims[1],lims[0]])
         
     #Set the vertical grid spacing
     if steps is None:

@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 
 def grtrack(df: pd.DataFrame,
-                gr: str = None,
-                sp: str = None,
+                gr: (str,list) = None,
+                sp: (str,list) = None,
                 lims: list = None,
-                gr_max: int = 150,
+                gr_max: int = 200,
                 fm: pd.DataFrame = None,
                 perf: pd.DataFrame = None,
                 gr_sand_shale: pd.DataFrame = None,
@@ -24,7 +25,10 @@ def grtrack(df: pd.DataFrame,
                 gr_sand_kw={},
                 gr_shale_kw={},
                 corr_kw={},
-                ax=None
+                ax=None,
+                depth_ref='md',
+                gr_colormap: str='autumn',
+                sp_colormap: str='gray',
                ):
     
     """
@@ -81,6 +85,9 @@ def grtrack(df: pd.DataFrame,
                 
     
     """
+    assert isinstance(df,pd.DataFrame)
+    assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
+
     #Create the Axex
     grax= ax or plt.gca()
     
@@ -149,14 +156,28 @@ def grtrack(df: pd.DataFrame,
             corr_kw[k]=v
 
  ## Plot the Main Curves      
-    #If GammaRay Provided   
-    if gr is not None:  
-        grax.plot(df[gr],df.index,**gr_kw)   #Plotting
+    #If GammaRay Provided
+    depth = df.index if depth_ref=='md' else df[depth_ref]   
+    if gr is not None:
+        if isinstance(gr,str):
+            grax.plot(df[gr],depth,**gr_kw)   #Plotting
+        elif isinstance(gr,list):
+            cmap = mpl.cm.get_cmap(gr_colormap,len(gr))
+            for i,g in enumerate(gr):
+                gr_kw['color']=cmap(i)
+                grax.plot(df[g],depth,**gr_kw)
         
      #If sp provided   
     if sp is not None:
         spax=grax.twiny()
-        spax.plot(df[sp],df.index,**sp_kw)   #Plotting
+        if isinstance(sp,str):
+            spax.plot(df[sp],depth,**sp_kw)   #Plotting
+        elif isinstance(sp,list):
+            cmap = mpl.cm.get_cmap(sp_colormap,len(sp))
+            for i,s in enumerate(sp):
+                sp_kw['color']=cmap(i)
+                spax.plot(df[s],depth,**sp_kw)
+
         spax.xaxis.set_label_position("bottom")
         spax.xaxis.tick_bottom()
         spax.set_xlabel('Sp')
@@ -168,7 +189,7 @@ def grtrack(df: pd.DataFrame,
     # Set The lims of depth    
     grax.set_xlim([0,gr_max])           
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     grax.set_ylim([lims[1],lims[0]])
 
@@ -196,15 +217,15 @@ def grtrack(df: pd.DataFrame,
     grax.xaxis.set_label_position("top")
     grax.xaxis.tick_top()
     
-    #Add Formations tops and bottoms
+    #Add Formations tops
     if fm is not None:
         fm_ann = fm_kw.pop('ann',False)
         for i in fm.iterrows():
-            if i[1]['md_top'] < lims[0] or i[1]['md_top'] > lims[1]:
+            if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
                 continue
-            grax.hlines([i[1]['md_top']],0,gr_max, **fm_kw)
+            grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **fm_kw)
             if fm_ann:
-               grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1]['md_top']-2),
+               grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
                              xycoords='data',horizontalalignment='right',
                              bbox={'boxstyle':'round', 'fc':'0.8'})
                           
@@ -215,31 +236,31 @@ def grtrack(df: pd.DataFrame,
         for i in perf.iterrows():
             if perf_ann:
                 try:
-                    grax.annotate(f"Top:{i[1]['md_top']} \nBottom:{i[1]['md_bottom']} \nNote:{i[1]['comment']}",
-                                  xy=(0,(i[1]['md_top']+i[1]['md_bottom'])/2),xycoords='data',
+                    grax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']} \nNote:{i[1]['comment']}",
+                                  xy=(0,(i[1][f'{depth_ref}_top']+i[1][f'{depth_ref}_bottom'])/2),xycoords='data',
                                   xytext=(-180, 0), textcoords='offset points',
                                   arrowprops=dict(arrowstyle="->"))
                 except:
-                    grax.annotate(f"Top:{i[1]['md_top']} \nBottom:{i[1]['md_bottom']}",
-                    xy=(0,(i[1]['md_top']+i[1]['md_bottom'])/2),xycoords='data',
+                    grax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']}",
+                    xy=(0,(i[1][f'{depth_ref}_top']+i[1][f'{depth_ref}_bottom'])/2),xycoords='data',
                     xytext=(-180, 0), textcoords='offset points',
                     arrowprops=dict(arrowstyle="->"))
                 else: 
                     pass
         
-            for j in np.arange(i[1]['md_top'],i[1]['md_bottom'],0.2):
+            for j in np.arange(i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],0.2):
                 grax.hlines(j,0,15,**perf_kw)
 
     #Add Sand Gamma Ray line      
     if gr_sand_shale is not None:
         for i in gr_sand_shale.iterrows():
             try:
-                grax.vlines(i[1]['gr_sand'],i[1]['md_top'],i[1]['md_bottom'],**gr_sand_kw)
+                grax.vlines(i[1]['gr_sand'],i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],**gr_sand_kw)
             except:
                 pass
             
             try:
-                grax.vlines(i[1]['gr_shale'],i[1]['md_top'],i[1]['md_bottom'],**gr_shale_kw)
+                grax.vlines(i[1]['gr_shale'],i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],**gr_shale_kw)
             except:
                 pass
              

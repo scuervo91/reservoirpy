@@ -19,7 +19,8 @@ def track(df: pd.DataFrame,
           legend:bool = True,
           grid:bool = True,
           track_kw=[],
-          corr_kw={}):
+          corr_kw={},
+          depth_ref:str='md'):
     
     #get number of curves to build the colormap
     n_curves = len(curves)
@@ -42,6 +43,7 @@ def track(df: pd.DataFrame,
         if k not in corr_kw:
             corr_kw[k]=v
     
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     #Plot main Lines
     if curves is not None:
         for i,g in enumerate(curves):
@@ -51,10 +53,10 @@ def track(df: pd.DataFrame,
             for (k,v) in defkwa.items():
                 if k not in track_kw[i]:
                     track_kw[i][k]=v
-            tax.plot(df[g],df.index,label=g,**track_kw[i])
+            tax.plot(df[g],depth,label=g,**track_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     tax.set_ylim([lims[1],lims[0]])
 

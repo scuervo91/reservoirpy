@@ -18,7 +18,8 @@ def swtrack(df: pd.DataFrame,
             corr_kw={},
             fill_water_kw={},
             fill_oil_kw={},
-            sw_kw=[]):
+            sw_kw=[],
+            depth_ref:str='md'):
     
     #get number of curves to build the colormap
     n_curves = len(sw)
@@ -55,6 +56,7 @@ def swtrack(df: pd.DataFrame,
             fill_oil_kw[k]=v
 
     #Plot main Lines
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     if sw is not None:
         for i,r in enumerate(sw):
             if len(sw_kw)<i+1:
@@ -63,10 +65,10 @@ def swtrack(df: pd.DataFrame,
             for (k,v) in defkwa.items():
                 if k not in sw_kw[i]:
                     sw_kw[i][k]=v
-            sax.plot(df[r],df.index,label=r,**sw_kw[i])
+            sax.plot(df[r],depth,label=r,**sw_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     sax.set_ylim([lims[1],lims[0]])
         
@@ -92,8 +94,8 @@ def swtrack(df: pd.DataFrame,
     else:
         sax.set_yticklabels([])
     if fill==True:
-        sax.fill_betweenx(df.index,1,df[sw[0]],**fill_oil_kw)
-        sax.fill_betweenx(df.index,df[sw[0]],0,**fill_water_kw)
+        sax.fill_betweenx(depth,1,df[sw[0]],**fill_oil_kw)
+        sax.fill_betweenx(depth,df[sw[0]],0,**fill_water_kw)
         
     #Add Correlation Line
     if correlation is not None:

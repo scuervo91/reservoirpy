@@ -15,8 +15,12 @@ def restrack(df: pd.DataFrame,
              steps: list  = None,
              legend:bool = True,
              colormap: str='summer_r',
-             corr_kw={},
-             res_kw=[]):
+             corr_kw:dict={},
+             res_kw:dict=[],
+             depth_ref:str='md'):
+
+    assert isinstance(df,pd.DataFrame)
+    assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
     
     #get number of curves to build the colormap
     n_curves = len(res)
@@ -36,7 +40,8 @@ def restrack(df: pd.DataFrame,
     for (k,v) in def_corr_kw.items():
         if k not in corr_kw:
             corr_kw[k]=v
-    
+
+    depth = df.index if depth_ref=='md' else df[depth_ref]
     #Plot main Lines
     if res is not None:
         for i,r in enumerate(res):
@@ -46,10 +51,10 @@ def restrack(df: pd.DataFrame,
             for (k,v) in defkwa.items():
                 if k not in res_kw[i]:
                     res_kw[i][k]=v
-            rax.plot(df[r],df.index,label=r,**res_kw[i])
+            rax.plot(df[r],depth,label=r,**res_kw[i])
     
     if lims==None: #Depth Limits
-        lims=[df.index.min(),df.index.max()]
+        lims=[depth.min(),depth.max()]
 
     rax.set_ylim([lims[1],lims[0]])
         
