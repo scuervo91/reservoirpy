@@ -187,7 +187,7 @@ class declination:
 
   ################################################################################
   #Decline Fit
-  def fit(self,df:pd.DataFrame,time:str='time',rate:str='rate',b=None, ad=True):
+  def fit(self,df:pd.DataFrame,time:str='time',rate:str='rate',b=None, ad=True,xstd=2):
     """
     Estimate the declination parameters of a time series of production daily rate
     as a Decline Curve defined by Arps
@@ -204,18 +204,36 @@ class declination:
 
       Return -> q -> 1D Numpy array with the Flow rate
     """
+    r=[] # Return
     range_time = df[time]
     flow_rate = df[rate]
     if ad == True:
+      #Convert date to ordinal
       tnum = range_time.apply(lambda x: x.toordinal()) 
+
+      #logaritmit to flow rate
       lnq = np.log(flow_rate)
+
+      # Derivative of the ln(flow_rate) with respect to time
       slp = -np.diff(lnq) / np.diff(tnum)
       slp = np.append(slp[0],slp)
+
+      #Mean and std of derivative
       mu = slp.mean()
       sig=slp.std()
-      range_time = range_time[np.abs(slp)<mu+2*sig]
-      flow_rate = flow_rate[np.abs(slp)<mu+2*sig]
 
+      #Extract the anomalies points
+      range_time_a = range_time[np.abs(slp)>mu+xstd*sig]
+      flow_rate_a = flow_rate[np.abs(slp)>mu+xstd*sig]
+      if not range_time_a.empty and not flow_rate_a.empty:  
+        r = pd.concat([range_time_a,flow_rate_a],axis=1)
+
+      #delete anomalies points to make the regression 
+      range_time = range_time[np.abs(slp)<mu+xstd*sig]
+      flow_rate = flow_rate[np.abs(slp)<mu+xstd*sig]
+  
+      #anomaly = pd.DataFrame({'time':range_time[np.abs(slp)>=mu+xstd*sig].values,'flow':flow_rate[np.abs(slp)>=mu+xstd*sig].values})
+      #r.append(anomaly)
     if b is None:
       
       def decline_function(range_time,qi,di,b):
@@ -248,11 +266,11 @@ class declination:
       
       popt, pcov = curve_fit(decline_function, range_time, flow_rate, bounds=(0, [np.inf, np.inf, 1]))
       #dec = declination(qi=popt[0], di=popt[1], ti=range_time[0], b=popt[2])
-      print(popt)
       self.qi = popt[0]
       self.di = popt[1]
       self.ti = range_time[0]
       self.b = popt[2]
+      return r
 
     elif (b >= 0) & (b <= 1):
       
@@ -290,4 +308,5 @@ class declination:
       self.di = popt[1]
       self.ti = range_time[0]
       self.b = b
+      return r
     
