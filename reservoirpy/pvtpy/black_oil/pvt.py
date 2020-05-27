@@ -20,13 +20,13 @@ class pvt(pd.DataFrame):
         if pressure is not None:
             pressure = np.atleast_1d(pressure)
             self['pressure'] = pressure
-            assert self['pressure'].is_monotonic, "Pressure must be increasing"
+            assert self['pressure'].is_monotonic_increasing or self['pressure'].is_monotonic_decreasing , "Pressure must be increasing"
             self.set_index('pressure',inplace=True)
         elif 'pressure' in self.columns:
-            assert self['pressure'].is_monotonic, "Pressure must be increasing"
+            assert self['pressure'].is_monotonic_increasing or self['pressure'].is_monotonic_decreasing, "Pressure must be increasing"
             self.set_index('pressure',inplace=True)
         elif self.index.name == 'pressure':
-            assert self.index.is_monotonic, "Pressure must be increasing"
+            assert self.index.is_monotonic_increasing or self['pressure'].is_monotonic_decreasing, "Pressure must be increasing"
     
     ## Methods
 
@@ -283,7 +283,7 @@ class water:
     @salinity.setter
     def salinity(self,value):
         assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be numeric'
-        assert value > 0, 'value must be possitive'
+        assert value >= 0, 'value must be possitive'
         self._salinity = value
 
     @property
