@@ -3,4 +3,5 @@ from . import wellproductivitypy
 from . import wellpy
 from . import pvtpy
 from . import simulationpy
+from . import materialbalancepy
 
