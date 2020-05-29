@@ -187,7 +187,11 @@ class reservoir:
                 _eg = eg(ic['bo'],r['bg'],ic['bg'])
                 dp =self.pi - i
                 _efw = efw(self.m,ic['bo'],water_int.loc[i,'cw'],self.swi,self.cf,dp)
+
+                # Numerator part of the MBE.  F = N[Eo + m*Eg + Efw] + We + Winj*Bw + Ginj*Binj
                 num = self.n*(_eo + self.m*_eg + _efw) + self.we + self.wing*water_int.loc[i,'bw'] + self.ging*r['bg']
+                
+                #If WOR is used 
                 if _use_wor:
                     kr_int = self.kr_wo.interpolate(_sw).iloc[0]
                     _kro = kr_int['kro']
