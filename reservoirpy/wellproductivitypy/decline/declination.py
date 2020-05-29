@@ -240,6 +240,7 @@ class declination:
   
       #anomaly = pd.DataFrame({'time':range_time[np.abs(slp)>=mu+xstd*sig].values,'flow':flow_rate[np.abs(slp)>=mu+xstd*sig].values})
       #r.append(anomaly)
+      print(f'new shape {range_time.shape}')
     if b is None:
       
       def decline_function(range_time,qi,di,b):
@@ -260,7 +261,7 @@ class declination:
           Return -> q -> 1D Numpy array with the Flow rate: 
         """
         days_number = range_time.apply(lambda x: x.toordinal())
-        ti_day = range_time[0].toordinal() 
+        ti_day = range_time.iloc[0].toordinal() 
         day_diff = days_number-ti_day 
 
         if b == 0:
@@ -298,7 +299,7 @@ class declination:
           Return -> declination object
         """
         days_number = range_time.apply(lambda x: x.toordinal())
-        ti_day  = range_time[0].toordinal() 
+        ti_day  = range_time.iloc[0].toordinal() 
         day_diff = days_number-ti_day 
         b
         if b == 0:
