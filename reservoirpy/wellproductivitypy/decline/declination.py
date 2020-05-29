@@ -207,6 +207,7 @@ class declination:
     r=[] # Return
     df = df.dropna()
     df = df[df[rate]>0]
+    print("Shape of input dataframe ",df.shape[0])
     range_time = df[time]
     flow_rate = df[rate]
     if ad == True:
@@ -229,6 +230,9 @@ class declination:
       flow_rate_a = flow_rate[np.abs(slp)>mu+xstd*sig]
       if not range_time_a.empty and not flow_rate_a.empty:  
         r = pd.concat([range_time_a,flow_rate_a],axis=1)
+        print(f"Revome {r.shape} rows by anomalies")
+      else:
+        print("No row removed")
 
       #delete anomalies points to make the regression 
       range_time = range_time[np.abs(slp)<mu+xstd*sig]
