@@ -230,7 +230,7 @@ class declination:
       flow_rate_a = flow_rate[np.abs(slp)>mu+xstd*sig]
       if not range_time_a.empty and not flow_rate_a.empty:  
         r = pd.concat([range_time_a,flow_rate_a],axis=1)
-        print(f"Revome {r.shape} rows by anomalies")
+        print(f"Revome {r.shape[0]} rows by anomalies")
       else:
         print("No row removed")
 
@@ -240,7 +240,7 @@ class declination:
   
       #anomaly = pd.DataFrame({'time':range_time[np.abs(slp)>=mu+xstd*sig].values,'flow':flow_rate[np.abs(slp)>=mu+xstd*sig].values})
       #r.append(anomaly)
-      print(f'new shape {range_time.shape}')
+      print(f'new shape {range_time.shape[0]}')
     if b is None:
       
       def decline_function(range_time,qi,di,b):
@@ -275,7 +275,7 @@ class declination:
       #dec = declination(qi=popt[0], di=popt[1], ti=range_time[0], b=popt[2])
       self.qi = popt[0]
       self.di = popt[1]
-      self.ti = range_time[0]
+      self.ti = range_time.iloc[0]
       self.b = popt[2]
       return r
 
@@ -310,10 +310,10 @@ class declination:
         return q 
       
       popt, pcov = curve_fit(decline_function, range_time, flow_rate, bounds=(0, [np.inf, np.inf]))
-      dec = declination(qi=popt[0], di=popt[1], ti=range_time[0], b=b)
+      #dec = declination(qi=popt[0], di=popt[1], ti=range_time.iloc[0], b=b)
       self.qi = popt[0]
       self.di = popt[1]
-      self.ti = range_time[0]
+      self.ti = range_time.iloc[0]
       self.b = b
       return r
     
