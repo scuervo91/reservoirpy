@@ -205,8 +205,8 @@ class declination:
       Return -> q -> 1D Numpy array with the Flow rate
     """
     r=[] # Return
-    df = df[df[rate]>0]
     df = df.dropna()
+    df = df[df[rate]>0]
     range_time = df[time]
     flow_rate = df[rate]
     if ad == True:
