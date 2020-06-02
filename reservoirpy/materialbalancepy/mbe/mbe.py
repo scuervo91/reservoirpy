@@ -3,6 +3,7 @@ import pandas as pd
 from ...pvtpy.black_oil import oil, water, gas 
 from .kr import kr
 from ...wellproductivitypy.decline import bsw_to_wor
+from .aquifer import pot_aquifer
 
 # Linear form of material balance functions
 
@@ -20,12 +21,10 @@ def efw(m,boi,cw,swi,cf,dp):
 
 class reservoir:
     def __init__(self,**kwargs):
-        self.n = kwargs.pop('n',0)  #Original Oil in Place in MMbbl (Millions of barrels)
-        self.g = kwargs.pop('g',0) #Original Gas in Place in  Bscf (Billions of Standard Cubic Feet)
+        self.n = kwargs.pop('n',0)  #Original Oil in Place in bbl (barrels)
+        self.g = kwargs.pop('g',0) #Original Gas in Place in  scf (Standard Cubic Feet)
         self.m = kwargs.pop('m',0) # Gas cap ratio
-        self.we = kwargs.pop('we',0)
-        self.wing = kwargs.pop('wing',0)
-        self.ging = kwargs.pop('ging',0)
+        self.aquifer = kwargs.pop('aquifer',None) # aquifer model
         self.oil = kwargs.pop('oil',None)
         self.water = kwargs.pop('water',None)
         self.gas = kwargs.pop('gas',None)
@@ -33,6 +32,8 @@ class reservoir:
         self.swi = kwargs.pop('swi',0)
         self.cf = kwargs.pop('cf',0)
         self.kr_wo = kwargs.pop('kr_wo',None)
+        self.k = kwargs.pop('k',0)
+        self.phi = kwargs.pop('phi',0)
 
 
     # Properties
@@ -107,34 +108,33 @@ class reservoir:
         self._m = value
 
     @property
-    def we(self):
-        return self._we
+    def aquifer(self):
+        return self._aquifer
 
-    @we.setter 
-    def we(self,value):
-        assert isinstance(value,(int,float)), "we must be numeric"
-        assert value >= 0, "we must be equal o greater than 0"
-        self._we = value
-
-    @property
-    def wing(self):
-        return self._wing
-
-    @wing.setter 
-    def wing(self,value):
-        assert isinstance(value,(int,float)), "wing must be numeric"
-        assert value >= 0, "wing must be equal o greater than 0"
-        self._wing = value
+    @aquifer.setter 
+    def aquifer(self,value):
+        assert isinstance(value,(pot_aquifer, type(None))), "we must be an aquifer model"
+        self._aquifer = value
 
     @property
-    def ging(self):
-        return self._ging
+    def k(self):
+        return self._k
 
-    @ging.setter 
-    def ging(self,value):
-        assert isinstance(value,(int,float)), "ging must be numeric"
-        assert value >= 0, "ging must be equal o greater than 0"
-        self._ging = value
+    @k.setter 
+    def k(self,value):
+        assert isinstance(value,(int,float)), "k must be numeric"
+        assert value >= 0, "k must be equal o greater than 0"
+        self._k = value
+
+    @property
+    def phi(self):
+        return self._phi
+
+    @phi.setter 
+    def phi(self,value):
+        assert isinstance(value,(int,float)), "phi must be numeric"
+        assert value >= 0, "phi must be equal o greater than 0"
+        self._phi = value
 
     @property
     def oil(self):
@@ -163,12 +163,19 @@ class reservoir:
         assert isinstance(value,(water,type(None))), "water must be pvtpy.black_oil.water"
         self._water = value
 
-    def forecast_np(self,pressure, wp=False):
+    def forecast_np(self,pressure, wp=False, winj=0):
         """
         Make a prediction of Cummulative with a given pressure
         """
         assert isinstance(pressure,(int,float,np.ndarray))
         pressure = np.atleast_1d(pressure)
+        assert pressure.ndim==1
+
+        assert isinstance(winj,(int,float,np.ndarray))
+        if isinstance(winj,np.ndarray):
+            assert winj.shape == pressure.shape
+        else:
+            winj = np.full(pressure.shape,winj)
 
         # Initial conditions pvt in pd.Series
         ic = self.oil.pvt.interpolate(self.pi).iloc[0]
@@ -176,11 +183,13 @@ class reservoir:
         #Interest pressure condictions
         oil_int = self.oil.pvt.interpolate(pressure)
         water_int = self.water.pvt.interpolate(pressure)
+        water_int['winj'] = winj
 
         _use_wor = self.kr_wo is not None if wp==True else False
 
         _sw = self.swi
         forecast = pd.DataFrame()
+
         for i, r in oil_int.iterrows():
             if i >= self.oil.pb:
                 _eo = eo(r['bo'],ic['bo'],ic['rs'],r['rs'],r['bg'])
@@ -189,7 +198,8 @@ class reservoir:
                 _efw = efw(self.m,ic['bo'],water_int.loc[i,'cw'],self.swi,self.cf,dp)
 
                 # Numerator part of the MBE.  F = N[Eo + m*Eg + Efw] + We + Winj*Bw + Ginj*Binj
-                num = self.n*(_eo + self.m*_eg + _efw) + self.we + self.wing*water_int.loc[i,'bw'] + self.ging*r['bg']
+                we = 0 if self.aquifer is None else self.aquifer.we(dp)
+                num = self.n*(_eo + self.m*_eg + _efw) + we + water_int.loc[i,'winj']*water_int.loc[i,'bw']
                 
                 #If WOR is used 
                 if _use_wor:
@@ -203,12 +213,13 @@ class reservoir:
                     wor = bsw_to_wor(fw)
                 else:
                     wor = 0
+                    fw = 0
                 
                 
                 oil_cum = num / (r['bo'] + wor*water_int.loc[i,'bw'])
                 gas_cum = oil_cum * r['rs']
                 water_cum = wor*oil_cum 
-                _df = pd.DataFrame({'np':oil_cum,'gp':gas_cum,'wp':water_cum,'wor':wor,'sw':_sw}, index=[i])
+                _df = pd.DataFrame({'np':oil_cum,'gp':gas_cum,'wp':water_cum,'wor':wor,'bsw':fw,'sw':_sw}, index=[i])
                 forecast = forecast.append(_df)
 
                 _so = (1-self.swi)*(1-(oil_cum/self.n))*(r['bo']/ic['bo'])
