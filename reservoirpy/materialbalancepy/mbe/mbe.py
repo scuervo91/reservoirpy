@@ -10,7 +10,7 @@ from .aquifer import pot_aquifer
 def f(npp,bo,rp,rs,bg,wp,bw):
     return npp*(bo+(rp-rs)*bg) + wp*bw 
 
-def eo(bo,boi,rsi,rs,bg):
+def eo(bo,boi,rs,rsi,bg):
     return (bo-boi) + (rsi - rs)*bg 
 
 def eg(boi,bg,bgi):
@@ -163,13 +163,25 @@ class reservoir:
         assert isinstance(value,(water,type(None))), "water must be pvtpy.black_oil.water"
         self._water = value
 
-    def forecast_np(self,pressure, wp=False, winj=0):
+    def forecast_np(self,pressure, wp=False, winj=0, swi=None, np_max_iter=20,er_np=0.05,start_initial_conditions=True):
         """
         Make a prediction of Cummulative with a given pressure
         """
+        
+        # Assert pressure is One dimession
         assert isinstance(pressure,(int,float,np.ndarray))
         pressure = np.atleast_1d(pressure)
         assert pressure.ndim==1
+        
+        #Add the Initial pressure if forecast start from initial Conditions
+        if start_initial_conditions:
+            pressure = np.append(pressure,self.pi)
+
+        #Sort Pressure descening order
+        pressure = np.sort(pressure)[::-1]
+        
+        # Assert all pressure are less than initial pressure
+        assert np.all(pressure <= self.pi)
 
         assert isinstance(winj,(int,float,np.ndarray))
         if isinstance(winj,np.ndarray):
@@ -177,55 +189,93 @@ class reservoir:
         else:
             winj = np.full(pressure.shape,winj)
 
-        # Initial conditions pvt in pd.Series
-        ic = self.oil.pvt.interpolate(self.pi).iloc[0]
-
         #Interest pressure condictions
         oil_int = self.oil.pvt.interpolate(pressure)
         water_int = self.water.pvt.interpolate(pressure)
+        gas_int = self.gas.pvt.interpolate(pressure)
         water_int['winj'] = winj
 
         _use_wor = self.kr_wo is not None if wp==True else False
 
-        _sw = self.swi
+        _sw = self.swi if swi is None else swi
+        _sw = np.zeros(pressure.shape)
+        _sw[0] = self.swi if swi is None else swi
+        _so = np.zeros(pressure.shape)
+        _so[0]=1-_sw[0]
+        _sg = np.zeros(pressure.shape)
+        _np = np.zeros(pressure.shape)
+        _wp = np.zeros(pressure.shape)
+        _gp = np.zeros(pressure.shape)        
+        _wor = np.zeros(pressure.shape)
+        _bsw = np.zeros(pressure.shape)
+
+
         forecast = pd.DataFrame()
 
-        for i, r in oil_int.iterrows():
-            if i >= self.oil.pb:
-                _eo = eo(r['bo'],ic['bo'],ic['rs'],r['rs'],r['bg'])
-                _eg = eg(ic['bo'],r['bg'],ic['bg'])
-                dp =self.pi - i
-                _efw = efw(self.m,ic['bo'],water_int.loc[i,'cw'],self.swi,self.cf,dp)
+        for i in range(1,len(oil_int)):
+            if oil_int.index[i] >= self.oil.pb:
+
+                #Estimate parameters from PVT table at pressure interest
+                bo_p = oil_int['bo'].iloc[i]
+                bo_p_minus_1 = oil_int['bo'].iloc[i-1]
+                bw_p = water_int['bw'].iloc[i]
+                rs_p = oil_int['rs'].iloc[i]
+                rs_p_minus_1 = oil_int['rs'].iloc[i-1]
+                bg_p = gas_int['bg'].iloc[i]
+                bg_p_minus_1 = gas_int['bg'].iloc[i-1]
+                cw_p = water_int['cw'].iloc[i]
+                dp = oil_int.index[i]-oil_int.index[i-1]
+                muo_p = oil_int['muo'].iloc[i]
+                muw_p = water_int['muw'].iloc[i]
+
+                #Estimate Linear Form MBE material balance Parameters
+                _eo = eo(bo_p,bo_p_minus_1,rs_p,rs_p_minus_1,bg_p)
+                _eg = eg(bo_p,bg_p,bg_p_minus_1)
+                _efw = efw(self.m,bo_p_minus_1,cw_p,_sw[i],self.cf,dp)
+
+                #If aquifer model exist call the method we with parameter dp
+                we = 0 if self.aquifer is None else self.aquifer.we(dp)
 
                 # Numerator part of the MBE.  F = N[Eo + m*Eg + Efw] + We + Winj*Bw + Ginj*Binj
-                we = 0 if self.aquifer is None else self.aquifer.we(dp)
-                num = self.n*(_eo + self.m*_eg + _efw) + we + water_int.loc[i,'winj']*water_int.loc[i,'bw']
-                
+                num = (_eo + self.m*_eg + _efw) + we + water_int['winj'].iloc[i]*bw_p
+
                 #If WOR is used 
                 if _use_wor:
-                    kr_int = self.kr_wo.interpolate(_sw).iloc[0]
+                    kr_int = self.kr_wo.interpolate(_sw[i-1]).iloc[0]
                     _kro = kr_int['kro']
                     _krw = kr_int['krw']
+                    _bsw[i] = 1/(1+((_kro*muw_p)/(_krw*muo_p)))
+                    _wor[i] = bsw_to_wor(_bsw[i])
 
-                    _muw = water_int.loc[i,'muw']
-                    _muo = r['muo']
-                    fw = 1/(1+((_kro*_muw)/(_krw*_muo)))
-                    wor = bsw_to_wor(fw)
+                    # Guess np with out wor
+                    np_guess = np.zeros(np_max_iter)
+                    np_guess[0] = num / bo_p
+                    np_it = 0
+                    e_np = 0.1
+
+                    while e_np >= er_np and np_it < np_max_iter-1:
+                        wp = np.mean((_wor[i],_wor[i-1]))*(np_guess[np_it])
+                        np_guess[np_it+1] = num / (bo_p + wp*bw_p)
+                        
+                        #Calculate error
+                        e_np = np.abs(np_guess[np_it+1]-np_guess[np_it])/np_guess[np_it+1]
+
+                        np_it+=1
+                    _np[i] = np_guess[np_it]
+                    _wp[i] = wp
+                    print(np_it)
                 else:
-                    wor = 0
-                    fw = 0
-                
-                
-                oil_cum = num / (r['bo'] + wor*water_int.loc[i,'bw'])
-                gas_cum = oil_cum * r['rs']
-                water_cum = wor*oil_cum 
-                _df = pd.DataFrame({'np':oil_cum,'gp':gas_cum,'wp':water_cum,'wor':wor,'bsw':fw,'sw':_sw}, index=[i])
-                forecast = forecast.append(_df)
+                    _np[i] = num / bo_p
 
-                _so = (1-self.swi)*(1-(oil_cum/self.n))*(r['bo']/ic['bo'])
-                _sw = 1-_so
-        
-        return forecast
+                _gp[i] = _np[i] * rs_p
+
+                _so[i] = (1-_sw[0])*(1-_np.sum())*(bo_p/oil_int['bo'].iloc[0])
+                _w = _sw[0]/(1-_sw[0])
+                _sw[i] = _sw[0]*(1-(_wp.sum()/_w))*(bw_p/water_int['bw'].iloc[0])
+
+            _df = pd.DataFrame({'np':_np.cumsum()*self.n,'gp':_gp.cumsum()*self.n,'wp':_wp.cumsum()*self.n,'wor':_wor,'bsw':_bsw,'sw':_sw,'so':_so,'sg':_sg}, index=pressure)
+        return _df
+
 
 
                 
