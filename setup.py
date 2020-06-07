@@ -24,9 +24,9 @@ setuptools.setup(
         'lasio',
         'geopandas',
         'vtk',
-        'pyvista>=0.23.1',
-        'shapely>=1.6.4',
-        'folium>=0.10.1'
+        'pyvista',
+        'shapely',
+        'folium'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
