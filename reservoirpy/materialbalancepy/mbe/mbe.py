@@ -255,7 +255,7 @@ class reservoir:
 
                     while e_np >= er_np and np_it < np_max_iter-1:
                         wp = np.mean((_wor[i],_wor[i-1]))*(np_guess[np_it])
-                        np_guess[np_it+1] = num / (bo_p + wp*bw_p)
+                        np_guess[np_it+1] = (num - wp*bw_p)/bo_p
                         
                         #Calculate error
                         e_np = np.abs(np_guess[np_it+1]-np_guess[np_it])/np_guess[np_it+1]
@@ -270,8 +270,7 @@ class reservoir:
                 _gp[i] = _np[i] * rs_p
 
                 _so[i] = (1-_sw[0])*(1-_np.sum())*(bo_p/oil_int['bo'].iloc[0])
-                _w = _sw[0]/(1-_sw[0])
-                _sw[i] = _sw[0]*(1-(_wp.sum()/_w))*(bw_p/water_int['bw'].iloc[0])
+                _sw[i] = 1 - _so[i]
 
             _df = pd.DataFrame({'np':_np.cumsum()*self.n,'gp':_gp.cumsum()*self.n,'wp':_wp.cumsum()*self.n,'wor':_wor,'bsw':_bsw,'sw':_sw,'so':_so,'sg':_sg}, index=pressure)
         return _df
