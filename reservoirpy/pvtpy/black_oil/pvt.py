@@ -49,7 +49,7 @@ class pvt(pd.DataFrame):
 
         for i in properties:
             if i in self.columns:
-                _interpolated = interp1d(self.index,self[i])(p)
+                _interpolated = interp1d(self.index,self[i],bounds_error=False,fill_value='extrapolate')(p)
                 int_dict[i] = _interpolated
 
         int_df = pd.DataFrame(int_dict, index=p)
