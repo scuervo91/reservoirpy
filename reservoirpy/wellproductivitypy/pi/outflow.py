@@ -8,14 +8,14 @@ from ...pvtpy.black_oil import pvt, gas
 def gas_pressure_profile_correlation(thp,sg,depth):
     assert isinstance(thp,(float,int,np.ndarray))
     thp = np.atleast_1d(thp)
-    assert thp.shape == (1,)
+    assert thp.ndim == 1
 
     assert isinstance(sg,(float,int,np.ndarray))
     sg = np.atleast_1d(sg)
     assert sg.shape == (1,)
 
     assert isinstance(depth,(list,float,int,np.ndarray))
-    sg = np.atleast_1d(sg)
+    depth = np.atleast_1d(depth)
     assert sg.ndim == 1
 
     pwf = thp*np.exp(3.47e-5*depth)
