@@ -514,6 +514,52 @@ class well:
 
         return surv_vtk
 
+    def well_map(self,zoom=10, map_style = 'OpenStreetMap',z_unit='ft'):
+        """
+        Make a Foluim map with the selected well
+
+        Input:
+            zoom -> (int, float) Initial zoom for folium map
+            map_stule -> (str) Type of map folium
+        Return:
+            w_map -> (folium.Map) Folium map object
+        """
+        _coord = gpd.GeoDataFrame()
+
+        z_coef = 0.3048 if z_unit=='ft' else 1
+
+        x_coord = self.surf_coord.x
+        y_coord = self.surf_coord.y
+        z_coord = self.surf_coord.z*z_coef if self.surf_coord.has_z==True else self.rte*z_coef
+        shape = self.surf_coord
+        crs = self.crs
+        _w = gpd.GeoDataFrame({'x':[x_coord],'y':[y_coord],'z':[z_coord],'geometry':[shape]}, index=[self.name])
+        _w.crs = crs
+        _w = _w.to_crs(to_crs)
+        _w['lon'] = _w['geometry'].x
+        _w['lat'] = _w['geometry'].y
+        _coord = _coord.append(_w)
+        center = _coord[['lat','lon']].mean(axis=0)
+
+        #make the map
+        map_folium = folium.Map(
+            location=(center['lat'],center['lon']),
+            zoom_start=zoom,
+            tiles = map_style)
+
+        for i, r in _coord.iterrows():
+            folium.Marker(
+                [r['lat'],r['lon']],
+                tooltip=f"{i}",
+                icon=folium.Icon(icon='tint', color='green')
+                ).add_to(map_folium)
+
+        folium.LayerControl().add_to(map_folium)
+        #LocateControl().add_to(map_folium)
+        MeasureControl().add_to(map_folium)
+        MousePosition().add_to(map_folium)
+
+        return map_folium
 
 
         
