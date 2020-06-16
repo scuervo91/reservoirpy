@@ -10,7 +10,7 @@ from scipy.interpolate import interp1d
 from scipy.spatial import distance_matrix
 from pyproj import Proj, transform
 import folium
-from folium.plugins import MarkerCluster, LocateControl,MeasureControl,MousePosition
+from folium.plugins import MarkerCluster, MeasureControl,MousePosition#,LocateControl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pyvista as pv 
