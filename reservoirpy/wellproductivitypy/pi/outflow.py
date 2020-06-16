@@ -5,6 +5,25 @@ from ...pvtpy.black_oil import pvt, gas
 
 ## Gas Outflow function
 
+def gas_pressure_profile_correlation(thp,sg,depth):
+    assert isinstance(thp,(float,int,np.ndarray))
+    thp = np.atleast_1d(thp)
+    assert thp.shape == (1,)
+
+    assert isinstance(sg,(float,int,np.ndarray))
+    sg = np.atleast_1d(sg)
+    assert sg.shape == (1,)
+
+    assert isinstance(depth,(list,float,int,np.ndarray))
+    sg = np.atleast_1d(sg)
+    assert sg.ndim == 1
+
+    pwf = thp*np.exp(3.47e-5*depth)
+
+    return pwf
+
+
+
 def gas_pressure_profile(md, inc, thp, rate, gas_obj,di=2.99,surf_temp=80,temp_grad=1,epsilon = 0.0006, tol = 0.05, max_iter=20):
 
     # Assert the right types and shapes for input
