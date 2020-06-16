@@ -1070,7 +1070,7 @@ def rhog(p=None, ma=None, z=1, r=10.73, t=None, method='ideal_gas'):
         method -> (str,list, default 'ideal_gas') Correlation
 
     Return:
-        rhog -> (pd.DataFrame) water density [lb/ft3]
+        rhog -> (pd.DataFrame) gas density [lb/ft3]
 
     Source: Reservoir Engineer handbook -  Tarek Ahmed
     """
