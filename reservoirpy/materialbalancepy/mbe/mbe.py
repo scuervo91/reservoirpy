@@ -209,9 +209,6 @@ class reservoir:
         _wor = np.zeros(pressure.shape)
         _bsw = np.zeros(pressure.shape)
 
-
-        forecast = pd.DataFrame()
-
         for i in range(1,len(oil_int)):
             if oil_int.index[i] >= self.oil.pb:
 
