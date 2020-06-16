@@ -784,7 +784,7 @@ class wells_group:
                 ).add_to(map_folium)
 
         folium.LayerControl().add_to(map_folium)
-        LocateControl().add_to(map_folium)
+        #LocateControl().add_to(map_folium)
         MeasureControl().add_to(map_folium)
         MousePosition().add_to(map_folium)
 
