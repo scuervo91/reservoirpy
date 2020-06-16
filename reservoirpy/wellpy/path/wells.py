@@ -514,7 +514,7 @@ class well:
 
         return surv_vtk
 
-    def well_map(self,zoom=10, map_style = 'OpenStreetMap',z_unit='ft'):
+    def well_map(self,zoom=10, map_style = 'OpenStreetMap',z_unit='ft', to_crs='EPSG:4326'):
         """
         Make a Foluim map with the selected well
 
