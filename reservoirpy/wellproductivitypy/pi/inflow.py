@@ -87,9 +87,9 @@ def gas_inflow_curve(pr,j,gas_pvt,n=10):
 
     #Calculate flow
     mp_pr = np.trapz(pvt_interpolated['pspressure'],pvt_interpolated.index)
-    for i in range(pvt_interpolated.shape[0]):
+    for i in range(1,pvt_interpolated.shape[0]):
         mp_pwf = np.trapz(pvt_interpolated['pspressure'].iloc[:i],pvt_interpolated.index[:i])
-        q[i] = j * (mp_pr - mp_pwf)
+        q[i-1] = j * (mp_pr - mp_pwf)
 
     data = pd.DataFrame({'p':p,'q':q})
     aof = data['q'].max()
@@ -392,19 +392,19 @@ class gas_inflow:
         _flow_to_pwf = interp1d(_df['q'],_df['p']) 
         _pwf_to_flow = interp1d(_df['p'],_df['q'])
         oax.plot(_df['q'],_df['p'],**kwargs)
-        oax.set_xlabel("Flow Rate [bbl/d]")
+        oax.set_xlabel("Flow Rate [kscf/d]")
         oax.set_ylabel("Pwf [psi]")
         
       
         if flow is not None:
             flow = np.atleast_1d(flow)
             pwf_f = _flow_to_pwf(flow)
-            oax.scatter(flow,pwf_f, color='springgreen', s=70,label=f" Flow {flow} bbl/d \n Pwf{np.round(pwf_f,decimals=1)} psi")
+            oax.scatter(flow,pwf_f, color='springgreen', s=70,label=f" Flow {flow} kscfd \n Pwf{np.round(pwf_f,decimals=1)} psi")
             
         if pwf is not None:
             pwf = np.atleast_1d(pwf)
             flow_p = _pwf_to_flow(pwf)
-            oax.scatter(flow_p,pwf, color='lime',s=70, label=f" Pwf {pwf} psi \n Flow{np.round(flow_p,decimals=1)} bbl/d")
+            oax.scatter(flow_p,pwf, color='lime',s=70, label=f" Pwf {pwf} psi \n Flow{np.round(flow_p,decimals=1)} kscfd")
             
         if dd is not None:
             dd = np.atleast_1d(dd)
