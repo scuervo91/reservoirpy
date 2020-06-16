@@ -335,6 +335,7 @@ class chromatography(pd.DataFrame):
 
     def __init__(self, *args, **kwargs):
         mole_fraction = kwargs.pop("mole_fraction", None)
+        compound = kwargs.pop("compound", None)
         assert isinstance(mole_fraction,(list,np.ndarray,type(None)))
 
         normalize = kwargs.pop('normalize',True)
@@ -352,6 +353,13 @@ class chromatography(pd.DataFrame):
             self['mole_fraction'] = mole_fraction
         else:
             assert 'mole_fraction' in self.columns 
+
+        if compound is not None:
+            assert isinstance(compound,list)
+            self['compound'] = compound
+            self.set_index('compound',inplace=True)
+        elif 'compound' in self.columns:
+            self.set_index('compound',inplace=True)
 
         if normalize:
             _sum_mf = self['mole_fraction'].sum()
