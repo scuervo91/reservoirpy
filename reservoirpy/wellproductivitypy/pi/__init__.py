@@ -1,1 +1,2 @@
-from .inflow import oil_inflow, oil_inflow_curve, oil_j, gas_inflow_curve, gas_j
+from .inflow import oil_inflow, oil_inflow_curve, oil_j, gas_inflow_curve, gas_j, gas_inflow
+from .outflow import gas_pressure_profile, gas_outflow_curve
