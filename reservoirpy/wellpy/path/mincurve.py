@@ -14,9 +14,11 @@ class survey(gpd.GeoDataFrame):
             self['md'] = md
             assert self['md'].is_monotonic, "md must be increasing"
             self.set_index('md',inplace=True)
+            self.index.name='md'
         elif 'md' in self.columns:
             assert self['md'].is_monotonic, "md must be increasing"
             self.set_index('md',inplace=True)
+            self.index.name='md'
         elif self.index.name == 'md':
             assert self.index.is_monotonic, "md must be increasing"
     
