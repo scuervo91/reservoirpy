@@ -15,13 +15,35 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pyvista as pv 
 from ...welllogspy.log import log
+from ...wellproductivitypy import pi
 
 
 class perforations(gpd.GeoDataFrame):
 
-    def __init__(self, *args, **kwargs):                                                                                                                                   
+    def __init__(self, *args, **kwargs):
+        prod_ind = kwargs.pop("pi", None)
+        is_open = kwargs.pop('is_open',None)                                                                                                                                 
         super(perforations, self).__init__(*args, **kwargs)
-   
+
+        if prod_ind is not None:
+            assert isinstance(pi,list) 
+            assert all(isinstance(i,(pi.gas_inflow,pi.oil_inflow)) for i in prod_ind)
+            self['pi'] = prod_ind
+        elif 'pi' in self.columns:
+            assert all(isinstance(i,(pi.gas_inflow,pi.oil_inflow)) for i in self['pi'].tolist())
+
+        if is_open is not None:
+            assert isinstance(is_open,list)
+            assert all(isinstance(i,bool) for i in is_open)
+            self['is_open'] = is_open
+        elif 'is_open' in self.columns:
+            assert all(isinstance(i,bool) for i in self['is_open'].tolist())
+        else:
+            self['is_open'] = False
+
+    def open_perf(self):
+        return self[self['is_open']==True]
+
     def get_tick(self):
         try:
             self['md_tick'] = self['md_bottom'] - self['md_top']
