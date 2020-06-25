@@ -38,8 +38,7 @@ class perforations(gpd.GeoDataFrame):
             self['is_open'] = is_open
         elif 'is_open' in self.columns:
             assert all(isinstance(i,bool) for i in self['is_open'].tolist())
-        else:
-            self['is_open'] = False
+
 
     def open_perf(self):
         return self[self['is_open']==True]
@@ -211,6 +210,8 @@ class well:
     @perforations.setter
     def perforations(self,value):
         assert isinstance(value,(perforations,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.perforations'
+        if self.crs is not None and value is not None:
+            value.crs = self.crs
         self._perforations = value
 
     @property
@@ -220,6 +221,8 @@ class well:
     @tops.setter
     def tops(self,value):
         assert isinstance(value,(tops,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
+        if self.crs is not None and value is not None:
+            value.crs = self.crs
         self._tops = value    
 
     @property
@@ -754,6 +757,40 @@ class wells_group:
             r=_wells_survey
 
         return r
+
+    def wells_perforations(self, wells:list=None):
+        """
+        Get a DataFrame with the wells perforations
+        Input:
+            wells ->  (list, None) List of wells in the Group to show
+                    If None, all wells in the group will be selected
+            formations ->  (list, None) List of formation in the Group to show 
+                    If None, all formations in the group will be selected
+        Return:
+            tops -> (gpd.GeoDataFrame) GeoDataFrame with tops indexed by well
+        """    
+        assert isinstance(wells,(list,type(None)))
+
+        # Define which wells for the distance matrix will be shown    
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+
+        _wells_survey = gpd.GeoDataFrame()
+
+        for well in _well_list:
+            if self.wells[well].perforations is None:
+                continue
+            else:
+                _s = self.wells[well].perforations.copy()
+                _s['well'] = well 
+                _s = _s.reset_index()
+                _wells_survey = _wells_survey.append(gpd.GeoDataFrame(_s))
+
+        return _wells_survey
 
 
     def wells_coordinates(self, wells:list=None, z_unit='ft', to_crs='EPSG:4326'):
