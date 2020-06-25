@@ -329,7 +329,7 @@ class well:
             self.survey=None
 """
 
-    def to_tvd(self,md:(int,float)=None,which:list=None, ss:bool=False):
+    def to_tvd(self,md:(int,float)=None,which:list=None, ss:bool=False,tick=True):
         if self._survey is not None:
             r = None
             _survey=self.survey
@@ -357,7 +357,7 @@ class well:
                                 self._perforations['tvd_top']=self._perforations['md_top'].apply(_tvd_int)
                             if 'md_bottom' in self._perforations.columns:
                                 self._perforations['tvd_bottom']=self._perforations['md_bottom'].apply(_tvd_int)
-                            if 'md_bottom' in self._perforations.columns and 'md_bottom' in self._perforations.columns:
+                            if 'tvd_bottom' in self._perforations.columns and 'tvd_bottom' in self._perforations.columns and tick==True:
                                 self._perforations['tvd_tick'] = self._perforations['tvd_bottom'] - self._perforations['tvd_top']
                     else:
                         raise ValueError("No perforations have been set")
@@ -375,7 +375,7 @@ class well:
                                 self._tops['tvd_top']=self._tops['md_top'].apply(_tvd_int)
                             if 'md_bottom' in self._tops.columns:
                                 self._tops['tvd_bottom']=self._tops['md_bottom'].apply(_tvd_int)
-                            if 'md_bottom' in self._tops.columns and 'md_bottom' in self._tops.columns:
+                            if 'tvd_bottom' in self._tops.columns and 'tvd_bottom' in self._tops.columns and tick==True:
                                 self._tops['tvd_tick'] = self._tops['tvd_bottom'] - self._tops['tvd_top']
                     else:
                         raise ValueError("No tops have been set")
