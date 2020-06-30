@@ -30,7 +30,7 @@ class perforations(gpd.GeoDataFrame):
             assert all(isinstance(i,(pi.gas_inflow,pi.oil_inflow)) for i in prod_ind)
             self['pi'] = prod_ind
         elif 'pi' in self.columns:
-            assert all(isinstance(i,(pi.gas_inflow,pi.oil_inflow)) for i in self['pi'].tolist())
+            assert all(isinstance(i,(int,float)) for i in self['pi'].tolist())
 
         if is_open is not None:
             assert isinstance(is_open,list)
@@ -149,6 +149,7 @@ class well:
         self.caselog = kwargs.pop('caselog', None)
         self.td = kwargs.pop('td',None)  # First set td before survey
         self.survey = kwargs.pop('survey', None)
+        self.pi = kwargs.pop('pi',None)
 
 
 #####################################################
@@ -293,6 +294,17 @@ class well:
         else:
             assert isinstance(value,(int,float))
             self._td = value
+
+    @property
+    def pi(self):
+        return self._pi 
+
+    @pi.setter 
+    def pi(self,value):
+        assert isinstance(value,(type(None),dict)), "Pi must be a dictionary indexed by formation (Key)"
+        if isinstance(value,dict):
+            assert all(isinstance(value[i],(int,float)) for i in value)
+        self._pi = value
 
 #####################################################
 ############## methods ###########################
@@ -586,7 +598,40 @@ class well:
 
         return map_folium
 
+    def get_pi_from_perforations(self,is_open=False, inplace=True):
+        """
+        Estimate the Productivity Index by formation with the self.perforations attribute.
 
+        The self.perforations attribute must have a column 'pi' with the Productivity Index for 
+        the interval. If the column 'is_open' is present and the keyword 'is_open' is true the 
+        productivity Index is calculated for the Open Formations.
+
+        Productivity index is grouped by formation and sum.
+
+        If the column 'formation' is not present a single item dictionary is calculated
+
+        Input:
+            is_open -> (bool, False).
+        Return:
+            pi -> (dict) Dictionary with the productivity index by formation
+        """
+        assert self.perforations is not None, 'To estimate Pi from Perf, perf must be defined'
+        _perf = self.perforations
+        _keys = ['formation','pi','fluid']
+        assert all(i in _perf.columns for i in _keys)
+
+        # If is_open only take the opene.reset_index().set_index('fm')d intervals
+        if is_open and 'is_open' in _perf.columns:
+            _perf = _perf[_perf['is_open']==True]
+
+        #Group by and sum aggregate
+        _pi_df = _perf.groupby(['fluid','formation']).agg({'pi':'sum'}).to_dict()['pi']
+        _pi_dict = _pi_df.reset_index().set_index('formation').to_dict(orient='index')
+
+        if inplace:
+            self._pi = _pi_dict
+
+        return _pi_dict
         
 class wells_group:
     def __init__(self,*args):
