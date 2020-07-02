@@ -27,10 +27,10 @@ class perforations(gpd.GeoDataFrame):
 
         if prod_ind is not None:
             assert isinstance(pi,list) 
-            assert all(isinstance(i,(pi.gas_inflow,pi.oil_inflow)) for i in prod_ind)
+            assert all(isinstance(i,(int,float)) for i in prod_ind)
             self['pi'] = prod_ind
         elif 'pi' in self.columns:
-            assert all(isinstance(i,(pi.gas_inflow,pi.oil_inflow)) for i in self['pi'].tolist())
+            assert all(isinstance(i,(int,float)) for i in self['pi'].tolist())
 
         if is_open is not None:
             assert isinstance(is_open,list)
