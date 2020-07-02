@@ -20,6 +20,7 @@ setuptools.setup(
         'numpy',
         'pandas',
         'matplotlib',
+        'seaborn',
         'scipy',
         'lasio',
         'geopandas',
