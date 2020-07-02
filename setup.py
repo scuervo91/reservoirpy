@@ -19,15 +19,9 @@ setuptools.setup(
     install_requires=[            
         'numpy',
         'pandas',
-        'matplotlib',
-        'seaborn',
         'scipy',
-        'lasio',
         'geopandas',
-        'vtk',
-        'pyvista',
         'shapely',
-        'folium'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
