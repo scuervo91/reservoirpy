@@ -81,7 +81,8 @@ class perforations(gpd.GeoDataFrame):
 class tops(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):    
-        formation = kwargs.pop("formation", None)                                                                                                                               
+        formation = kwargs.pop("formation", None)            
+        unit = kwargs.pop("unit", None)                                                                                                                         
         super(tops, self).__init__(*args, **kwargs)  
 
         if formation is not None:
@@ -90,6 +91,13 @@ class tops(gpd.GeoDataFrame):
             self.set_index('formation',inplace=True)
         elif 'formation' in self.columns:
             self.set_index('formation',inplace=True)
+
+        if unit is not None:
+            unit = np.atleast_1d(unit)
+            self['unit'] = unit
+            self.set_index('unit',inplace=True)
+        elif 'unit' in self.columns:
+            self.set_index('unit',inplace=True)
 
     def get_tick(self):
         try:
@@ -144,6 +152,7 @@ class well:
         self.crs = kwargs.pop('crs', None)
         self.perforations = kwargs.pop('perforations', None)
         self.tops = kwargs.pop('tops', None)
+        self.units = kwargs.pop('units',None)
         self.openlog = kwargs.pop('openlog', None)
         self.masterlog = kwargs.pop('masterlog', None) 
         self.caselog = kwargs.pop('caselog', None)
@@ -224,6 +233,17 @@ class well:
         if self.crs is not None and value is not None:
             value.crs = self.crs
         self._tops = value    
+
+    @property
+    def units(self):
+        return self._units
+
+    @units.setter
+    def units(self,value):
+        assert isinstance(value,(tops,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
+        if self.crs is not None and value is not None:
+            value.crs = self.crs
+        self._units = value    
 
     @property
     def openlog(self):
@@ -379,6 +399,23 @@ class well:
                                 self._tops['tvd_tick'] = self._tops['tvd_bottom'] - self._tops['tvd_top']
                     else:
                         raise ValueError("No tops have been set")
+
+                if 'units' in which:
+                    if self._units is not None:
+                        if ss==True:
+                            if 'md_top' in self._units.columns:
+                                self._units['tvdss_top']=self._units['md_top'].apply(_tvdss_int)
+                            if 'md_bottom' in self._units.columns:
+                                self._units['tvdss_bottom']=self._units['md_bottom'].apply(_tvdss_int)
+                        else:
+                            if 'md_top' in self._units.columns:
+                                self._units['tvd_top']=self._units['md_top'].apply(_tvd_int)
+                            if 'md_bottom' in self._units.columns:
+                                self._units['tvd_bottom']=self._units['md_bottom'].apply(_tvd_int)
+                            if 'tvd_bottom' in self._units.columns and 'tvd_bottom' in self._units.columns and tick==True:
+                                self._units['tvd_tick'] = self._units['tvd_bottom'] - self._units['tvd_top']
+                    else:
+                        raise ValueError("No units have been set")
                 
                 if 'openlog' in which:
                     if self._openlog is not None:
@@ -452,6 +489,17 @@ class well:
                             ValueError("No tvd has been set")
                     else:
                         raise ValueError("No tops have been set")
+
+                if 'units' in which:
+                    if self._units is not None:
+                        try:
+                            self._units['northing'] = self._units['tvd_top'].apply(_northing_int)
+                            self._units['easting'] = self._units['tvd_top'].apply(_easting_int)
+                            self._units['geometry'] = self._units[['northing', 'easting']].apply(lambda x: Point(x['easting'],x['northing']),axis=1)
+                        except:
+                            ValueError("No tvd has been set")
+                    else:
+                        raise ValueError("No units have been set")
         else:
             raise ValueError("No survey has been set")
         return r
@@ -648,6 +696,7 @@ class wells_group:
                 'survey': [False if self.wells[well].survey is None else True],
                 'perforations': [False if self.wells[well].perforations is None else True],
                 'tops': [False if self.wells[well].tops is None else True],
+                'units': [False if self.wells[well].units is None else True],                
                 'openlog': [False if self.wells[well].openlog is None else True],
                 'masterlog': [False if self.wells[well].masterlog is None else True],
                 'caselog': [False if self.wells[well].caselog is None else True],
@@ -1120,12 +1169,22 @@ class wells_group:
             join list.formations fm on ft.formation_id = fm.id
         """
 
+        well_units_tops_query = """
+            select w.well, ut.md_top, ut.md_bottom, u.unit, fm.formation
+            from list.units_tops ut
+            join list.units u on ut.unit_id = u.id 
+            join list.formations fm on u.formation_id = fm.id
+            join list.wells w on ut.well_id = w.id
+            join list.fields f on w.field_id = f.id
+        """
+
         #Custom the query
         query_list = {
             'well_heads':well_heads_query,
             'well_surveys': well_surveys_query,
             'well_perforations':well_perforations_query,
-            'well_formations_tops':well_formations_tops_query
+            'well_formations_tops':well_formations_tops_query,
+            'well_units_tops':well_units_tops_query
         }
 
         if wells is not None:
@@ -1178,6 +1237,14 @@ class wells_group:
             except:
                 _tops = None
 
+            #units
+            _u = df_dict['well_units_tops']
+
+            try:
+                _units = tops(_u.loc[_u['well']==i,:])
+            except:
+                _units = None
+
             #surveys
             _s = df_dict['well_surveys']
 
@@ -1194,13 +1261,14 @@ class wells_group:
                 surf_coord = _wh.loc[_wh['well']==i,['surface_x','surface_y']].squeeze().tolist(), 
                 survey = _survey,
                 perforations = _perf,
-                tops = _tops
+                tops = _tops,
+                units = _units
             )
 
             try:
-                _well.to_tvd(which=['tops','perforations'])
-                _well.to_tvd(which=['tops','perforations'],ss=True)
-                _well.to_coord(which=['tops','perforations'])
+                _well.to_tvd(which=['tops','perforations','units'])
+                _well.to_tvd(which=['tops','perforations','units'],ss=True)
+                _well.to_coord(which=['tops','perforations','units'])
             except:
                 pass
 
