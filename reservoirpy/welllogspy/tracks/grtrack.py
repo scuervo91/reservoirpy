@@ -9,6 +9,7 @@ def grtrack(df: pd.DataFrame,
                 lims: list = None,
                 gr_max: int = 200,
                 fm: pd.DataFrame = None,
+                units: pd.DataFrame = None,
                 perf: pd.DataFrame = None,
                 gr_sand_shale: pd.DataFrame = None,
                 correlation: pd.DataFrame = None,
@@ -21,6 +22,7 @@ def grtrack(df: pd.DataFrame,
                 gr_kw={},
                 sp_kw={},
                 fm_kw={},
+                unit_kw={},
                 perf_kw={},
                 gr_sand_kw={},
                 gr_shale_kw={},
@@ -118,6 +120,15 @@ def grtrack(df: pd.DataFrame,
     for (k,v) in def_fm_kw.items():
         if k not in fm_kw:
             fm_kw[k]=v
+
+    def_unit_kw = {
+    'color': 'black',
+    'linestyle':'-',
+    'linewidth': 2
+    }    
+    for (k,v) in def_unit_kw.items():
+        if k not in unit_kw:
+            unit_kw[k]=v
 
     def_perf_kw = {
     'color': 'black',
@@ -225,6 +236,18 @@ def grtrack(df: pd.DataFrame,
                 continue
             grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **fm_kw)
             if fm_ann:
+               grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
+                             xycoords='data',horizontalalignment='right',
+                             bbox={'boxstyle':'round', 'fc':'0.8'})
+
+    #Add units tops
+    if units is not None:
+        unit_ann = unit_kw.pop('ann',False)
+        for i in units.iterrows():
+            if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
+                continue
+            grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **fm_kw)
+            if unit_ann:
                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
                              xycoords='data',horizontalalignment='right',
                              bbox={'boxstyle':'round', 'fc':'0.8'})
