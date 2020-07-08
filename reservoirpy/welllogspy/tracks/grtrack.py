@@ -141,8 +141,8 @@ def grtrack(df: pd.DataFrame,
     
     def_gr_sand_kw = {
     'color': 'gold',
-    'linestyle':'-',
-    'linewidth': 1
+    'linestyle':'--',
+    'linewidth': 2
     }    
     for (k,v) in def_gr_sand_kw.items():
         if k not in gr_sand_kw:
@@ -150,8 +150,8 @@ def grtrack(df: pd.DataFrame,
 
     def_gr_shale_kw = {
     'color': 'gray',
-    'linestyle':'-',
-    'linewidth': 1
+    'linestyle':'--',
+    'linewidth': 2
     }    
     for (k,v) in def_gr_shale_kw.items():
         if k not in gr_shale_kw:
@@ -257,6 +257,8 @@ def grtrack(df: pd.DataFrame,
     if perf is not None:
         perf_ann = perf_kw.pop('ann',False)
         for i in perf.iterrows():
+            if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
+                continue
             if perf_ann:
                 try:
                     grax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']} \nNote:{i[1]['comment']}",
