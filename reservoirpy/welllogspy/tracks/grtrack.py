@@ -246,7 +246,7 @@ def grtrack(df: pd.DataFrame,
         for i in units.iterrows():
             if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
                 continue
-            grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **fm_kw)
+            grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **unit_kw)
             if unit_ann:
                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
                              xycoords='data',horizontalalignment='right',
@@ -271,7 +271,7 @@ def grtrack(df: pd.DataFrame,
                 else: 
                     pass
         
-            for j in np.arange(i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],0.2):
+            for j in np.arange(i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],0.5):
                 grax.hlines(j,0,15,**perf_kw)
 
     #Add Sand Gamma Ray line      
