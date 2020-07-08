@@ -16,7 +16,7 @@ import seaborn as sns
 import pyvista as pv 
 from ...welllogspy.log import log
 from ...wellproductivitypy import pi
-
+from sqlalchemy import create_engine
 
 class perforations(gpd.GeoDataFrame):
 
@@ -1084,24 +1084,128 @@ class wells_group:
 
         return blocks
 
+    def get_from_oilbase(self,engine, wells:list=None, fields:list=None):
+        """
+        Add wells information from the Postgres Database scuervo91/oilbase
+        It uses the structure and the sintaxis implemented specifically in that database
+        """
+                 
+        
+        well_heads_query= """
+            select w.well, w.surface_x, w.surface_y, w.epsg, w.kbe
+            from list.wells w
+            join list.fields f on w.field_id = f.id
+        """
+
+        well_surveys_query= """
+            select w.well, s.md, s.inc, s.azi
+            from list.surveys s
+            join list.wells w on s.well_id = w.id
+            join list.fields f on w.field_id = f.id
+        """
+
+        well_perforations_query= """
+            select w.well, p.md_top, p.md_bottom, fm.formation
+            from list.perforations p
+            join list.wells w on p.well_id = w.id
+            join list.fields f on w.field_id = f.id
+            join list.formations fm on p.formation_id = fm.id
+        """
+
+        well_formations_tops_query= """
+            select w.well, ft.md_top, ft.md_bottom, fm.formation
+            from list.formations_tops ft
+            join list.wells w on ft.well_id = w.id
+            join list.fields f on w.field_id = f.id
+            join list.formations fm on ft.formation_id = fm.id
+        """
+
+        #Custom the query
+        query_list = {
+            'well_heads':well_heads_query,
+            'well_surveys': well_surveys_query,
+            'well_perforations':well_perforations_query,
+            'well_formations_tops':well_formations_tops_query
+        }
+
+        if wells is not None:
+            assert isinstance(wells,(str,list))
+
+            for i in query_list:
+                query_list[i] = query_list[i] + f" where w.well in {tuple(wells)}".replace(',)',')')
 
 
+        if fields is not None:
+            assert isinstance(fields,(str,list))
+
+            if wells is None:
+                for i in query_list:
+                    query_list[i] = query_list[i] + f" where f.field in {tuple(fields)}".replace(',)',')')
+            else:
+                for i in query_list:
+                    query_list[i] = query_list[i] + f" and f.field in {tuple(fields)}".replace(',)',')')
 
 
-
-
-
-
-
-
-
+        # query from oilbase
+        df_dict = {}
+        for i in query_list:
+            try:
+                _df = pd.read_sql(query_list[i], con=engine)
+                df_dict[i] = _df
+            except:
+                df_dict[i] = None
         
 
+        #List of wells
+        wells_list = df_dict['well_heads']['well'].tolist()
 
-        
+        #Create wells object
+        for i in wells_list:
+
+            #Perforations
+            _p = df_dict['well_perforations']
+
+            try:
+                _perf = perforations(_p.loc[_p['well']==i,['md_top','md_bottom','formation']])
+            except:
+                _perf = None 
+
+            #Tops
+            _t = df_dict['well_formations_tops']
+
+            try:
+                _tops = tops(_t.loc[_t['well']==i,:])
+            except:
+                _tops = None
+
+            #surveys
+            _s = df_dict['well_surveys']
+
+            try:
+                _survey = _s.loc[_s['well']==i,['md','inc','azi']]
+            except:
+                _survey = None
+            
+            _wh = df_dict['well_heads']
+            _well = well(
+                name = i,
+                rte = _wh.loc[_wh['well']==i,'kbe'].iloc[0],
+                crs = _wh.loc[_wh['well']==i,'epsg'].iloc[0].item(),
+                surf_coord = _wh.loc[_wh['well']==i,['surface_x','surface_y']].squeeze().tolist(), 
+                survey = _survey,
+                perforations = _perf,
+                tops = _tops
+            )
+
+            try:
+                _well.to_tvd(which=['tops','perforations'])
+                _well.to_tvd(which=['tops','perforations'],ss=True)
+                _well.to_coord(which=['tops','perforations'])
+            except:
+                pass
+
+            self.add_well(_well)
 
 
 
-
-    
-
+            
