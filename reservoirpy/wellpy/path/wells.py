@@ -380,7 +380,7 @@ class well:
                             if 'tvd_bottom' in self._perforations.columns and 'tvd_bottom' in self._perforations.columns and tick==True:
                                 self._perforations['tvd_tick'] = self._perforations['tvd_bottom'] - self._perforations['tvd_top']
                     else:
-                        raise ValueError("No perforations have been set")
+                        print(f" {self.name} No perforations have been set")
 
 
                 if 'tops' in which:
@@ -398,7 +398,7 @@ class well:
                             if 'tvd_bottom' in self._tops.columns and 'tvd_bottom' in self._tops.columns and tick==True:
                                 self._tops['tvd_tick'] = self._tops['tvd_bottom'] - self._tops['tvd_top']
                     else:
-                        raise ValueError("No tops have been set")
+                        print(f" {self.name} No tops have been set")
 
                 if 'units' in which:
                     if self._units is not None:
@@ -415,7 +415,7 @@ class well:
                             if 'tvd_bottom' in self._units.columns and 'tvd_bottom' in self._units.columns and tick==True:
                                 self._units['tvd_tick'] = self._units['tvd_bottom'] - self._units['tvd_top']
                     else:
-                        raise ValueError("No units have been set")
+                        print(f" {self.name} No units have been set")
                 
                 if 'openlog' in which:
                     if self._openlog is not None:
@@ -425,7 +425,7 @@ class well:
                         self._openlog.add_curve('tvd',_tvd,descr='tvd')
                         self._openlog.add_curve('tvdss',_tvdss,descr='tvdss')
                     else:
-                        raise ValueError("No openlogs have been set")
+                        print(f" {self.name} No openlog have been set")
 
                 if 'masterlog' in which:
                     if self._masterlog is not None:
@@ -435,7 +435,7 @@ class well:
                         self._masterlog.add_curve('tvd',_tvd,descr='tvd')
                         self._masterlog.add_curve('tvdss',_tvdss,descr='tvdss')
                     else:
-                        raise ValueError("No masterlogs have been set")
+                        print(f" {self.name} No masterlog have been set")
 
                 if 'caselog' in which:
                     if self._caselog is not None:
@@ -445,7 +445,7 @@ class well:
                         self._caselog.add_curve('tvd',_tvd,descr='tvd')
                         self._caselog.add_curve('tvdss',_tvdss,descr='tvdss')
                     else:
-                        raise ValueError("No caselogs have been set")
+                        print(f" {self.name} No caselog have been set")
 
         else:
             raise ValueError("No survey has been set")
@@ -477,7 +477,7 @@ class well:
                         except:
                             ValueError("No tvd has been set")
                     else:
-                        raise ValueError("No perforations have been set")
+                        print(f" {self.name} No perforations have been set")
                         
                 if 'tops' in which:
                     if self._tops is not None:
@@ -488,7 +488,7 @@ class well:
                         except:
                             ValueError("No tvd has been set")
                     else:
-                        raise ValueError("No tops have been set")
+                        print(f" {self.name} No tops have been set")
 
                 if 'units' in which:
                     if self._units is not None:
@@ -499,7 +499,7 @@ class well:
                         except:
                             ValueError("No tvd has been set")
                     else:
-                        raise ValueError("No units have been set")
+                        print(f" {self.name} No units have been set")
         else:
             raise ValueError("No survey has been set")
         return r
