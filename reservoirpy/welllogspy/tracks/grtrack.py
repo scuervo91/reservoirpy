@@ -232,8 +232,12 @@ def grtrack(df: pd.DataFrame,
     if fm is not None:
         fm_ann = fm_kw.pop('ann',False)
         for i in fm.iterrows():
-            if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
-                continue
+            if depth_ref == 'tvdss':
+                if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
+                    continue
+            else:
+                if i[1][f'{depth_ref}_top'] <= lims[0] or i[1][f'{depth_ref}_top'] >= lims[1]:
+                    continue
             grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **fm_kw)
             if fm_ann:
                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
@@ -244,8 +248,12 @@ def grtrack(df: pd.DataFrame,
     if units is not None:
         unit_ann = unit_kw.pop('ann',False)
         for i in units.iterrows():
-            if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
-                continue
+            if depth_ref == 'tvdss':
+                if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
+                    continue
+            else:
+                if i[1][f'{depth_ref}_top'] <= lims[0] or i[1][f'{depth_ref}_top'] >= lims[1]:
+                    continue
             grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **unit_kw)
             if unit_ann:
                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
@@ -257,8 +265,12 @@ def grtrack(df: pd.DataFrame,
     if perf is not None:
         perf_ann = perf_kw.pop('ann',False)
         for i in perf.iterrows():
-            if i[1][f'{depth_ref}_top'] < lims[0] or i[1][f'{depth_ref}_top'] > lims[1]:
-                continue
+            if depth_ref == 'tvdss':
+                if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
+                    continue
+            else:
+                if i[1][f'{depth_ref}_top'] <= lims[0] or i[1][f'{depth_ref}_top'] >= lims[1]:
+                    continue
             if perf_ann:
                 try:
                     grax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']} \nNote:{i[1]['comment']}",
@@ -272,9 +284,12 @@ def grtrack(df: pd.DataFrame,
                     arrowprops=dict(arrowstyle="->"))
                 else: 
                     pass
-        
-            for j in np.arange(i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],0.5):
-                grax.hlines(j,0,15,**perf_kw)
+            if depth_ref == 'tvdss':
+                for j in np.arange(i[1][f'{depth_ref}_bottom'],i[1][f'{depth_ref}_top'],0.5):
+                    grax.hlines(j,0,15,**perf_kw)
+            else:
+                for j in np.arange(i[1][f'{depth_ref}_top'],i[1][f'{depth_ref}_bottom'],0.5):
+                    grax.hlines(j,0,15,**perf_kw)
 
     #Add Sand Gamma Ray line      
     if gr_sand_shale is not None:
@@ -293,8 +308,12 @@ def grtrack(df: pd.DataFrame,
     if correlation is not None:
         cor_ann = corr_kw.pop('ann',False)
         for i in correlation.iterrows():
-            if i[1]['depth'] < lims[0] or i[1]['depth'] > lims[1]:
-                continue
+            if depth_ref == 'tvdss':
+                if i[1]['depth'] >= lims[0] or i[1]['depth'] <= lims[1]:
+                    continue
+            else:
+                if i[1]['depth'] < lims[0] or i[1]['depth'] > lims[1]:
+                    continue
             grax.hlines(i[1]['depth'],0,gr_max, **corr_kw)
             if cor_ann:
                 try:
