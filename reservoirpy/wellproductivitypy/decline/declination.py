@@ -96,7 +96,8 @@ class declination:
     self.b = kwargs.pop('b',0)
     self.ti = kwargs.pop('ti',None)
     self.start_date = kwargs.pop('start_date',None)
-    self.start_date = kwargs.pop('start_date',None)
+    self.end_date = kwargs.pop('end_date',None)
+    self.anomaly_points = kwargs.pop('anomaly_points',None)
 
 
 #####################################################
@@ -166,7 +167,16 @@ class declination:
   def end_date(self,value):
     assert isinstance(value,(date,type(None))), f'{type(value)} not accepted. It must be date'
     self._end_date = value
-    
+
+  @property
+  def anomaly_points(self):
+    return self._anomaly_points
+
+  @anomaly_points.setter
+  def anomaly_points(self,value):
+    assert isinstance(value,(pd.DataFrame,type(None))), f'{type(value)} not accepted. It must be pd.DataFrame'
+    self._anomaly_points = value
+  
   def __str__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
   
@@ -258,6 +268,7 @@ class declination:
       flow_rate_a = flow_rate[np.abs(slp)>mu+xstd*sig]
       if not range_time_a.empty and not flow_rate_a.empty:  
         r = pd.concat([range_time_a,flow_rate_a],axis=1)
+        r.rename(columns={time: "date", rate: "rate"}, inplace=True)
         print(f"Revome {r.shape[0]} rows by anomalies")
       else:
         print("No row removed")
@@ -307,7 +318,7 @@ class declination:
       self.b = popt[2]
       self.start_date = range_time.iloc[0]
       self.end_date = range_time.iloc[-1]
-      return r
+      self.anomaly_points = r
 
     elif (b >= 0) & (b <= 1):
       
@@ -347,9 +358,10 @@ class declination:
       self.b = b
       self.start_date = range_time.iloc[0]
       self.end_date = range_time.iloc[-1]
-      return r
+      self.anomaly_points = r
 
-  def plot(self, start_date=None, end_date=None, fq='M',econ_limit=None,ax=None,rate_kw={},cum_kw={},cum=False,npi=0, **kwargs):
+  def plot(self, start_date=None, end_date=None, fq='M',econ_limit=None,ax=None,
+    rate_kw={},cum_kw={},ad_kw={},cum=False,npi=0,anomaly=False, **kwargs):
     if start_date is None: 
       if self.start_date is None:
         start_date = self.ti
@@ -368,24 +380,34 @@ class declination:
     dax= ax or plt.gca()
 
     # Default kwargs for rate
-    def_kw = {
+    def_rate_kw = {
     'color': 'darkgreen',
     'linestyle':'--',
     'linewidth': 2
     }
-    for (k,v) in def_kw.items():
+    for (k,v) in def_rate_kw.items():
         if k not in rate_kw:
             rate_kw[k]=v
 
     # Default kwargs for cum
-    def_kw = {
+    def_cum_kw = {
     'color': 'darkgreen',
     'linestyle':'dotted',
     'linewidth': 2
     }
-    for (k,v) in def_kw.items():
+    for (k,v) in def_cum_kw.items():
         if k not in cum_kw:
             cum_kw[k]=v
+
+    # Default kwargs for anomaly detection
+    def_ad_kw = {
+    'c': 'red',
+    's':40,
+    'marker': 'o'
+    }
+    for (k,v) in def_ad_kw.items():
+        if k not in ad_kw:
+            ad_kw[k]=v
 
     #Plotting
     dax.plot(f.index,f['rate'],**rate_kw)   
@@ -393,3 +415,7 @@ class declination:
     if cum:
       cumax=dax.twinx()
       cumax.plot(f.index,f['cum'],**cum_kw)  
+
+    if anomaly and self.anomaly_points is not None:
+      ad_df = self.anomaly_points
+      dax.scatter(ad_df['date'],ad_df['rate'],**ad_kw)
