@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 ############################################################################################
 # Forecast Function
-def forecast_curve(range_time,qi,di,ti,b):
+def forecast_curve(range_time,qi,di,ti,b,npi=0):
   """
   Estimate a Forecast curve given Decline curve parameters
 
@@ -38,6 +38,7 @@ def forecast_curve(range_time,qi,di,ti,b):
   diff_period = np.append(np.array([1]),np.diff(days_number))
   diff_q = diff_period * q 
   cum = diff_q.cumsum()
+  cum = cum + npi
   forecast = pd.DataFrame({'time':range_time,'rate':q, 'cum':cum})
   forecast = forecast.set_index('time')
   forecast = forecast.round(2)
@@ -45,7 +46,7 @@ def forecast_curve(range_time,qi,di,ti,b):
   
   return forecast, Np
 
-def forecast_econlimit(t,qt,qi,di,ti,b, fr):
+def forecast_econlimit(t,qt,qi,di,ti,b, fr, npi=0):
   """
   Estimate a Forecast curve until a given Economic limit rate and Decline curve parameters
 
@@ -72,7 +73,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr):
 
   TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
 
-  f, Np = forecast_curve(TimeRange,qi,di,ti,b)
+  f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=0)
 
   return f, Np
 
@@ -129,6 +130,11 @@ class declination:
   def b(self,value):
     assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
     assert value >= 0 and value <= 1
+    if value <= 1.0e-2:
+      value = 0
+    elif value >= 0.99:
+      value = 1
+   
     self._b = value
 
   @property
@@ -183,7 +189,7 @@ class declination:
   def __repr__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
 
-  def forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None, **kwargs):
+  def forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None,npi=0, **kwargs):
     """
     Forecast curve from the declination object. 
  
@@ -217,9 +223,9 @@ class declination:
 
     if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
-      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b)
+      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi)
     else:
-      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq)
+      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,npi=npi)
 
     return f, Np
 
@@ -374,8 +380,7 @@ class declination:
       else:
         end_date = self.end_date
 
-    f,n = self.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit, **kwargs)
-    f['cum'] = f['cum'] + npi
+    f,n = self.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
     #Create the Axex
     dax= ax or plt.gca()
 

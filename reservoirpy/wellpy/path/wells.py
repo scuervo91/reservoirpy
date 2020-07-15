@@ -16,6 +16,7 @@ import seaborn as sns
 import pyvista as pv 
 from ...welllogspy.log import log
 from ...wellproductivitypy import pi
+from ...wellproductivitypy.declination import declination
 from sqlalchemy import create_engine
 
 class perforations(gpd.GeoDataFrame):
@@ -158,6 +159,7 @@ class well:
         self.caselog = kwargs.pop('caselog', None)
         self.td = kwargs.pop('td',None)  # First set td before survey
         self.survey = kwargs.pop('survey', None)
+        self.declination = kwargs.pop('declination',None)
 
 
 #####################################################
@@ -313,6 +315,15 @@ class well:
         else:
             assert isinstance(value,(int,float))
             self._td = value
+
+    @property
+    def declination(self):
+        return self._declination
+    
+    @declination.setter
+    def declination(self,value):
+        assert isinstance(value, (declination,type(None))), "must be declination type"
+        self._declination = value
 
 #####################################################
 ############## methods ###########################
@@ -634,8 +645,13 @@ class well:
 
         return map_folium
 
-
+    def declination_forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None, npi=0, **kwargs):
         
+        f,n = self.declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
+
+        return f, n
+
+            
 class wells_group:
     def __init__(self,*args):
         _well_list = []
