@@ -1305,4 +1305,20 @@ class wells_group:
             _f.rename(columns={'rate': "rate_"+well, 'cum': 'cum_'+well}, inplace=True)
             forecast_df = pd.concat([forecast_df,_f],axis=1, ignore_index=False)
         forecast_df = forecast_df.fillna(0)
+
+        cols = forecast_df.columns.tolist()
+
+        rate_cols = []
+        for i in cols:
+            if i.startswith('rate') == True:
+                rate_cols.append(i)
+
+        cum_cols = []
+        for i in cols:
+            if i.startswith('cum') == True:
+                cum_cols.append(i)
+        
+        forecast_df['total_rate'] = forecast_df[rate_cols].sum(axis=1)
+        forecast_df['total_cum'] = forecast_df[cum_cols].sum(axis=1)
+
         return forecast_df
