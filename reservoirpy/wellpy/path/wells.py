@@ -1304,5 +1304,5 @@ class wells_group:
             _f, _ = self.wells[well].declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
             _f.rename(columns={'rate': "rate_"+well, 'cum': 'cum_'+well}, inplace=True)
             forecast_df = pd.concat([forecast_df,_f],axis=1, ignore_index=False)
-
+        forecast_df = forecast_df.fillna(0)
         return forecast_df

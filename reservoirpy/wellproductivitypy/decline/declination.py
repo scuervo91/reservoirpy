@@ -73,10 +73,15 @@ def forecast_econlimit(t,end_date,qt,qi,di,ti,b, fr, npi=0):
 
   if date_until > pd.Timestamp(end_date):
     date_until = end_date
+  if date_until < t:
+    f = pd.DataFrame({'time':[t],'rate':[0], 'cum':[npi]})
+    f = f.set_index('time')
+    Np = npi
+    print('Rate has already reached economic limit established')
+  else:
+    TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
 
-  TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
-
-  f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=0)
+    f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=npi)
 
   return f, Np
 
