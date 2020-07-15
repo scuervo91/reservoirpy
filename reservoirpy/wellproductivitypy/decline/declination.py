@@ -239,7 +239,7 @@ class declination:
 
   ################################################################################
   #Decline Fit
-  def fit(self,df:pd.DataFrame,time:str='time',rate:str='rate',b=None, ad=True,xstd=2):
+  def fit(self,df:pd.DataFrame,time:str='time',rate:str='rate',b=None, ad=True,xstd=2, adjust_last_prod=False):
     """
     Estimate the declination parameters of a time series of production daily rate
     as a Decline Curve defined by Arps
@@ -326,9 +326,9 @@ class declination:
       
       popt, pcov = curve_fit(decline_function, range_time, flow_rate, bounds=(0, [np.inf, np.inf, 1]))
       #dec = declination(qi=popt[0], di=popt[1], ti=range_time[0], b=popt[2])
-      self.qi = popt[0]
+      self.qi = flow_rate.iloc[-1] if adjust_last_prod else popt[0]
       self.di = popt[1]
-      self.ti = range_time.iloc[0]
+      self.ti = range_time.iloc[-1] if adjust_last_prod else range_time.iloc[0]
       self.b = popt[2]
       self.start_date = range_time.iloc[0]
       self.end_date = range_time.iloc[-1]
@@ -366,9 +366,9 @@ class declination:
       
       popt, pcov = curve_fit(decline_function, range_time, flow_rate, bounds=(0, [np.inf, np.inf]))
       #dec = declination(qi=popt[0], di=popt[1], ti=range_time.iloc[0], b=b)
-      self.qi = popt[0]
+      self.qi = flow_rate.iloc[-1] if adjust_last_prod else popt[0]
       self.di = popt[1]
-      self.ti = range_time.iloc[0]
+      self.ti = range_time.iloc[-1] if adjust_last_prod else range_time.iloc[0]
       self.b = b
       self.start_date = range_time.iloc[0]
       self.end_date = range_time.iloc[-1]
