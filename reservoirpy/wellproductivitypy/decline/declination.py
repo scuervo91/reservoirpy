@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import curve_fit
 from datetime import date, timedelta
+import matplotlib.pyplot as plt
 
 ############################################################################################
 # Forecast Function
@@ -94,6 +95,9 @@ class declination:
     self.di = kwargs.pop('di',None)
     self.b = kwargs.pop('b',0)
     self.ti = kwargs.pop('ti',None)
+    self.start_date = kwargs.pop('start_date',None)
+    self.start_date = kwargs.pop('start_date',None)
+
 
 #####################################################
 ############## Properties ###########################
@@ -144,6 +148,24 @@ class declination:
     elif (self._b<1)&(self._b>0):
       self._kind = 'Hyperbolic'
     return self._kind
+
+  @property
+  def start_date(self):
+    return self._start_date
+  
+  @start_date.setter
+  def start_date(self,value):
+    assert isinstance(value,(date,type(None))), f'{type(value)} not accepted. It must be date'
+    self._start_date = value
+
+  @property
+  def end_date(self):
+    return self._end_date
+
+  @end_date.setter
+  def end_date(self,value):
+    assert isinstance(value,(date,type(None))), f'{type(value)} not accepted. It must be date'
+    self._end_date = value
     
   def __str__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
@@ -172,10 +194,16 @@ class declination:
     assert isinstance(econ_limit,(int,float,np.ndarray,type(None))), 'econ_limit must be a number'
 
     if start_date is None: 
-      start_date = self.ti
+      if self.start_date is None:
+        start_date = self.ti
+      else:
+        start_date = self.start_date
 
     if end_date is None: 
-      end_date = self.ti + timedelta(days=365)
+      if self.end_date is None:
+        end_date = self.ti + timedelta(days=365)
+      else:
+        end_date = self.start_date
 
     if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
@@ -277,6 +305,8 @@ class declination:
       self.di = popt[1]
       self.ti = range_time.iloc[0]
       self.b = popt[2]
+      self.start_date = range_time.iloc[0]
+      self.end_date = range_time.iloc[-1]
       return r
 
     elif (b >= 0) & (b <= 1):
@@ -315,5 +345,51 @@ class declination:
       self.di = popt[1]
       self.ti = range_time.iloc[0]
       self.b = b
+      self.start_date = range_time.iloc[0]
+      self.end_date = range_time.iloc[-1]
       return r
-    
+
+  def plot(self, start_date=None, end_date=None, fq='M',econ_limit=None,ax=None,rate_kw={},cum_kw={},cum=False,npi=0, **kwargs):
+    if start_date is None: 
+      if self.start_date is None:
+        start_date = self.ti
+      else:
+        start_date = self.start_date
+
+    if end_date is None: 
+      if self.end_date is None:
+        end_date = self.ti + timedelta(days=365)
+      else:
+        end_date = self.end_date
+
+    f,n = self.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit, **kwargs)
+    f['cum'] = f['cum'] + npi
+    #Create the Axex
+    dax= ax or plt.gca()
+
+    # Default kwargs for rate
+    def_kw = {
+    'color': 'darkgreen',
+    'linestyle':'--',
+    'linewidth': 2
+    }
+    for (k,v) in def_kw.items():
+        if k not in rate_kw:
+            rate_kw[k]=v
+
+    # Default kwargs for cum
+    def_kw = {
+    'color': 'darkgreen',
+    'linestyle':'dotted',
+    'linewidth': 2
+    }
+    for (k,v) in def_kw.items():
+        if k not in cum_kw:
+            cum_kw[k]=v
+
+    #Plotting
+    dax.plot(f.index,f['rate'],**rate_kw)   
+
+    if cum:
+      cumax=dax.twiny()
+      cumax.plot(f.index,f['cum'],**cum_kw)  
