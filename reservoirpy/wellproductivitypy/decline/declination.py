@@ -391,5 +391,5 @@ class declination:
     dax.plot(f.index,f['rate'],**rate_kw)   
 
     if cum:
-      cumax=dax.twiny()
+      cumax=dax.twinx()
       cumax.plot(f.index,f['cum'],**cum_kw)  
