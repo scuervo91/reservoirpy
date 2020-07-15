@@ -46,7 +46,7 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0):
   
   return forecast, Np
 
-def forecast_econlimit(t,qt,qi,di,ti,b, fr, npi=0):
+def forecast_econlimit(t,end_date,qt,qi,di,ti,b, fr, npi=0):
   """
   Estimate a Forecast curve until a given Economic limit rate and Decline curve parameters
 
@@ -70,6 +70,9 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr, npi=0):
     date_until = pd.Timestamp.fromordinal(int((np.power(qi / qt, b) - 1)/(b * (di/365))) + ti.toordinal())
   else:
     raise ValueError('b must be between 0 and 1')
+
+  if date_until > pd.Timestamp(end_date):
+    date_until = end_date
 
   TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
 
@@ -219,13 +222,13 @@ class declination:
       if self.end_date is None:
         end_date = self.ti + timedelta(days=365)
       else:
-        end_date = self.start_date
+        end_date = self.end_date
 
     if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
       f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi)
     else:
-      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,npi=npi)
+      f, Np = forecast_econlimit(start_date,end_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,npi=npi)
 
     return f, Np
 

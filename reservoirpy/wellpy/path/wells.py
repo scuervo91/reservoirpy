@@ -16,7 +16,7 @@ import seaborn as sns
 import pyvista as pv 
 from ...welllogspy.log import log
 from ...wellproductivitypy import pi
-from ...wellproductivitypy.declination import declination
+from ...wellproductivitypy.decline import declination
 from sqlalchemy import create_engine
 
 class perforations(gpd.GeoDataFrame):
@@ -1290,6 +1290,19 @@ class wells_group:
 
             self.add_well(_well)
 
+    def declination_forecast(self,wells:list=None,start_date=None, end_date=None, fq='M',econ_limit=None, npi=0, **kwargs):
 
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
 
-            
+        forecast_df = pd.DataFrame()
+        for well in _well_list:
+            _f, _ = self.wells[well].declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
+            _f.rename(columns={'rate': "rate_"+well, 'cum': 'cum_'+well}, inplace=True)
+            forecast_df = pd.concat([forecast_df,_f],axis=1, ignore_index=False)
+
+        return forecast_df
