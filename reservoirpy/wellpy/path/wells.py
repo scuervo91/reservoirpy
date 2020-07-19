@@ -83,7 +83,7 @@ class tops(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):    
         formation = kwargs.pop("formation", None)            
-        unit = kwargs.pop("unit", None)                                                                                                                         
+        unit = kwargs.pop("unit", None)                                                                                                                     
         super(tops, self).__init__(*args, **kwargs)  
 
         if formation is not None:
@@ -515,8 +515,10 @@ class well:
             raise ValueError("No survey has been set")
         return r
 
-    def tops_to_logs(self,which:list=None):
-        if self._tops is None:
+    def tops_to_logs(self,which:list=None, units=False):
+        df = self._tops if units==False else self._units
+        _item = 'formation' if units==False else 'unit'
+        if df is None:
             raise ValueError("No tops have been set")
         else:
             if which is None:
@@ -525,21 +527,21 @@ class well:
                 if ('masterlog' in which) & (self._masterlog is not None):
                     _d = self._masterlog.df().index
                     _m = pd.DataFrame(index=_d)
-                    for i in self._tops.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[0]
-                    self._masterlog.add_curve('formation',_m['formation'].values,descr='formations')
+                    for i in df.iterrows():
+                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[0]
+                    self._masterlog.add_curve(_item,_m[_item].values,descr=_item)
                 if ('openlog' in which) & (self._openlog is not None):
                     _d = self._openlog.df().index
                     _m = pd.DataFrame(index=_d)
-                    for i in self._tops.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[0]
-                    self._openlog.add_curve('formation',_m['formation'].values,descr='formations')
+                    for i in df.iterrows():
+                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[0]
+                    self._openlog.add_curve(_item,_m[_item].values,descr=_item)
                 if ('caselog' in which) & (self._caselog is not None):
                     _d = self._caselog.df().index
                     _m = pd.DataFrame(index=_d)
-                    for i in self._tops.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),'formation'] = i[1]['formation']
-                    self._caselog.add_curve('formation',_m['formation'].values,descr='formations')
+                    for i in df.iterrows():
+                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[1][_item]
+                    self._caselog.add_curve(_item,_m[_item].values,descr=_item)
 
     def add_to_logs(self,df):
         if self._openlog is None:
@@ -724,13 +726,13 @@ class wells_group:
 
         return gdf
 
-    def wells_tops(self, wells:list=None, formations:list=None, projection1d = False, azi=90, center=None):
+    def wells_tops(self, wells:list=None, horizons:list=None, projection1d = False, azi=90, center=None, units=False):
         """
         Get a DataFrame with the wells formations tops
         Input:
             wells ->  (list, None) List of wells in the Group to show
                     If None, all wells in the group will be selected
-            formations ->  (list, None) List of formation in the Group to show 
+            horizons ->  (list, None) List of formation in the Group to show 
                     If None, all formations in the group will be selected
             projection1d ->  (bool, default False) If true it adds a column with a 1d projection of coordinates 
             azi -> (int, float, np.ndarray, default 90) Azimuth direction for projection
@@ -740,7 +742,7 @@ class wells_group:
             tops -> (gpd.GeoDataFrame) GeoDataFrame with tops indexed by well
         """        
         assert isinstance(wells,(list,type(None)))
-        assert isinstance(formations,(list,type(None)))
+        assert isinstance(horizons,(list,type(None)))
         assert isinstance(center,(list,np.ndarray, type(None)))
         assert isinstance(azi,(int,float,np.ndarray))
         # Define which wells for the distance matrix will be shown    
@@ -754,23 +756,27 @@ class wells_group:
         _wells_tops = gpd.GeoDataFrame()
 
         for well in _well_list:
-            if self.wells[well].tops is None:
-                continue
+            if units==False:
+                if self.wells[well].tops is None:
+                    continue
             else:
-                if self.wells[well].survey is not None:
-                    self.wells[well].to_tvd(which=['tops'])
-                    self.wells[well].to_tvd(which=['tops'],ss=True)
-                    self.wells[well].to_coord(which=['tops'])
-                else:
-                    assert projection1d == False, 'If projection1d is True surveys must be set'
-                _tops = self.wells[well].tops.copy()
-                _tops['well'] = well
-                _wells_tops = _wells_tops.append(_tops, ignore_index=False)
+                if self.wells[well].units is None:
+                    continue
+    
+            if self.wells[well].survey is not None:
+                self.wells[well].to_tvd(which=['units' if units else 'tops'])
+                self.wells[well].to_tvd(which=['units' if units else 'tops'],ss=True)
+                self.wells[well].to_coord(which=['units' if units else 'tops'])
+            else:
+                assert projection1d == False, 'If projection1d is True surveys must be set'
+            _tops = self.wells[well].units.copy() if units else self.wells[well].tops.copy()
+            _tops['well'] = well
+            _wells_tops = _wells_tops.append(_tops, ignore_index=False)
         
-        if formations is not None:
-            _wells_tops = _wells_tops.loc[formations]
+        if horizons is not None:
+            _wells_tops = _wells_tops.loc[horizons]
 
-        _wells_tops = _wells_tops.reset_index()
+        #_wells_tops = _wells_tops.reset_index()
         
         if projection1d == True:
             _pr,c = projection_1d(_wells_tops[['easting','northing']].values, azi, center=center)
@@ -960,7 +966,7 @@ class wells_group:
 
         return map_folium
 
-    def formation_distance(self, wells:list=None, formation:str=None, dims:list=['easting','northing','tvdss_top'], z_unit='ft'):
+    def formation_distance(self, wells:list=None, horizon:str=None, dims:list=['easting','northing','tvdss_top'], z_unit='ft',units=False):
         """
         Calculate a distance matrix for the formation of interest
 
@@ -984,21 +990,35 @@ class wells_group:
         z_coef = 0.3048 if z_unit=='ft' else 1
 
         _fm_df = gpd.GeoDataFrame()
+
         for key in _well_list:
             has_survey = self.wells[key].survey is not None
-            has_tops = self.wells[key].tops is not None
+            has_tops = self.wells[key].units is not None if units else self.wells[key].tops is not None
             if all([has_tops,has_survey]):
-                assert formation in self.wells[key].tops.index.tolist()
-                if 'tvdss_top' not in self.wells[key].tops.columns:
-                    self.wells[key].to_tvd(which=['tops'])
-                    self.wells[key].to_tvd(which=['tops'],ss=True)
-                if 'geometry' not in self.wells[key].tops.columns:
-                    self.wells[key].to_coord(which=['tops'])
-                _df = self.wells[key].tops.loc[[formation],['easting','northing','tvdss_top']].reset_index()
-                _df['well'] = key
-                _df['tvdss_top'] = _df['tvdss_top']*z_coef
-                #print(_df)
-                _fm_df = _fm_df.append(_df, ignore_index=True)
+                if units:
+                    assert horizon in self.wells[key].units.index.tolist() 
+                    if 'tvdss_top' not in self.wells[key].units.columns:
+                        self.wells[key].to_tvd(which=['units'])
+                        self.wells[key].to_tvd(which=['units'],ss=True)
+                    if 'geometry' not in self.wells[key].units.columns:
+                        self.wells[key].to_coord(which=['units'])
+                    _df = self.wells[key].units.loc[[horizon],['easting','northing','tvdss_top']].reset_index()
+                    _df['well'] = key
+                    _df['tvdss_top'] = _df['tvdss_top']*z_coef
+                    #print(_df)
+                    _fm_df = _fm_df.append(_df, ignore_index=True) 
+                else:  
+                    assert horizon in self.wells[key].tops.index.tolist()
+                    if 'tvdss_top' not in self.wells[key].tops.columns:
+                        self.wells[key].to_tvd(which=['tops'])
+                        self.wells[key].to_tvd(which=['tops'],ss=True)
+                    if 'geometry' not in self.wells[key].tops.columns:
+                        self.wells[key].to_coord(which=['tops'])
+                    _df = self.wells[key].tops.loc[[horizon],['easting','northing','tvdss_top']].reset_index()
+                    _df['well'] = key
+                    _df['tvdss_top'] = _df['tvdss_top']*z_coef
+                    #print(_df)
+                    _fm_df = _fm_df.append(_df, ignore_index=True)
                 
         
         dist_array = distance_matrix(_fm_df[dims].values,_fm_df[dims].values)
@@ -1006,15 +1026,15 @@ class wells_group:
 
         return dist_matrix
 
-    def structural_view(self,wells:list=None, formations:list=None, show_surveys=True, 
-        show_formations=True, azi=0, center=None,ax=None,margin=500, **kwargs):
+    def structural_view(self,wells:list=None, horizons:list=None, show_surveys=True, 
+        show_horizons=True, azi=0, center=None,ax=None,margin=500,units=False, **kwargs):
         """
         plot a structural view of the tops and wells in a 2D representation
 
         Input:
             wells ->  (list, None) List of wells in the Group to show. 
                     If None, all wells in the group will be selected
-            formation -> (list) Formations of interest. The attributes tops and survey must be set on each well
+            horizons -> (list) Formations of interest. The attributes tops and survey must be set on each well
                     If None all the formations available are selected 
             surveys -> (bool, default True) If the surveys are plotted 
             formations -> (bool, default True) If the tops are plotted 
@@ -1025,9 +1045,9 @@ class wells_group:
             dist_matrix -> (pd.DataFrame) Distance matrix with index and column of wells
         """
         assert isinstance(wells,(list,type(None))), f'{type(wells)}'
-        assert isinstance(formations,(list,type(None)))
+        assert isinstance(horizons,(list,type(None)))
         assert isinstance(show_surveys, bool)
-        assert isinstance(show_formations, bool)
+        assert isinstance(show_horizons, bool)
         assert isinstance(azi, (int,float)) and azi >=0 and azi<=360 
         assert isinstance(center,(list,np.ndarray,type(None)))
 
@@ -1046,25 +1066,25 @@ class wells_group:
         well_color = kwargs.pop('well_cmap','GnBu_d')
         legend = kwargs.pop('legend','brief')
 
-        if show_formations:
-            tops, center_tops = self.wells_tops(wells=wells, formations=formations, projection1d=True, azi=azi,center=center)
-
+        if show_horizons:
+            tops, center_tops = self.wells_tops(wells=wells, horizons=horizons, projection1d=True, azi=azi,center=center, units=units)
+            tops.reset_index(inplace=True)
             sns.lineplot(x='projection',y='tvdss_top', data=tops, 
-                    hue='formation',markers=True, ax=stax, palette=fm_color, legend=legend)
+                    hue='unit' if units else 'formation',markers=True, ax=stax, palette=fm_color, legend=legend)
         
         if show_surveys:
-            surv,_ = self.wells_surveys(wells=wells,projection1d=True, azi=azi, center=center_tops if show_formations==True else None)
+            surv,_ = self.wells_surveys(wells=wells,projection1d=True, azi=azi, center=center_tops if show_horizons==True else None)
             sns.lineplot(x='projection',y='tvdss', data=surv, 
                     hue='well', ax=stax, palette=well_color, legend=legend)
 
         ## y lims
         ylims = kwargs.pop('ylims',None)
         if ylims==None: #Depth Limits
-            if show_surveys and show_formations:
+            if show_surveys and show_horizons:
                 ylims=[surv['tvdss'].max()-margin,surv['tvdss'].min()+margin]
             elif show_surveys:
                 ylims=[surv['tvdss_top'].max()-margin,surv['tvdss'].min()+margin]
-            elif show_formations:
+            elif show_horizons:
                 ylims=[tops['tvdss_top'].max()-margin,surv['tvdss_top'].min()+margin]
 
         stax.set_ylim([ylims[1],ylims[0]])
@@ -1094,7 +1114,7 @@ class wells_group:
 
         return survey_blocks
 
-    def tops_vtk(self,wells:list=None, formations:list=None):
+    def tops_vtk(self,wells:list=None, horizons:list=None,units=False):
         """
         Get the vtk object in PyVista for the well tops
         Input:
@@ -1107,14 +1127,14 @@ class wells_group:
         """
 
         assert isinstance(wells,(list,type(None))), f'{type(wells)}'
-        assert isinstance(formations,(list,type(None)))
+        assert isinstance(horizons,(list,type(None)))
 
-        tops = self.wells_tops(wells=wells, formations=formations, projection1d=False)
-
+        tops = self.wells_tops(wells=wells, horizons=horizons, projection1d=False, units=units)
+        tops.reset_index(inplace=True)
         data = {}
-
-        for fm in tops['formation'].unique():
-            _df = tops.loc[tops['formation']==fm,['easting','northing','tvdss_top']].values
+        _item = 'unit' if units else 'formation'
+        for fm in tops[_item].unique():
+            _df = tops.loc[tops[_item]==fm,['easting','northing','tvdss_top']].values
             _surf = pv.PolyData(_df).delaunay_2d()
             data[fm] = _surf 
 
@@ -1122,7 +1142,7 @@ class wells_group:
 
         return fm_blocks
 
-    def structural_view_vtk(self,wells:list=None, formations:list=None):
+    def structural_view_vtk(self,wells:list=None, horizons:list=None, units=False):
         """
         Get the vtk object in PyVista for the well tops and surveys
         Input:
@@ -1134,10 +1154,10 @@ class wells_group:
             surv_tops -> (pv.MultiBlock) pyvista.MultiBlock object with vtk surveys and tops
         """
         assert isinstance(wells,(list,type(None))), f'{type(wells)}'
-        assert isinstance(formations,(list,type(None)))
+        assert isinstance(horizons,(list,type(None)))
 
         s_vtk = self.wells_surveys_vtk(wells=wells)
-        t_vtk = self.tops_vtk(wells=wells, formations=formations)
+        t_vtk = self.tops_vtk(wells=wells, horizons=horizons, units=units)
 
         blocks = pv.MultiBlock()
 
@@ -1242,6 +1262,8 @@ class wells_group:
 
             try:
                 _perf = perforations(_p.loc[_p['well']==i,['md_top','md_bottom','formation']])
+                if _perf.empty:
+                    _perf = None
             except:
                 _perf = None 
 
@@ -1250,6 +1272,8 @@ class wells_group:
 
             try:
                 _tops = tops(_t.loc[_t['well']==i,:])
+                if _tops.empty:
+                    _tops = None
             except:
                 _tops = None
 
@@ -1258,6 +1282,8 @@ class wells_group:
 
             try:
                 _units = tops(_u.loc[_u['well']==i,:])
+                if _units.empty:
+                    _units = None
             except:
                 _units = None
 
