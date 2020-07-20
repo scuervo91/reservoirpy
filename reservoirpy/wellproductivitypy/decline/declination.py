@@ -432,3 +432,71 @@ class declination:
     if anomaly and self.anomaly_points is not None:
       ad_df = self.anomaly_points
       dax.scatter(ad_df['date'],ad_df['rate'],**ad_kw)
+
+#Hybrid declinations
+
+## aux functions
+def flow_limit(qi,dlim,di,b):
+    ql = qi*np.power((dlim/di),1/b)
+    return ql
+
+def time_limit(qi,qlim,b,di):
+    tl = ((np.power(qi/qlim,b)-1)/(b*di))*365
+    return tl
+
+class hybrid_declination:
+  def __init__(self,dec_hyp, dlim):
+    self.dec_hyp = dec_hyp
+    self.dlim = dlim 
+    self.qlim = flow_limit(dec_hyp.qi,dlim,dec_hyp.di,dec_hyp.b)
+    self.tlim = dec_hyp.ti + timedelta(days=time_limit(dec_hyp.qi,self.qlim,dec_hyp.b,dec_hyp.di))
+    self.dec_exp = declination(
+        qi = self.qlim,
+        di = dlim,
+        b = 0,
+        ti = self.tlim
+    )
+
+  @property
+  def dec_hyp(self):
+    return self._dec_hyp
+
+  @dec_hyp.setter 
+  def dec_hyp(self,value):
+    assert isinstance(value,declination), "dec_hyp must be of type declination"
+    assert value.b > 0, "b value must be greater than 0"
+    self._dec_hyp = value 
+
+  @property
+  def dlim(self):
+    return self._dlim 
+
+  @dlim.setter
+  def dlim(self,value):
+    assert isinstance(value,(int,float))
+    self._dlim = value 
+
+  def forecast(self, start_date=None, end_date=None, fq='M'):
+    if start_date is None:
+      start_date = self.dec_hyp.ti
+    
+    if end_date is None:
+      end_date = self.tlim + timedelta(days=365)
+
+    if start_date < self.tlim and end_date > self.tlim:
+      _forecast_1,_np_1 = self.dec_hyp.forecast(start_date=start_date, end_date=self.tlim, fq=fq)
+      _forecast_2,_np_2 = self.dec_exp.forecast(start_date=self.tlim, end_date=end_date, fq=fq)
+      _forecast_2['cum'] = _forecast_2['cum'] + _forecast_1['cum'].iloc[-1]
+      _forecast = _forecast_1.append(_forecast_2)
+      _np = _np_1 + _np_2
+    
+    elif start_date < self.tlim and end_date < self.tlim:
+      _forecast,_np = self.dec_hyp.forecast(start_date=start_date, end_date=end_date, fq=fq)
+
+    elif start_date > self.tlim and end_date > self.tlim:
+      _forecast,_np = self.dec_exp.forecast(start_date=start_date, end_date=end_date, fq=fq)
+
+    return _forecast,_np
+
+
+
