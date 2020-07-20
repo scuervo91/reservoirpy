@@ -1083,7 +1083,7 @@ class wells_group:
             if show_surveys and show_horizons:
                 ylims=[surv['tvdss'].max()-margin,surv['tvdss'].min()+margin]
             elif show_surveys:
-                ylims=[surv['tvdss_top'].max()-margin,surv['tvdss'].min()+margin]
+                ylims=[surv['tvdss'].max()-margin,surv['tvdss'].min()+margin]
             elif show_horizons:
                 ylims=[tops['tvdss_top'].max()-margin,surv['tvdss_top'].min()+margin]
 
