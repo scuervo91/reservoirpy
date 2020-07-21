@@ -15,7 +15,7 @@ setuptools.setup(
     download_url="https://github.com/scuervo91/reservoirpy/archive/0.1.tar.gz",
     packages=setuptools.find_packages(),
     include_package_data = True,
-    package_data = {'':['*.csv']},
+    package_data = {'':['*.csv','*.json']},
     install_requires=[            
         'numpy',
         'pandas',
