@@ -4,6 +4,38 @@ from ...pvtpy.black_oil import oil, water, gas
 from .kr import kr
 from ...wellproductivitypy.decline import bsw_to_wor
 from .aquifer import pot_aquifer
+import matplotlib.pyplot as plt
+import json
+import os
+
+def recovery_mechanisms_plot(ax=None):
+    #Create the Axex
+    rmax= ax or plt.gca()
+    file_dir = os.path.dirname(__file__)
+    rm_path = os.path.join(file_dir,'recovery_mechanisms.json')
+    with open(rm_path,'r') as f:
+        rm = json.loads(f.read())
+    
+    color=['gray', 'darkred', 'red', 'blue','green']
+    linestyle=['-', '--', ':', '-','-.']
+
+    for i,r in enumerate(rm['recovey_mechanisms']):
+        x = rm['recovey_mechanisms'][r]['rf']
+        y = rm['recovey_mechanisms'][r]['pr']
+
+        rmax.plot(
+            x,
+            y,
+            color=color[i],
+            linestyle=linestyle[i],
+            label = r)
+    rmax.set_title('Recovery Mechanims Plot')
+    rmax.set_ylabel('Normalized Reservior Pressure ')
+    rmax.set_xlabel('Recovery Factor')
+    rmax.set_ylim([0,1.2])
+    rmax.set_xlim([0,0.6])
+    rmax.legend()
+
 
 # Linear form of material balance functions
 
