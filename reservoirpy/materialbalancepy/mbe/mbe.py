@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import json
 import os
 
-def recovery_mechanisms_plot(ax=None):
+def production_mechanisms_plot(ax=None):
     #Create the Axex
     rmax= ax or plt.gca()
     file_dir = os.path.dirname(__file__)
@@ -28,7 +28,8 @@ def recovery_mechanisms_plot(ax=None):
             y,
             color=color[i],
             linestyle=linestyle[i],
-            label = r)
+            label = r
+        )
     rmax.set_title('Recovery Mechanims Plot')
     rmax.set_ylabel('Normalized Reservior Pressure ')
     rmax.set_xlabel('Recovery Factor')

@@ -231,6 +231,7 @@ def grtrack(df: pd.DataFrame,
     #Add Formations tops
     if fm is not None:
         fm_ann = fm_kw.pop('ann',False)
+        fm_ann_fontsize = fm_kw.pop('fontsize',8)
         for i in fm.iterrows():
             if depth_ref == 'tvdss':
                 if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
@@ -240,13 +241,14 @@ def grtrack(df: pd.DataFrame,
                     continue
             grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **fm_kw)
             if fm_ann:
-               grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
-                             xycoords='data',horizontalalignment='right',
-                             bbox={'boxstyle':'round', 'fc':'0.8'})
+                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
+                                xycoords='data',horizontalalignment='right', fontsize=fm_ann_fontsize,
+                                bbox={'boxstyle':'round', 'fc':'0.8'})
 
     #Add units tops
     if units is not None:
         unit_ann = unit_kw.pop('ann',False)
+        unit_ann_fontsize = unit_kw.pop('fontsize',8)
         for i in units.iterrows():
             if depth_ref == 'tvdss':
                 if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
@@ -256,14 +258,15 @@ def grtrack(df: pd.DataFrame,
                     continue
             grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **unit_kw)
             if unit_ann:
-               grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
-                             xycoords='data',horizontalalignment='right',
-                             bbox={'boxstyle':'round', 'fc':'0.8'})
+                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
+                                xycoords='data',horizontalalignment='right', fontsize=unit_ann_fontsize,
+                                bbox={'boxstyle':'round', 'fc':'0.8'})
                           
 
      #Add Interval Perforated
     if perf is not None:
         perf_ann = perf_kw.pop('ann',False)
+        perf_ann_fontsize = perf_kw.pop('fontsize',8)
         for i in perf.iterrows():
             if depth_ref == 'tvdss':
                 if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
@@ -280,7 +283,7 @@ def grtrack(df: pd.DataFrame,
                 except:
                     grax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']}",
                     xy=(0,(i[1][f'{depth_ref}_top']+i[1][f'{depth_ref}_bottom'])/2),xycoords='data',
-                    xytext=(-180, 0), textcoords='offset points',
+                    xytext=(-180, 0), textcoords='offset points', fontsize = perf_ann_fontsize,
                     arrowprops=dict(arrowstyle="->"))
                 else: 
                     pass
