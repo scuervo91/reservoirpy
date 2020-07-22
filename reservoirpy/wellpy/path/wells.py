@@ -600,7 +600,7 @@ class well:
 
         return surv_vtk
 
-    def well_map(self,zoom=10, map_style = 'OpenStreetMap',z_unit='ft', to_crs='EPSG:4326'):
+    def well_map(self,zoom=10, map_style = 'OpenStreetMap',z_unit='ft', to_crs='EPSG:4326', tooltip=False,popup=True):
         """
         Make a Foluim map with the selected well
 
@@ -636,7 +636,8 @@ class well:
         for i, r in _coord.iterrows():
             folium.Marker(
                 [r['lat'],r['lon']],
-                tooltip=f"{i}",
+                tooltip=f"{i}" if tooltip else None,
+                popup = folium.Popup(html=f"{i}",show=True) if popup else None,
                 icon=folium.Icon(icon='tint', color='green')
                 ).add_to(map_folium)
 
@@ -929,7 +930,7 @@ class wells_group:
 
         return dist_matrix
 
-    def wells_map(self, wells:list=None,zoom=10, map_style = 'OpenStreetMap'):
+    def wells_map(self, wells:list=None,zoom=10, map_style = 'OpenStreetMap',tooltip=False,popup=True):
         """
         Make a Foluim map with the selected wells
 
@@ -955,7 +956,8 @@ class wells_group:
         for i, r in _coord.iterrows():
             folium.Marker(
                 [r['lat'],r['lon']],
-                tooltip=f"{i}",
+                tooltip=f"{i}" if tooltip else None,
+                popup = folium.Popup(html=f"{i}",show=True,max_width='50%') if popup else None,
                 icon=folium.Icon(icon='tint', color='green')
                 ).add_to(map_folium)
 
