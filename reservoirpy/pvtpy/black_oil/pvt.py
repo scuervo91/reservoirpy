@@ -26,7 +26,7 @@ class pvt(pd.DataFrame):
             assert self['pressure'].is_monotonic_increasing or self['pressure'].is_monotonic_decreasing, "Pressure must be increasing"
             self.set_index('pressure',inplace=True)
         elif self.index.name == 'pressure':
-            assert self.index.is_monotonic_increasing or self['pressure'].is_monotonic_decreasing, "Pressure must be increasing"
+            assert self.index.is_monotonic_increasing or self.index.is_monotonic_decreasing, "Pressure must be increasing"
     
     ## Methods
 

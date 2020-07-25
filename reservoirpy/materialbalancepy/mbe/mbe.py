@@ -5,6 +5,7 @@ from .kr import kr
 from ...wellproductivitypy.decline import bsw_to_wor
 from .aquifer import pot_aquifer
 import matplotlib.pyplot as plt
+import statsmodels.formula.api as smf
 import json
 import os
 
@@ -51,6 +52,156 @@ def eg(boi,bg,bgi):
 
 def efw(m,boi,cw,swi,cf,dp):
     return (1+m)*boi*((cw*swi+cf)/(1-swi))*dp
+
+class production_history(pd.DataFrame):
+    def __init__(self, *args, **kwargs):
+        
+        #Init the pd.Dataframe
+        super().__init__(*args, **kwargs)
+
+        #Assert cumulative production are in the columns
+        #assert all([i in self.columns for i in ['np','wp','gp']])
+
+        #Make pressure index
+        if 'pressure' in self.columns:
+            self.set_index('pressure',inplace=True)
+        
+        _metadata = ['oil','gas','m', 'pi', 'water']
+
+    def calculate_mbe_parameters(self,**kwargs):
+        #Set the PVTS
+        _oil = kwargs.pop('oil', None)
+        _gas = kwargs.pop('gas', None)
+        _water = kwargs.pop('water', None)
+        _pi = kwargs.pop('pi',None)
+        _m = kwargs.pop('m',0)
+        _sw = kwargs.pop('sw',0)
+        _cf = kwargs.pop('cf',1e-6)
+
+        #Assert type pvt
+        assert all([
+            isinstance(_oil,oil),
+            isinstance(_gas,gas),
+            isinstance(_water,water)
+        ])
+
+        assert isinstance(_pi,(int,float))
+
+        #Make PVT interpolations
+        oil_pvt = _oil.pvt.interpolate(self.index.values)
+        gas_pvt = _gas.pvt.interpolate(self.index.values)
+        water_pvt = _water.pvt.interpolate(self.index.values)
+
+        pvt = pd.concat([oil_pvt,gas_pvt,water_pvt],axis=1,ignore_index=False)
+
+        self[pvt.columns] = pvt
+
+        #Calculate rp
+        self['rp'] = self['gp']*1000/self['np']
+
+        #Calculate MBE parameters
+        self['delta_p'] = _pi - self.index
+
+        oil_initial_conditions = _oil.pvt.interpolate(_pi)
+        gas_initial_conditions = _gas.pvt.interpolate(_pi)
+
+        self['F'] = self.apply(
+            lambda x: f(
+                x['np'],
+                x['bo'],
+                x['rp'],
+                x['rs'],
+                x['bg'],
+                x['wp'],
+                x['bw']
+            ),
+            axis=1
+        )
+        print(oil_initial_conditions['bo'].iloc[0])
+        self['Eo'] = self.apply(
+            lambda x: eo(
+                x['bo'],
+                oil_initial_conditions['bo'].iloc[0],
+                x['rs'],
+                oil_initial_conditions['rs'].iloc[0],
+                x['bg']
+            ), axis=1
+        )
+        self['Eg'] = self.apply(
+            lambda x: eg(
+                oil_initial_conditions['bo'].iloc[0],
+                x['bg'],
+                gas_initial_conditions['bg'].iloc[0],
+            ),axis=1
+        )
+        self['Efw'] = self.apply(
+            lambda x: efw(
+                _m,
+                oil_initial_conditions['bo'].iloc[0],
+                x['cw'],
+                _sw,
+                _cf,
+                x['delta_p']
+            ),axis=1
+        )
+        self['F_div_Eo'] = self['F']/self['Eo']
+        self['Eg_div_Eo'] = self['Eg']/self['Eo']
+        self['mEg'] = _m*self['Eg']
+        self['Eo_mEg_Efw'] = self['Eo'] + self['mEg'] + self['Efw']
+
+        self.oil = _oil
+        self.gas = _gas
+        self.water = _water
+        self.m = _m
+        self.pi = _pi
+    
+    def gas_cap_mn_unknowns_plot(self,ax=None,**kwargs):
+        gax = ax or plt.gca()
+
+        def_kw = {
+        'color': 'black',
+        'marker':'o',
+        's': 100
+        }    
+        for (k,v) in def_kw.items():
+            if k not in kwargs:
+                kwargs[k]=v
+
+        gax.scatter(self['Eg_div_Eo'],self['F_div_Eo'],**kwargs)
+        gax.set_ylabel('F/Eo')
+        gax.set_xlabel('Eg/Eo')
+        gax.set_title('m&n Unkowns')
+
+    def gas_cap_mn_unknowns(self):
+
+        _df = self
+        mod = smf.ols(formula='F_div_Eo ~ Eg_div_Eo', data=_df).fit()
+
+        return mod
+
+    def ho_mbe(self):
+        mod = smf.ols(formula='F ~ Eo_mEg_Efw', data=self).fit()
+        oil_pvti=self.oil.pvt.interpolate(self.pi)
+        gas_pvti=self.gas.pvt.interpolate(self.pi)
+        OOIP = round(mod.params['Eo_mEg_Efw']/1e6,2)
+        OGIP = round((self.m*OOIP*1e6*oil_pvti['bo'].iloc[0]/gas_pvti['bg'].iloc[0])/1e9,2)
+        print(f"Original Oil In Place {OOIP} MMbbl")
+        print(f"Original Gas In Place {OGIP} Bscf")
+
+        res = reservoir(
+            n = OOIP*1e6,
+            g = OGIP*1e9,
+            m = self.m,
+            oil = self.oil,
+            gas = self.gas,
+            water = self.water,
+            pi = self.pi
+        )
+        return res, mod
+
+    @property   
+    def _constructor(self):
+        return production_history
 
 class reservoir:
     def __init__(self,**kwargs):
