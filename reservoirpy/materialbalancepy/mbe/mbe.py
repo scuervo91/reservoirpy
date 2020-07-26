@@ -6,6 +6,7 @@ from ...wellproductivitypy.decline import bsw_to_wor
 from .aquifer import pot_aquifer
 import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
+import statsmodels.api as sm
 import json
 import os
 
@@ -96,6 +97,9 @@ class production_history(pd.DataFrame):
 
         self[pvt.columns] = pvt
 
+        if 'we' not in self.columns:
+            self['we'] = 0
+
         #Calculate rp
         self['rp'] = self['gp']*1000/self['np']
 
@@ -117,7 +121,6 @@ class production_history(pd.DataFrame):
             ),
             axis=1
         )
-        print(oil_initial_conditions['bo'].iloc[0])
         self['Eo'] = self.apply(
             lambda x: eo(
                 x['bo'],
@@ -144,10 +147,17 @@ class production_history(pd.DataFrame):
                 x['delta_p']
             ),axis=1
         )
+
         self['F_div_Eo'] = self['F']/self['Eo']
         self['Eg_div_Eo'] = self['Eg']/self['Eo']
         self['mEg'] = _m*self['Eg']
         self['Eo_mEg_Efw'] = self['Eo'] + self['mEg'] + self['Efw']
+
+        #terms Havlena & Odeh 
+        # #http://www.fekete.com/SAN/WebHelp/FeketeHarmony/Harmony_WebHelp/Content/HTML_Files/Reference_Material/Analysis_Method_Theory/Material_Balance_Theory.htm
+        self['ho_y'] = (self['F'] - self['we']*self['bo'])/(self['Eo'] + oil_initial_conditions['bo'].iloc[0]*self['Efw'])
+        self['ho_x'] = (self['Eg'] + gas_initial_conditions['bg'].iloc[0]*self['Efw'])/(self['Eo'] + oil_initial_conditions['bo'].iloc[0]*self['Efw'])
+
 
         self.oil = _oil
         self.gas = _gas
@@ -199,6 +209,23 @@ class production_history(pd.DataFrame):
         )
         return res, mod
 
+    def ho_mbe_2(self):
+        mod = smf.ols(formula='ho_y ~ ho_x', data=self).fit()
+        OOIP = round(mod.params['Intercept']/1e6,2)
+        OGIP = round(mod.params['ho_x']/1e9,2)
+        print(f"Original Oil In Place {OOIP} MMbbl")
+        print(f"Original Gas In Place {OGIP} Bscf")
+        res = reservoir(
+            n = OOIP*1e6,
+            g = OGIP*1e9,
+            m = self.m,
+            oil = self.oil,
+            gas = self.gas,
+            water = self.water,
+            pi = self.pi
+        )
+        return res, mod
+
     @property   
     def _constructor(self):
         return production_history
@@ -216,6 +243,7 @@ class reservoir:
         self.swi = kwargs.pop('swi',0)
         self.cf = kwargs.pop('cf',0)
         self.kr_wo = kwargs.pop('kr_wo',None)
+        self.kr_go = kwargs.pop('kr_go',None)
         self.k = kwargs.pop('k',0)
         self.phi = kwargs.pop('phi',0)
 
@@ -229,6 +257,16 @@ class reservoir:
     def kr_wo(self,value):
         assert isinstance(value,(kr,type(None)))
         self._kr_wo = value
+
+    # Properties
+    @property
+    def kr_go(self):
+        return self._kr_go
+
+    @kr_go.setter 
+    def kr_go(self,value):
+        assert isinstance(value,(kr,type(None)))
+        self._kr_go = value
 
     @property
     def swi(self):
@@ -347,13 +385,14 @@ class reservoir:
         assert isinstance(value,(water,type(None))), "water must be pvtpy.black_oil.water"
         self._water = value
 
-    def forecast_np(self,pressure, wp=False, winj=0, swi=None, np_max_iter=20,er_np=0.05,start_initial_conditions=True):
+    def forecast_np(self,pressure, wp=False, winj=0, swi=None, np_max_iter=20,
+        er_np=0.05,start_initial_conditions=True,np_guesses=[1e-4,2e-4,3e-4]):
         """
         Make a prediction of Cummulative with a given pressure
         """
         
         # Assert pressure is One dimession
-        assert isinstance(pressure,(int,float,np.ndarray))
+        assert isinstance(pressure,(int,float,list,np.ndarray))
         pressure = np.atleast_1d(pressure)
         assert pressure.ndim==1
         
@@ -391,38 +430,40 @@ class reservoir:
         _wp = np.zeros(pressure.shape)
         _gp = np.zeros(pressure.shape)        
         _wor = np.zeros(pressure.shape)
+        _gor = np.zeros(pressure.shape)
         _bsw = np.zeros(pressure.shape)
 
         for i in range(1,len(oil_int)):
+            #Estimate parameters from PVT table at pressure interest
+            bo_p = oil_int['bo'].iloc[i]
+            bo_p_minus_1 = oil_int['bo'].iloc[i-1]
+            bw_p = water_int['bw'].iloc[i]
+            rs_p = oil_int['rs'].iloc[i]
+            rs_p_minus_1 = oil_int['rs'].iloc[i-1]
+            bg_p = gas_int['bg'].iloc[i]
+            mug_p = gas_int['mug'].iloc[i]
+            bg_p_minus_1 = gas_int['bg'].iloc[i-1]
+            cw_p = water_int['cw'].iloc[i]
+            dp = oil_int.index[i]-oil_int.index[i-1]
+            muo_p = oil_int['muo'].iloc[i]
+            muw_p = water_int['muw'].iloc[i]
+
+            #Estimate Linear Form MBE material balance Parameters
+            _eo = eo(bo_p,bo_p_minus_1,rs_p,rs_p_minus_1,bg_p)
+            _eg = eg(bo_p,bg_p,bg_p_minus_1)
+            _efw = efw(self.m,bo_p_minus_1,cw_p,_sw[i],self.cf,dp)
+
+            #If aquifer model exist call the method we with parameter dp
+            we = 0 if self.aquifer is None else self.aquifer.we(dp)
+
             if oil_int.index[i] >= self.oil.pb:
-
-                #Estimate parameters from PVT table at pressure interest
-                bo_p = oil_int['bo'].iloc[i]
-                bo_p_minus_1 = oil_int['bo'].iloc[i-1]
-                bw_p = water_int['bw'].iloc[i]
-                rs_p = oil_int['rs'].iloc[i]
-                rs_p_minus_1 = oil_int['rs'].iloc[i-1]
-                bg_p = gas_int['bg'].iloc[i]
-                bg_p_minus_1 = gas_int['bg'].iloc[i-1]
-                cw_p = water_int['cw'].iloc[i]
-                dp = oil_int.index[i]-oil_int.index[i-1]
-                muo_p = oil_int['muo'].iloc[i]
-                muw_p = water_int['muw'].iloc[i]
-
-                #Estimate Linear Form MBE material balance Parameters
-                _eo = eo(bo_p,bo_p_minus_1,rs_p,rs_p_minus_1,bg_p)
-                _eg = eg(bo_p,bg_p,bg_p_minus_1)
-                _efw = efw(self.m,bo_p_minus_1,cw_p,_sw[i],self.cf,dp)
-
-                #If aquifer model exist call the method we with parameter dp
-                we = 0 if self.aquifer is None else self.aquifer.we(dp)
 
                 # Numerator part of the MBE.  F = N[Eo + m*Eg + Efw] + We + Winj*Bw + Ginj*Binj
                 num = (_eo + self.m*_eg + _efw) + we + water_int['winj'].iloc[i]*bw_p
 
                 #If WOR is used 
                 if _use_wor:
-                    kr_int = self.kr_wo.interpolate(_sw[i-1]).iloc[0]
+                    kr_int = self.kr_wo.interpolate(_sw[i-1])['krw'].iloc[0]
                     _kro = kr_int['kro']
                     _krw = kr_int['krw']
                     _bsw[i] = 1/(1+((_kro*muw_p)/(_krw*muo_p)))
@@ -444,16 +485,77 @@ class reservoir:
                         np_it+=1
                     _np[i] = np_guess[np_it]
                     _wp[i] = wp
-                    print(np_it)
                 else:
                     _np[i] = num / bo_p
-
+                
+                #Estimate Gp
                 _gp[i] = _np[i] * rs_p
+                _gor[i] = _gp[i]/_np[i]
 
+                #Estimate Saturations
                 _so[i] = (1-_sw[0])*(1-_np.sum())*(bo_p/oil_int['bo'].iloc[0])
                 _sw[i] = 1 - _so[i]
 
-            _df = pd.DataFrame({'np':_np.cumsum()*self.n,'gp':_gp.cumsum()*self.n,'wp':_wp.cumsum()*self.n,'wor':_wor,'bsw':_bsw,'sw':_sw,'so':_so,'sg':_sg}, index=pressure)
+            else:
+                lg = len(np_guesses) # Length of np_guesses
+                gp_guess1 = np.zeros(lg)
+                gp_guess2 = np.zeros(lg)
+
+                for j in range(lg):
+
+                    # Tarners Method for Pressure below Bubble Point
+                    # Reservoir Engineering Handbook Tarek Ahmed 4 Ed. pg 843
+                    gp_guess1[j] = (((_eo + self.m*_eg + _efw) + we + water_int['winj'].iloc[i]*bw_p - (_np.sum()+np_guesses[j])*bo_p)/bg_p) + (_np.sum() + np_guesses[j])*rs_p
+                    
+                    #Estimate Saturations
+                    _so_guess = (1-_sw[0])*(1-_np.sum()+np_guesses[j])*(bo_p/oil_int['bo'].iloc[0])
+                    
+                    #Relative Permeability Ratio Krg/kro
+                    kr_ratio = self.kr_go.interpolate(_so_guess)['krg_kro'].iloc[0]
+
+                    #Instantaneus GOR
+                    gor_guess = rs_p + kr_ratio*((muo_p*bo_p)/(mug_p*bg_p))
+
+                    #Estimate Gp
+                    gp_guess2[j] = _gp[i-1] + np.mean(_gor[i-1]+gor_guess)*(np_guesses[j])
+                
+                
+                # Fit 2 lines to a linear equation to solve
+                X_reg = sm.add_constant(np.array(_np.sum() + np_guesses))
+                mod1 = sm.OLS(gp_guess1,X_reg).fit()
+                mod2 = sm.OLS(gp_guess2,X_reg).fit()
+
+                mod1_params = mod1.params
+                mod2_params = mod2.params
+                
+                #Build system lilear equations
+                params_stack = np.stack([mod1_params,mod2_params], axis=0)
+                _a = np.stack([params_stack[:,1]*-1,np.ones(2)], axis=1)
+                _b = params_stack[:,0]
+
+                solve_np_gp = np.linalg.solve(_a,_b)
+
+                _np[i] = solve_np_gp[0] - _np[i-1]
+                _gp[i] = solve_np_gp[1] - _gp[i-1]
+                _so[i] = (1-_sw[0])*(1-_np.sum())*(bo_p/oil_int['bo'].iloc[0])
+                _sg[i] = 1 - _so[i] - _sw[i-1]
+                _sw[i] = _sw[i-1]
+                krg_kro = self.kr_go.interpolate(_so[i])['krg_kro'].iloc[0]
+                _gor[i] = rs_p + krg_kro*((muo_p*bo_p)/(mug_p*bg_p))
+
+            _df = pd.DataFrame(
+                {
+                    'np':_np.cumsum()*self.n,
+                    'gp':_gp.cumsum()*self.n,
+                    'wp':_wp.cumsum()*self.n,
+                    'wor':_wor,
+                    'gor':_gor,
+                    'bsw':_bsw,
+                    'sw':_sw,
+                    'so':_so,
+                    'sg':_sg}, 
+                    index=pressure
+            )
         return _df
 
 

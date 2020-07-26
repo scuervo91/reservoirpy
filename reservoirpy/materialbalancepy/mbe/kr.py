@@ -5,22 +5,24 @@ from scipy.interpolate import interp1d
 class kr(pd.DataFrame):
     
     def __init__(self, *args, **kwargs):
-        sw = kwargs.pop("sw", None)
-        assert isinstance(sw,(list,np.ndarray,type(None)))
+        wet_col = kwargs.pop("index", 'sw')
+        wet = kwargs.pop('wet',None)
+        assert wet_col in ['sw','so']
+        assert isinstance(wet,(list,np.ndarray,type(None)))
         super().__init__(*args, **kwargs)
                 
         # The sw must be present in the pvt class
 
-        if sw is not None:
-            sw = np.atleast_1d(sw)
-            self['sw'] = sw
-            assert self['sw'].is_monotonic_increasing , "sw must be increasing"
-            self.set_index('sw',inplace=True)
-        elif 'sw' in self.columns:
-            assert self['sw'].is_monotonic_increasing , "sw must be increasing"
-            self.set_index('sw',inplace=True)
-        elif self.index.name == 'sw':
-            assert self.index.is_monotonic_increasing, "sw must be increasing"
+        if wet is not None:
+            wet = np.atleast_1d(wet)
+            self[wet_col] = wet
+            assert self[wet_col].is_monotonic_increasing or self[wet_col].is_monotonic_decreasing , "Wet phase must be increasing or decreasing"
+            self.set_index(wet,inplace=True)
+        elif wet_col in self.columns:
+            assert self[wet_col].is_monotonic_increasing or self[wet_col].is_monotonic_decreasing , "Wet phase must be increasing or decreasing"
+            self.set_index(wet_col,inplace=True)
+        elif self.index.name == wet_col:
+            assert self.index.is_monotonic_increasing or self[wet_col].is_monotonic_decreasing, "Wet phase must be increasing or decreasing"
     
     ## Methods
 
@@ -43,11 +45,11 @@ class kr(pd.DataFrame):
 
         for i in properties:
             if i in self.columns:
-                _interpolated = interp1d(self.index,self[i])(p)
+                _interpolated = interp1d(self.index,self[i], bounds_error=False,fill_value='extrapolate')(p)
                 int_dict[i] = _interpolated
 
         int_df = pd.DataFrame(int_dict, index=p)
-        int_df.index.name = 'sw'
+        int_df.index.name = 'saturation'
         return int_df 
          
     @property   
