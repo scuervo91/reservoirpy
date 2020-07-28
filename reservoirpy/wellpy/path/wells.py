@@ -23,7 +23,8 @@ class perforations(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):
         prod_ind = kwargs.pop("pi", None)
-        is_open = kwargs.pop('is_open',None)                                                                                                                                 
+        is_open = kwargs.pop('is_open',None)  
+        fluid = kwargs.pop('fluid',None)                                                                                                                               
         super(perforations, self).__init__(*args, **kwargs)
 
         if prod_ind is not None:
@@ -39,6 +40,14 @@ class perforations(gpd.GeoDataFrame):
             self['is_open'] = is_open
         elif 'is_open' in self.columns:
             assert all(isinstance(i,bool) for i in self['is_open'].tolist())
+
+        if fluid is not None:
+            assert isinstance(fluid,list)
+            assert all(i in ['oil','gas','water'] for i in fluid)
+            self['fluid'] = fluid
+        elif 'fluid' in self.columns:
+            assert all(isinstance(i,bool) for i in self['is_open'].tolist())
+            assert all(i in ['oil','gas','water'] for i in self['fluid'].tolist())
 
 
     def open_perf(self):
@@ -160,6 +169,7 @@ class well:
         self.td = kwargs.pop('td',None)  # First set td before survey
         self.survey = kwargs.pop('survey', None)
         self.declination = kwargs.pop('declination',None)
+        self.pi = kwargs.pop('pi',None)
 
 
 #####################################################
@@ -324,6 +334,18 @@ class well:
     def declination(self,value):
         assert isinstance(value, (declination,type(None))), "must be declination type"
         self._declination = value
+
+    @property
+    def pi(self):
+        return self._pi 
+
+    @pi.setter 
+    def pi(self,value):
+        assert isinstance(value,(type(None),dict)), "Pi must be a dictionary indexed by formation (Key)"
+        if isinstance(value,dict):
+            assert all(isinstance(value[i],(int,float)) for i in value)
+        self._pi = value    
+
 
 #####################################################
 ############## methods ###########################
@@ -653,6 +675,37 @@ class well:
         f,n = self.declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
 
         return f, n
+
+    def get_pi_from_perforations(self,is_open=False, inplace=True):
+        """
+        Estimate the Productivity Index by formation with the self.perforations attribute.
+        The self.perforations attribute must have a column 'pi' with the Productivity Index for 
+        the interval. If the column 'is_open' is present and the keyword 'is_open' is true the 
+        productivity Index is calculated for the Open Formations.
+        Productivity index is grouped by formation and sum.
+        If the column 'formation' is not present a single item dictionary is calculated
+        Input:
+            is_open -> (bool, False).
+        Return:
+            pi -> (dict) Dictionary with the productivity index by formation
+        """
+        assert self.perforations is not None, 'To estimate Pi from Perf, perf must be defined'
+        _perf = self.perforations
+        _keys = ['formation','pi','fluid']
+        assert all(i in _perf.columns for i in _keys)
+
+        # If is_open only take the open.reset_index().set_index('fm')d intervals
+        if is_open and 'is_open' in _perf.columns:
+            _perf = _perf[_perf['is_open']==True]
+
+        #Group by and sum aggregate
+        _pi_df = _perf.groupby(['fluid','formation']).agg({'pi':'sum'}).to_dict()['pi']
+        _pi_dict = _pi_df.reset_index().set_index('formation').to_dict(orient='index')
+
+        if inplace:
+            self._pi = _pi_dict
+
+        return _pi_dict
 
             
 class wells_group:
@@ -1251,8 +1304,7 @@ class wells_group:
                 df_dict[i] = _df
             except:
                 df_dict[i] = None
-        
-
+     
         #List of wells
         wells_list = df_dict['well_heads']['well'].tolist()
 
@@ -1261,14 +1313,13 @@ class wells_group:
 
             #Perforations
             _p = df_dict['well_perforations']
-
             try:
                 _perf = perforations(_p.loc[_p['well']==i,['md_top','md_bottom','formation']])
                 if _perf.empty:
                     _perf = None
             except:
                 _perf = None 
-
+            
             #Tops
             _t = df_dict['well_formations_tops']
 
