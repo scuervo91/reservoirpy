@@ -6,6 +6,7 @@ import numpy as np
 def phietrack(df: pd.DataFrame,
               phi: list =None, 
              lims: list = None,
+             phi_range :list = [0,0.35],
              dtick: bool =False, 
              ax=None,
              fontsize=8,
@@ -62,10 +63,10 @@ def phietrack(df: pd.DataFrame,
         mayor_grid = np.arange(lims[0],lims[1],steps[0])
         minor_grid = np.arange(lims[0],lims[1],steps[1])
     
-    pax.set_xlim([0,0.35])
+    pax.set_xlim(phi_range)
     pax.set_xlabel("phie")
-    pax.set_xticks(np.linspace(0,0.4,4))
-    pax.set_xticklabels(np.round(np.linspace(0,0.4,4),decimals=2))
+    pax.set_xticks(np.linspace(phi_range[0],phi_range[1],4))
+    pax.set_xticklabels(np.round(np.linspace(phi_range[0],phi_range[1],4),decimals=2))
     pax.xaxis.tick_top()
     pax.xaxis.set_label_position("top")
     pax.tick_params("both",labelsize=fontsize)
