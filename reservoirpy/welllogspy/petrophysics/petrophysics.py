@@ -1,7 +1,7 @@
 import numpy as np 
 import pandas as pd 
 from scipy.interpolate import interp1d
-from .petroequations import vshale_gr, vshale_dn, phi_rho, phie, sw, perm, flow_capacity, phia
+from .petroequations import vshale_gr, vshale_dn, phi_rho, phie, sw, perm, flow_capacity, phia, sw_pnn
 
 
 def petrophysics(logs,dfrom,dto,
@@ -13,9 +13,33 @@ def petrophysics(logs,dfrom,dto,
                 perm_kw=None,      #[phiecolumn,swcolum,autor,fluid,[ListMethod],[listNames]]
                 flag_kw=None,   #[phicolumn,phicut,vshcol,vshcut,swcol,swcut,kcol,kcut,paycol]
                 kh_kw=None,       #[h,kcol,paycol,khcol]
-                return_partial = False):
+                sw_pnn_kw = None, 
+                return_partial = False
+                ):
     logf=logs[(logs.index >= dfrom) & (logs.index<=dto)].copy()
     new_cols = []
+
+    if sw_pnn_kw is not None:
+        #name for the new columns
+        sw_col = sw_pnn_kw.pop('sw_col_name','sw_pnn')
+
+        #Name for input columns
+        phie_name = sw_pnn_kw.pop('phie_name','phie')
+        vsh_name = sw_pnn_kw.pop('vsh_name','vsh')
+        sigma_name = sw_pnn_kw.pop('sigma_name','sigma')
+        sighy = sw_pnn_kw.pop('sighy',20)
+        sigsh = sw_pnn_kw.pop('sigsh',35)
+        sigmam = sw_pnn_kw.pop('sigmam',None)
+        if isinstance(sigmam,str):
+            _sigmam = logf[sigmam]
+        elif isinstance(sigmam,(int,float,type(None))):
+            _sigmam = sigmam
+        sigw = sw_pnn_kw.pop('sigw',None)
+
+        ws = sw_pnn_kw.pop('ws',None)
+
+        logf[sw_col] = sw_pnn(logf[phie_name],logf[vsh_name], logf[sigma_name],sighy,sigsh,sigw=sigw, sigmam = _sigmam,ws=ws)
+        new_cols.append(sw_col)
     if vshale_gr_kw is not None:
         #name for the new columns
         vsh_col_name = vshale_gr_kw.pop('vsh_col_name','vsh_gr')
@@ -85,7 +109,7 @@ def petrophysics(logs,dfrom,dto,
         
         for i,method in enumerate(methods):
             logf['sw_' + sw_cols_name[i]] = sw(logf[rt_col_name],logf[phi_col_name],rw,method=method, **sw_kw)
-            new_cols.append(sw_cols_name[i])
+            new_cols.append(f'sw_{sw_cols_name[i]}')
 
     if perm_kw is not None:
         #Name for input columns

@@ -227,4 +227,35 @@ def flow_capacity(height,perm_curve,pay_curve):
     khnorm=1-(khcum/kht)
     return kh, khnorm
 
+def sw_pnn(phie,vsh, sigma,sighy,sigsh,ws=None,sigw=None,sigmam=None):
+    """
+    https://www.spec2000.net/14-swtdt.htm
+    PHIe = effective porosity (fractional)
+    SIGMA = TDT capture cross section log reading (capture units)
+    SIGMAM = capture cross section matrix value (capture units)
+    SIGW = capture cross section for water (capture units)
+    SIGHY = capture cross section for hydrocarbons (capture units)
+    SIGSH = capture cross section for shale (capture units)
+    SWtdt = water saturation from TDT (fractional)
+    Vsh = shale volume (fractional)
+    WS = water salinity (ppm NaCl)
+    """
+    phie=np.atleast_1d(phie)
+    vsh=np.atleast_1d(vsh)
+    sigma=np.atleast_1d(sigma)
+    sighy=np.atleast_1d(sighy)
+    sigsh=np.atleast_1d(sigsh)
 
+    if sigw is None:
+        sigw = 22 + 0.000404*ws 
+    if sigmam is None:
+        sigmam = (sigma - phie*sigw)/(1-phie)
+
+    _a = sigma - sigmam 
+    _b = phie*(sighy - sigmam)
+    _c = vsh*(sigsh - sigmam)
+    _d = phie*(sigw - sighy)
+    sw = (_a - _b - _c)/(_d)
+    sw[phie<=0] = 1.0
+
+    return sw
