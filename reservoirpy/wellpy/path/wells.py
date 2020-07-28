@@ -707,7 +707,26 @@ class well:
 
         return _pi_dict
 
-            
+    def add_perforations(self,value, to_tvd=True, to_coord=True):
+        """
+        Add perforations to the existing ones
+        """
+        assert isinstance(value,perforations)
+
+        if self.perforations is None:
+            self._perforations = value
+        else:
+            _df = self.perforations.copy()
+            _df = _df.append(value)
+            self._perforations = _df
+        
+        if to_tvd:
+            self.to_tvd(which=['perforations'])
+            self.to_tvd(which=['perforations'],ss=True)
+
+        if to_coord:
+            self.to_coord(which=['perforations'])
+
 class wells_group:
     def __init__(self,*args):
         _well_list = []
