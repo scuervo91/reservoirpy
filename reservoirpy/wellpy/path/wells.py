@@ -22,17 +22,17 @@ from sqlalchemy import create_engine
 class perforations(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):
-        prod_ind = kwargs.pop("pi", None)
+        kh = kwargs.pop("kh", None)
         is_open = kwargs.pop('is_open',None)  
         fluid = kwargs.pop('fluid',None)                                                                                                                               
         super(perforations, self).__init__(*args, **kwargs)
 
-        if prod_ind is not None:
-            assert isinstance(pi,list) 
+        if kh is not None:
+            assert isinstance(kh,list) 
             assert all(isinstance(i,(int,float)) for i in prod_ind)
-            self['pi'] = prod_ind
-        elif 'pi' in self.columns:
-            assert all(isinstance(i,(int,float)) for i in self['pi'].tolist())
+            self['kh'] = prod_ind
+        elif 'kh' in self.columns:
+            assert all(isinstance(i,(int,float)) for i in self['kh'].tolist())
 
         if is_open is not None:
             assert isinstance(is_open,list)
@@ -169,7 +169,7 @@ class well:
         self.td = kwargs.pop('td',None)  # First set td before survey
         self.survey = kwargs.pop('survey', None)
         self.declination = kwargs.pop('declination',None)
-        self.pi = kwargs.pop('pi',None)
+        self.kh = kwargs.pop('kh',None)
 
 
 #####################################################
@@ -336,15 +336,15 @@ class well:
         self._declination = value
 
     @property
-    def pi(self):
-        return self._pi 
+    def kh(self):
+        return self._kh 
 
-    @pi.setter 
-    def pi(self,value):
-        assert isinstance(value,(type(None),dict)), "Pi must be a dictionary indexed by formation (Key)"
+    @kh.setter 
+    def kh(self,value):
+        assert isinstance(value,(type(None),dict)), "kh must be a dictionary indexed by formation (Key)"
         if isinstance(value,dict):
             assert all(isinstance(value[i],(int,float)) for i in value)
-        self._pi = value    
+        self._kh = value    
 
 
 #####################################################
@@ -670,16 +670,16 @@ class well:
 
         return map_folium
 
-    def declination_forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None, npi=0, **kwargs):
+    def declination_forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None, nkh=0, **kwargs):
         
         f,n = self.declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
 
         return f, n
 
-    def get_pi_from_perforations(self,is_open=False, inplace=True):
+    def get_kh_from_perforations(self,is_open=False, inplace=True):
         """
         Estimate the Productivity Index by formation with the self.perforations attribute.
-        The self.perforations attribute must have a column 'pi' with the Productivity Index for 
+        The self.perforations attribute must have a column 'kh' with the Productivity Index for 
         the interval. If the column 'is_open' is present and the keyword 'is_open' is true the 
         productivity Index is calculated for the Open Formations.
         Productivity index is grouped by formation and sum.
@@ -687,11 +687,11 @@ class well:
         Input:
             is_open -> (bool, False).
         Return:
-            pi -> (dict) Dictionary with the productivity index by formation
+            kh -> (dict) Dictionary with the productivity index by formation
         """
-        assert self.perforations is not None, 'To estimate Pi from Perf, perf must be defined'
+        assert self.perforations is not None, 'To estimate kh from Perf, perf must be defined'
         _perf = self.perforations
-        _keys = ['formation','pi','fluid']
+        _keys = ['formation','kh','fluid']
         assert all(i in _perf.columns for i in _keys)
 
         # If is_open only take the open.reset_index().set_index('fm')d intervals
@@ -699,13 +699,13 @@ class well:
             _perf = _perf[_perf['is_open']==True]
 
         #Group by and sum aggregate
-        _pi_df = _perf.groupby(['fluid','formation']).agg({'pi':'sum'}).to_dict()['pi']
-        _pi_dict = _pi_df.reset_index().set_index('formation').to_dict(orient='index')
+        _kh_df_gr = _perf.groupby(['formation','fluid']).agg({'kh':'sum'})
+        _kh_dict = _kh_df_gr.groupby(level=0).apply(lambda x: x.reset_index().set_index('fluid')[['kh']].to_dict(orient='index')).to_dict()
 
         if inplace:
-            self._pi = _pi_dict
+            self._kh = _kh_dict
 
-        return _pi_dict
+        return _kh_dict
 
     def add_perforations(self,value, to_tvd=True, to_coord=True):
         """
