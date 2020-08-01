@@ -215,7 +215,7 @@ class production_history(pd.DataFrame):
         OGIP = round(mod.params['ho_x']/1e9,2)
         print(f"Original Oil In Place {OOIP} MMbbl")
         print(f"Original Gas In Place {OGIP} Bscf")
-        res = reservoir(
+        res = reservoir(    
             n = OOIP*1e6,
             g = OGIP*1e9,
             m = self.m,
