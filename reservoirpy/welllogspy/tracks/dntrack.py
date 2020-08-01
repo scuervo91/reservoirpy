@@ -171,7 +171,7 @@ def dntrack(df: pd.DataFrame,
     #Convert the Neutron values to Density Values in order to fill the cross Density-Neutron
     #When the track is callibrated for sandstone use m=-1.666667 and b=2.65
     #When the track is callibrated for limestone use m=-1.8 and b=2.71
-    if (ntr is not None) & (ntr is not None):
+    if (ntr is not None) & (rho is not None):
         NtrTorho=df[ntr]*m+b
         ntrrho=NtrTorho.values.ravel()
 
