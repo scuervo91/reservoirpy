@@ -7,6 +7,7 @@ def fmtrack(df,
             depth_ref:str = 'md',
             area_kw:dict = {},
             line_kw:dict = {},
+            fm_colormap: str='winter',
             ax=None
             ):
     
