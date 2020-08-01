@@ -23,16 +23,24 @@ class perforations(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs):
         kh = kwargs.pop("kh", None)
+        productivity_index = kwargs.pop("productivity_index", None)
         is_open = kwargs.pop('is_open',None)  
         fluid = kwargs.pop('fluid',None)                                                                                                                               
         super(perforations, self).__init__(*args, **kwargs)
 
         if kh is not None:
             assert isinstance(kh,list) 
-            assert all(isinstance(i,(int,float)) for i in prod_ind)
-            self['kh'] = prod_ind
+            assert all(isinstance(i,(int,float)) for i in kh)
+            self['kh'] = kh
         elif 'kh' in self.columns:
             assert all(isinstance(i,(int,float)) for i in self['kh'].tolist())
+
+        if productivity_index is not None:
+            assert isinstance(productivity_index,list) 
+            assert all(isinstance(i,(int,float)) for i in productivity_index)
+            self['productivity_index'] = productivity_index
+        elif 'productivity_index' in self.columns:
+            assert all(isinstance(i,(int,float)) for i in self['productivity_index'].tolist())
 
         if is_open is not None:
             assert isinstance(is_open,list)
@@ -170,6 +178,7 @@ class well:
         self.survey = kwargs.pop('survey', None)
         self.declination = kwargs.pop('declination',None)
         self.kh = kwargs.pop('kh',None)
+        self.productivity_index = kwargs.pop('productivity_index',None)
 
 
 #####################################################
@@ -706,6 +715,37 @@ class well:
             self._kh = _kh_dict
 
         return _kh_dict
+
+    def get_productivity_index_from_perforations(self,is_open=False, inplace=True):
+        """
+        Estimate the Productivity Index by formation with the self.perforations attribute.
+        The self.perforations attribute must have a column 'productivity_index' with the Productivity Index for 
+        the interval. If the column 'is_open' is present and the keyword 'is_open' is true the 
+        productivity Index is calculated for the Open Formations.
+        Productivity index is grouped by formation and sum.
+        If the column 'formation' is not present a single item dictionary is calculated
+        Input:
+            is_open -> (bool, False).
+        Return:
+            productivity_index -> (dict) Dictionary with the productivity index by formation
+        """
+        assert self.perforations is not None, 'To estimate productivity_index from Perf, perf must be defined'
+        _perf = self.perforations
+        _keys = ['formation','productivity_index','fluid']
+        assert all(i in _perf.columns for i in _keys)
+
+        # If is_open only take the open.reset_index().set_index('fm')d intervals
+        if is_open and 'is_open' in _perf.columns:
+            _perf = _perf[_perf['is_open']==True]
+
+        #Group by and sum aggregate
+        _productivity_index_df_gr = _perf.groupby(['formation','fluid']).agg({'productivity_index':'sum'})
+        _productivity_index_dict = _productivity_index_df_gr.groupby(level=0).apply(lambda x: x.reset_index().set_index('fluid')[['productivity_index']].to_dict(orient='index')).to_dict()
+
+        if inplace:
+            self._productivity_index = _productivity_index_dict
+
+        return _productivity_index_dict
 
     def add_perforations(self,value, to_tvd=True, to_coord=True):
         """
