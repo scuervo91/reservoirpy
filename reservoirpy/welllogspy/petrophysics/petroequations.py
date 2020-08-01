@@ -95,10 +95,16 @@ def sw(rt_curve,phi_curve,rw,vsh_curve=None,a=0.62,m=2.15,n=2,rsh=4.0,alpha=0.3,
         E=C/rt
         sw_curve=np.power(np.sqrt(D**2 + E) - D, 2/n)
     elif method == "indo":
-        A=np.sqrt(1 /rt)
-        B=(np.power(vsh,(1 -(vsh/2)))/np.sqrt(rsh))
-        C=np.sqrt(np.power(phi,m)/(a*rw))
-        sw_curve=np.power((A/(B+C)),2/n)
+        #https://geoloil.com/Indonesia_SW.php
+        #A=np.sqrt(1 /rt)
+        #B=(np.power(vsh,(1 -(vsh/2)))/np.sqrt(rsh))
+        #C=np.sqrt(np.power(phi,m)/(a*rw))
+        #sw_curve=np.power((A/(B+C)),2/n)
+
+        #http://nafta.wiki/display/GLOSSARY/Indonesia+Model+%28Poupon-Leveaux%29+@model
+        A_inv = 1 + np.sqrt((np.power(vsh,2-vsh)*rw)/(phi*rsh))
+        A = 1/A_inv
+        sw_curve = np.power((A*rw)/(np.power(phi,m)*rt),1/n)
     elif method == "fertl":
         A=np.power(phi,-m/2)
         B=(a*rw)/rt
@@ -259,3 +265,47 @@ def sw_pnn(phie,vsh, sigma,sighy,sigsh,ws=None,sigw=None,sigmam=None):
     sw[phie<=0] = 1.0
 
     return sw
+
+def rw_from_sp(rmf=None, rmf_temp=75, res_temp=None, ssp=None,temp_unit='f', rw_75=False):
+    """
+    Estimate water resistivity from SP log
+    """
+
+    #https://www.spec2000.net/05-7rwsp.htm
+    # 1) Convert from Celcius to Farenheit
+    if temp_unit=='c':
+        rmf_temp = 1.8*rmf_temp + 32.0
+        res_temp = 1.8*res_temp + 32.0
+
+    # Convert rmf @ rmf_temp to res_temp
+    rmf_res = rw_temp_convert(rmf,rmf_temp,res_temp, temp_unit='f')
+
+    #Estimate Mud filtrate equivalent resistivity
+    if rmf_res > 0.1:
+        rmfe = rmf_res*0.85
+    else:
+        rmfe = (146*rmf_res-5)/(337*rmf_res + 77)
+    #Ksp
+    ksp = 60 +0.122*res_temp
+
+    #RSP
+    rsp = np.power(10,-ssp/ksp)
+    # Rwe. Equivalent Water Resistivity
+    rwe = rmfe / rsp
+
+    # Estimate Water resistivity from Equivalent water resistivity
+    if rwe > 0.12:
+        rw = np.power(10,0.69*rwe-0.24) - 0.58
+    else:
+        rw = (77*rwe + 5)/(146 - 337*rwe)
+
+    if rw_75:
+        rw = rw_temp_convert(rw,res_temp,75, temp_unit='f')
+
+    return rw
+
+
+
+    
+
+
