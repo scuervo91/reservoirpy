@@ -8,6 +8,7 @@ def grtrack(df: pd.DataFrame,
                 sp: (str,list) = None,
                 lims: list = None,
                 gr_max: int = 200,
+                sp_lim:list = None,
                 fm: pd.DataFrame = None,
                 units: pd.DataFrame = None,
                 perf: pd.DataFrame = None,
@@ -192,8 +193,15 @@ def grtrack(df: pd.DataFrame,
         spax.xaxis.set_label_position("bottom")
         spax.xaxis.tick_bottom()
         spax.set_xlabel('Sp')
-        spax.set_xticks(np.linspace(df[sp][df[sp]>-999.25].min(),df[sp][df[sp]>-999.25].max(),4))
-        spax.set_xlim([df[sp][df[sp]>-999.25].min(),df[sp][df[sp]>-999.25].max()])
+       
+        if sp_lim is None:
+            spax.set_xlim([df[sp][df[sp]>-999.25].min(),df[sp][df[sp]>-999.25].max()])
+            spax.set_xticks(np.linspace(df[sp][df[sp]>-999.25].min(),df[sp][df[sp]>-999.25].max(),4))
+ 
+        else:
+            spax.set_xlim(sp_lim)
+            spax.set_xticks(np.linspace(sp_lim[0],sp_lim[1],5))
+ 
         
 
         
