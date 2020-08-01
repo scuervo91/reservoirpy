@@ -5,7 +5,7 @@ import numpy as np
 
 
 def caltrack(df: pd.DataFrame,
-             cal: (list,str) = None, 
+             cali: (list,str) = None, 
              bit: (list,str) = None, 
              lims: (list,str) =None,
             dtick:bool=False,
@@ -71,10 +71,10 @@ def caltrack(df: pd.DataFrame,
     
     depth = df.index if depth_ref=='md' else df[depth_ref] 
 
-    if cal is not None:
-        if isinstance(cal,str):
-            cal.plot(df[cal],depth,**cal_kw)   #Plotting
-        elif isinstance(cal,list):
+    if cali is not None:
+        if isinstance(cali,str):
+            cal.plot(df[cali],depth,**cal_kw)   #Plotting
+        elif isinstance(cali,list):
             cmap = mpl.cm.get_cmap(cal_colormap,len(cal))
             for i,c in enumerate(cal):
                 cal_kw['color']=cmap(i)
@@ -99,8 +99,8 @@ def caltrack(df: pd.DataFrame,
         cal.set_yticklabels([])
         
     if fill==True:
-        cal.fill_betweenx(df.index,df[cal],bit,where=(cal > bit),color="orange")
-        cal.fill_betweenx(df.index,df[cal],bit,where=(cal > bit),color="gray")
+        cal.fill_betweenx(depth,df[cali],df[bit],where=(cali > bit),color="orange")
+        cal.fill_betweenx(depth,df[cali],df[bit],where=(cali < bit),color="gray")
         
     #Add Correlation Line
     if correlation is not None:
