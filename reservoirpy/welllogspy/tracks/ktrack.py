@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 def ktrack(df: pd.DataFrame, 
-             k: list = None, 
+             perm: list = None, 
              lims: list = None,
              dtick: bool =False, 
              ax=None,
@@ -14,13 +14,13 @@ def ktrack(df: pd.DataFrame,
              grid_numbers : list = [11,51],
              steps: list  = None,
              legend:bool = True,
-             colormap: str='gist_rainbow',
+             colormap: str='summer',
              corr_kw={},
              k_kw=[],
              depth_ref:str='md'):
 
     #get number of curves to build the colormap
-    n_curves = len(k)
+    n_curves = len(perm)
     cmap = mpl.cm.get_cmap(colormap,n_curves)
     
     kax=ax or plt.gca()
@@ -40,15 +40,15 @@ def ktrack(df: pd.DataFrame,
     
     depth = df.index if depth_ref=='md' else df[depth_ref]
     #Plot main Lines
-    if k is not None:
-        for i,perm in enumerate(k):
+    if perm is not None:
+        for i,pe in enumerate(perm):
             if len(k_kw)<i+1:
                 k_kw.append(defkwa)
             k_kw[i]['color']=cmap(i)
             for (key,v) in defkwa.items():
                 if key not in k_kw[i]:
                     k_kw[i][key]=v
-            kax.plot(df[perm],depth,label=perm,**k_kw[i])
+            kax.plot(df[pe],depth,label=pe,**k_kw[i])
     
     if lims==None: #Depth Limits
         lims=[depth.min(),depth.max()]
