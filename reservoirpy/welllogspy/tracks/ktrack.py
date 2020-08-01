@@ -14,7 +14,7 @@ def ktrack(df: pd.DataFrame,
              grid_numbers : list = [11,51],
              steps: list  = None,
              legend:bool = True,
-             colormap: str='summer',
+             colormap: str='Reds',
              corr_kw={},
              k_kw=[],
              depth_ref:str='md'):
