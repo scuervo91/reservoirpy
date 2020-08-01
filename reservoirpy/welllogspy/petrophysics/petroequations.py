@@ -304,6 +304,22 @@ def rw_from_sp(rmf=None, rmf_temp=75, res_temp=None, ssp=None,temp_unit='f', rw_
 
     return rw
 
+def salinity_from_rw(rw=None, temp=75,temp_unit='f'):
+
+    if temp_unit=='c':
+        temp = 1.8*temp + 32.0
+
+    # Convert rmf @ rmf_temp to res_temp
+    if temp != 75:
+        rw_75 = rw_temp_convert(rw,temp,75, temp_unit='f')
+    else:
+        rw_75 = rw 
+
+    exp = (3.562-np.log10(rw-0.0123))/(0.955)
+    sal = np.power(10,exp)
+
+    return sal
+
 
 
     
