@@ -126,7 +126,22 @@ def gas_pressure_profile(md, inc, thp, rate, gas_obj,di=2.99,surf_temp=80,temp_g
 
     return df, pwf
 
-def gas_outflow_curve(md, inc, thp, gas_obj,rate=None,min_rate=100,max_rate=8000,n_rate=20,di=2.99,surf_temp=80,temp_grad=1,epsilon = 0.0006, tol = 0.05, max_iter=20):
+def gas_outflow_curve(
+    md, 
+    inc, 
+    thp, 
+    gas_obj,
+    rate=None,
+    min_rate=100,
+    max_rate=8000,
+    n_rate=20,
+    di=2.99,
+    surf_temp=80,
+    temp_grad=1,
+    epsilon = 0.0006, 
+    tol = 0.05, 
+    max_iter=20
+    ):
 
     # Assert the right types and shapes for input
     assert isinstance(md, (np.ndarray,pd.Series)) and md.ndim ==1
