@@ -2,8 +2,165 @@ import numpy as np
 import pandas as pd 
 from ...pvtpy.black_oil import pvt, gas
 
+## Incompressible pressure drop
+def potential_energy_change(
+    z1=None, 
+    z2=None, 
+    delta_z=None,
+    length=None, 
+    ge=1, 
+    angle=None, 
+    inc=None,
+    p1=0):
+    """
+    Δp PE accounts for the pressure change due to the weight of the column of fluid (the hydrostatic head); it
+    will be zero for flow in a horizontal pipe.
 
-## Gas Outflow function
+    In this equation, Δz is the difference in elevation between positions 1 and 2, with z increasing upward. θ
+    is defined as the angle between horizontal and the direction of flow. Thus, θ is +90° for upward, vertical
+    flow, 0° for horizontal flow, and –90° for downward flow in a vertical well (Figure 7-4). For flow in a
+    straight pipe of length L with flow direction θ,
+    """
+
+    # Assert height difference types
+    if delta_z is None:
+        if length is None:
+            assert isinstance(z1,(float,int,np.ndarray)) and isinstance(z2,(float,int,np.ndarray))
+            z1 = np.atleast_1d(z1)
+            z2 = np.atleast_1d(z2)
+            #assert z1.shape == (1,) and z2.shape == (1,)
+            delta_z = z1-z2
+
+        else:
+            assert isinstance(length,(float,int,np.ndarray)) 
+            length = np.atleast_1d(length)
+            #assert length.shape == (1,)
+
+            if angle is None:
+                assert isinstance(inc,(float,int,np.ndarray))
+                inc = np.atleast_1d(inc)
+                assert inc <= 90 and inc >= -90
+                sign = np.sign(inc)
+
+                angle = (90 - np.abs(inc)) * sign
+            else:
+                # Assert angle between -90 and 90
+                assert isinstance(angle,(float,int,np.ndarray))
+                angle = np.atleast_1d(angle)
+                assert angle <= 90 and angle >= -90 
+
+            delta_z = length * np.sin(np.radians(angle))
+
+    else:
+        assert isinstance(delta_z,(float,int,np.ndarray))
+        delta_z = np.atleast_1d(delta_z)
+        #assert delta_z.shape == (1,)
+
+
+    #Assert ge be positive
+    assert isinstance(ge,(float,int,np.ndarray)) and ge>0
+
+    #Calculate Delta P
+    delta_p = 0.433 * ge * delta_z
+
+    #Calculate P2
+    p2 = p1 + delta_p
+
+    return delta_p, p2
+
+def kinetic_energy_change(d1=None,d2=None, ge=1,rate=None,p1=0):
+    """
+    Δp KE is the pressure drop resulting from a change in the velocity of the fluid between positions 1 and 2.
+    It will be zero for an incompressible fluid unless the cross-sectional area of the pipe is different at the
+    two positions of interest.
+
+    Petroleum Production Systems, Economides. Chapter 7 7.2.3.2. Δp KE, the Pressure Drop Due to Kinetic Energy Change. Page 172
+
+    """
+
+    assert isinstance(d1,(float,int,np.ndarray)) and isinstance(d2,(float,int,np.ndarray))
+    d1 = np.atleast_1d(d1)
+    d2 = np.atleast_1d(d2)
+
+
+    #Assert Specifi Gravity be positive
+    assert isinstance(ge,(float,int,np.ndarray)) and ge>0
+    ge = np.atleast_1d(ge)
+
+
+    # Rate in bbl/d
+    assert isinstance(rate,(float,int,np.ndarray)) and rate>0
+    rate = np.atleast_1d(rate) 
+
+    #Estimate Density in lb/ft3
+    rho = 62.4 * ge
+
+    #Estimate delta Pressure in psi
+    delta_p = 1.53e-8 * np.power(rate,2) * rho * ((1/np.power(d2,4))-(1/np.power(d1,4)))
+
+    p2 = p1 - delta_p
+
+    return delta_p, p2
+
+def reynolds_number(rate,rho,d,mu):
+    """
+    Reynolds Number where q is in bbl/d, ρ in lb m /ft 3 , D in in., and μ in cp.
+    """ 
+    nre = (1.48 * rate * rho) / (d * mu)
+
+    return nre
+
+def frictional_pressure_drop(
+    rate=None, 
+    epsilon=0.001,
+    ge=1,
+    d=None, 
+    mu=1, 
+    length=None):
+
+    # Rate in bbl/d
+    assert isinstance(rate,(float,int,np.ndarray)) and rate>0
+    rate = np.atleast_1d(rate) 
+
+    # pipe relative roughness
+    assert isinstance(epsilon,(float,int,np.ndarray))
+    epsilon = np.atleast_1d(epsilon) 
+
+    #Assert Specifi Gravity be positive
+    assert isinstance(ge,(float,int,np.ndarray)) and ge>0
+    ge = np.atleast_1d(ge)
+
+    assert isinstance(d,(float,int,np.ndarray))
+    d = np.atleast_1d(d)
+
+    assert isinstance(mu,(float,int,np.ndarray))
+    mu = np.atleast_1d(mu)
+
+    assert isinstance(length,(float,int,np.ndarray))
+    length = np.atleast_1d(length)
+
+    #Estimate Density in lb/ft3
+    rho = 62.4 * ge
+
+    #Reynolds Number
+    nre = reynolds_number(rate,rho,d,mu)
+
+    #Friction Factor
+    ff = np.power((1/(-4*np.log10((epsilon/3.7065)-(5.0452/nre)*np.log10((np.power(epsilon,1.1098)/2.8257)+np.power(7.149/nre,0.8981))))),2)
+
+    #Velocity ft/s
+    u = (4*rate*5.615)/(np.pi*np.power(d/12,2)*86400)
+
+    delta_p = (2 * ff * rho * np.power(u,2) * length)/(32.17 * (d/12) * 144)
+
+    return delta_p
+
+
+
+#def incompressible_pressure_profile():
+
+
+## Gas Outflow functions
 
 def gas_pressure_profile_correlation(thp,sg,depth):
     assert isinstance(thp,(float,int,np.ndarray))
@@ -25,7 +182,14 @@ def gas_pressure_profile_correlation(thp,sg,depth):
 
 
 def gas_pressure_profile(md, inc, thp, rate, gas_obj,di=2.99,surf_temp=80,temp_grad=1,epsilon = 0.0006, tol = 0.05, max_iter=20):
+    """
+    To calculate the pressure drop in a gas well, the compressibility of the fluid must be considered. When
+    the fluid is compressible, the fluid density and fluid velocity vary along the pipe, and these variations
+    must be included when integrating the mechanical energy balance equation.
 
+    Petroleum Production Systems, Economides. Chapter 7 7.3. Single-Phase Flow of a Compressible, Newtonian Fluid. Page 175
+
+    """
     # Assert the right types and shapes for input
     assert isinstance(md, (np.ndarray,pd.Series)) and md.ndim ==1
     md = np.atleast_1d(md)
@@ -90,7 +254,7 @@ def gas_pressure_profile(md, inc, thp, rate, gas_obj,di=2.99,surf_temp=80,temp_g
             nre = 20.09*(gas_sg*rate)/(di[i]*df_pvt['mug'].values)
 
             #Friction Factor
-            friction = np.power((1/(-4*np.log((epsilon/3.7065)-(5.0452/nre)*np.log((np.power(epsilon,1.1098)/2.8257)+np.power(7.149/nre,0.8981))))),2)
+            friction = np.power((1/(-4*np.log10((epsilon/3.7065)-(5.0452/nre)*np.log10((np.power(epsilon,1.1098)/2.8257)+np.power(7.149/nre,0.8981))))),2)
 
             #Temperature
             temperature_profile[i] = dz * (temp_grad/100) + temperature_profile[i-1]
@@ -125,6 +289,16 @@ def gas_pressure_profile(md, inc, thp, rate, gas_obj,di=2.99,surf_temp=80,temp_g
     pwf = pressure_profile[-1]
 
     return df, pwf
+    """
+def gas_pressure_profile_gray(md, inc, thp, rate, gas_obj,di=2.99,surf_temp=80,temp_grad=1,epsilon = 0.0006, tol = 0.05, max_iter=20):
+
+    The Gray correlation was developed specifically for wet gas wells and is commonly used for gas wells
+    producing free water and/or condensate with the gas. This correlation empirically calculates liquid
+    holdup to compute the potential energy gradient and empirically calculates an effective pipe roughness
+    to determine the frictional pressure gradient.
+
+    Petroleum Production Systems, Economides. Chapter 7 7.4.3.5. The Gray Correlation page 197
+    """
 
 def gas_outflow_curve(
     md, 
