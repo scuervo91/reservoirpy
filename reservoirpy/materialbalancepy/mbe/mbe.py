@@ -198,7 +198,7 @@ class production_history(pd.DataFrame):
         print(f"Original Oil In Place {OOIP} MMbbl")
         print(f"Original Gas In Place {OGIP} Bscf")
 
-        res = reservoir(
+        res = oil_reservoir(
             n = OOIP*1e6,
             g = OGIP*1e9,
             m = self.m,
@@ -215,7 +215,7 @@ class production_history(pd.DataFrame):
         OGIP = round(mod.params['ho_x']/1e9,2)
         print(f"Original Oil In Place {OOIP} MMbbl")
         print(f"Original Gas In Place {OGIP} Bscf")
-        res = reservoir(    
+        res = oil_reservoir(    
             n = OOIP*1e6,
             g = OGIP*1e9,
             m = self.m,
@@ -230,7 +230,7 @@ class production_history(pd.DataFrame):
     def _constructor(self):
         return production_history
 
-class reservoir:
+class oil_reservoir:
     def __init__(self,**kwargs):
         self.n = kwargs.pop('n',0)  #Original Oil in Place in bbl (barrels)
         self.g = kwargs.pop('g',0) #Original Gas in Place in  scf (Standard Cubic Feet)
@@ -558,9 +558,175 @@ class reservoir:
             )
         return _df
 
-
-
+class gas_reservoir:
+    def __init__(self,**kwargs):
+        self.g = kwargs.pop('g',0) #Original Gas in Place in  scf (Standard Cubic Feet)
+        self.aquifer = kwargs.pop('aquifer',None) # aquifer model
+        self.water = kwargs.pop('water',None)
+        self.gas = kwargs.pop('gas',None)
+        self.pi = kwargs.pop('pi',0)
+        self.swi = kwargs.pop('swi',0)
+        self.cf = kwargs.pop('cf',0)
+        self.kr_gw = kwargs.pop('kr_gw',None)
+        self.k = kwargs.pop('k',0)
+        self.phi = kwargs.pop('phi',0)
                 
+    # Properties
+    @property
+    def kr_gw(self):
+        return self._kr_gw
+
+    @kr_gw.setter 
+    def kr_gw(self,value):
+        assert isinstance(value,(kr,type(None)))
+        self._kr_gw = value
+
+    @property
+    def swi(self):
+        return self._swi
+
+    @swi.setter 
+    def swi(self,value):
+        assert isinstance(value,(int,float)), "swi must be numeric"
+        assert value >= 0 and value<=1, "swi must be equal o greater than 0 and less than 0"
+        self._swi = value
+
+    # Properties
+    @property
+    def cf(self):
+        return self._cf
+
+    @cf.setter 
+    def cf(self,value):
+        assert isinstance(value,(int,float)), "cf must be numeric"
+        assert value >= 0, "cf must be equal o greater than 0 and less than 0"
+        self._cf = value
+
+    @property
+    def pi(self):
+        return self._pi
+
+    @pi.setter 
+    def pi(self,value):
+        assert isinstance(value,(int,float)), "pi must be numeric"
+        assert value >= 0, "pi must be equal o greater than 0"
+        self._pi = value
+
+    @property
+    def g(self):
+        return self._g 
+
+    @g.setter 
+    def g(self,value):
+        assert isinstance(value,(int,float)), "G must be numeric"
+        assert value >= 0, "G must be equal o greater than 0"
+        self._g = value
+
+    @property
+    def aquifer(self):
+        return self._aquifer
+
+    @aquifer.setter 
+    def aquifer(self,value):
+        assert isinstance(value,(pot_aquifer, type(None))), "we must be an aquifer model"
+        self._aquifer = value
+
+    @property
+    def k(self):
+        return self._k
+
+    @k.setter 
+    def k(self,value):
+        assert isinstance(value,(int,float)), "k must be numeric"
+        assert value >= 0, "k must be equal o greater than 0"
+        self._k = value
+
+    @property
+    def phi(self):
+        return self._phi
+
+    @phi.setter 
+    def phi(self,value):
+        assert isinstance(value,(int,float)), "phi must be numeric"
+        assert value >= 0, "phi must be equal o greater than 0"
+        self._phi = value
+
+    @property
+    def gas(self):
+        return self._gas
+
+    @gas.setter 
+    def gas(self,value):
+        assert isinstance(value,(gas,type(None))), "gas must be pvtpy.black_oil.gas"
+        self._gas = value
+
+    @property
+    def water(self):
+        return self._water
+
+    @water.setter 
+    def water(self,value):
+        assert isinstance(value,(water,type(None))), "water must be pvtpy.black_oil.water"
+        self._water = value
+
+    #Methods
+    def plot(self,
+        ax=None,
+        pz_kw = {},
+        ann_kw = {}
+        ):
+    
+        # Default kwargs for all Lines
+        def_kw = {
+        'color': 'darkred',
+        'linestyle':'--',
+        'linewidth': 4
+        }
+        for (k,v) in def_kw.items():
+            if k not in pz_kw:
+                pz_kw[k]=v
+
+        #Get the ax
+        pzax= ax or plt.gca()
+
+        #Get interpolated pz
+        zi = self.gas.pvt.interpolate(self.pi, property = 'z')
+        
+        #get pz
+        pz = self.pi / zi.iloc[0,0]
+
+        #Plot
+        pzax.plot([0,self.g/1e6],[pz,0],**pz_kw)
+        pzax.set_ylabel('P/Z [psi]')
+        pzax.set_xlabel('Gas Cum [MMscf]')
+        pzax.set_title('Gas Reservoir Material Balance Plot')
+        #If plot the annotations
+        ann = ann_kw.pop('ann',True)
+
+        if ann:
+            ann_fontsize = ann_kw.pop('font_size',8)
+            pzax.annotate(
+                f"Original Gas In Place [MMscf] \n {self.g/1e6}",
+                xy = (self.g/1e6,0),
+                xycoords='data',
+                xytext=(0, 30), 
+                textcoords='offset points',
+                arrowprops=dict(arrowstyle="->"),
+                bbox={'boxstyle':'round', 'fc':'0.8'},
+                fontsize = ann_fontsize
+            )
+
+            pzax.annotate(
+                f"Reservoir Pressure [psi] \n {self.pi}",
+                xy = (0,self.pi),
+                xycoords='data',
+                xytext=(30, 0), 
+                textcoords='offset points',
+                arrowprops=dict(arrowstyle="->"),
+                bbox={'boxstyle':'round', 'fc':'0.8'},
+                fontsize = ann_fontsize
+            )
+
 
                 
 
