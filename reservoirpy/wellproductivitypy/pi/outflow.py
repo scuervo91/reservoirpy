@@ -152,12 +152,97 @@ def frictional_pressure_drop(
     u = (4*rate*5.615)/(np.pi*np.power(d/12,2)*86400)
 
     delta_p = (2 * ff * rho * np.power(u,2) * length)/(32.17 * (d/12) * 144)
-
+    delta_p *= -1
     return delta_p
 
 
 
-#def incompressible_pressure_profile():
+def incompressible_pressure_profile(
+    p1=0,
+    ge=1,
+    epsilon=0.001,
+    md=None,
+    tvd=None,
+    d = None,
+    rate = None,
+    mu=None
+    ):
+
+    assert isinstance(md,(int,float,list,np.ndarray))
+    md = np.atleast_1d(md)
+    assert isinstance(tvd,(int,float,list,np.ndarray))
+    tvd = np.atleast_1d(tvd)
+    assert isinstance(d,(int,float,list,np.ndarray))
+    d = np.atleast_1d(d)
+    assert isinstance(rate,(int,float))
+    rate = np.atleast_1d(rate)
+    assert isinstance(mu,(int,float))
+    mu = np.atleast_1d(mu)
+    assert isinstance(p1,(int,float))
+    p1 = np.atleast_1d(p1)
+    assert isinstance(ge,(int,float))
+    ge = np.atleast_1d(ge)
+    assert isinstance(epsilon,(int,float))
+    epsilon = np.atleast_1d(epsilon)
+
+    assert md.shape[0] == tvd.shape[0] == d.shape[0]
+
+    n = md.shape[0]
+
+    #Create arrays
+    pressure = np.zeros(n)
+    ppe = np.zeros(n)
+    pke = np.zeros(n)
+    pf = np.zeros(n)
+    delta_p = np.zeros(n)
+
+    pressure[0] = p1
+
+    for i in range(1,n):
+
+        #Potential Energy Change
+        ppe[i], _ = potential_energy_change(
+            z1=tvd[i-1],
+            z2=tvd[i],
+            ge= ge,
+        )
+
+        #Kinetic Energy Change
+        pke[i], _ = kinetic_energy_change(
+            d1=d[i-1],
+            d2=d[i],
+            rate=rate,
+            ge=ge,
+        )
+
+        #Frictional Pressure drop
+        pf[i] = frictional_pressure_drop(
+            rate=rate, 
+            epsilon=epsilon,
+            ge=ge,
+            d=d[i], 
+            mu=mu, 
+            length=np.abs(md[i-1]-md[i])
+        )
+
+        delta_p[i] = ppe[i] + pke[i] + pf[i]
+        pressure[i] = pressure[i-1] + delta_p[i]
+
+    
+        # Create dataframe
+    pressure_profile = pd.DataFrame({
+        'md':md,
+        'tvd':tvd,
+        'pressure':pressure,
+        'ppe': ppe,
+        'pke': pke,
+        'pf' : pf,
+        'delta_p': delta_p
+    })
+
+    return pressure_profile
+
+
 
 
 ## Gas Outflow functions
