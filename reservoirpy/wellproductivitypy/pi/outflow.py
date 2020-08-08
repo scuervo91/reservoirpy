@@ -812,7 +812,7 @@ def two_phase_pressure_profile(
     surface_temperature=80, 
     temperature_gradient=1,  
     di=2.99, 
-    tol=0.05,
+    tol=0.02,
     max_iter = 20,
     method = 'hagedorn_brown'
 ):
@@ -838,7 +838,7 @@ def two_phase_pressure_profile(
         liquid_rate = np.atleast_1d(liquid_rate)
         assert liquid_rate.shape == (1,)
 
-    assert any(oil_rate is not None,liquid_rate is not None)
+    assert any([oil_rate is not None,liquid_rate is not None])
 
     if gas_rate is not None:
         assert isinstance(gas_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
@@ -855,7 +855,7 @@ def two_phase_pressure_profile(
         glr = np.atleast_1d(glr)
         assert glr.shape == (1,)
 
-    assert any(gas_rate is not None,gor is not None,glr is not None)
+    assert any([gas_rate is not None,gor is not None,glr is not None])
 
     assert isinstance(bsw, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
     bsw = np.atleast_1d(bsw)
@@ -872,7 +872,7 @@ def two_phase_pressure_profile(
 
     if isinstance(epsilon,(np.ndarray,pd.Series,list)):
         assert epsilon.shape == depth.shape
-    elif isinstance(di,(int,float)):
+    elif isinstance(epsilon,(int,float)):
         epsilon = np.full(depth.shape,epsilon)
 
     assert isinstance(surface_temperature,(int,float,np.ndarray))
@@ -895,16 +895,17 @@ def two_phase_pressure_profile(
         else:
             gas_rate = gor * oil_rate * 1e-3
 
+
     pressure_profile = np.zeros(depth.shape)
     pressure_profile[0] = thp
     pressure_gradient = np.zeros(depth.shape)
     iterations = np.zeros(depth.shape)
     free_gas_rate = np.zeros(depth.shape)
-    temperature_profile = np.abs(depth[0] - depth) * temperature_gradient + surface_temperature
+    temperature_profile = np.abs(depth[0] - depth) * (temperature_gradient/100) + surface_temperature
 
     #Initials Densities
-    rho_oil_i = oil_obj.pvt.interpolate(thp,property = 'rho').iloc[0,0]
-    rho_water_i = water_obj.pvt.interpolate(thp,property = 'rho').iloc[0,0]
+    rho_oil_i = oil_obj.pvt.interpolate(thp,property = 'rhoo').iloc[0,0]
+    rho_water_i = water_obj.pvt.interpolate(thp,property = 'rhow').iloc[0,0]
     rho_l = rho_oil_i * (1-bsw) + rho_water_i * bsw 
 
     pressure_gradient[0] = rho_l * (0.433/62.4)
@@ -928,7 +929,8 @@ def two_phase_pressure_profile(
             mu_gas = gas_pvt_guess['mug'].iloc[0]
             z = gas_pvt_guess['z'].iloc[0]
 
-            free_gas = gas_rate - (oil_pvt_guess['rs']*oil_rate*1e-3)
+            free_gas = gas_rate - (oil_pvt_guess['rs'].iloc[0]*oil_rate*1e-3)
+
             if method == 'hagedorn_brown':
                 grad_new = hb_correlation(
                     pressure=p_guess,
