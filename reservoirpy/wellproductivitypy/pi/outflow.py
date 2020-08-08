@@ -386,16 +386,7 @@ def gas_pressure_profile(
     pwf = pressure_profile[-1]
 
     return df, pwf
-    """
-def gas_pressure_profile_gray(md, inc, thp, rate, gas_obj,di=2.99,surf_temp=80,temp_grad=1,epsilon = 0.0006, tol = 0.05, max_iter=20):
 
-    The Gray correlation was developed specifically for wet gas wells and is commonly used for gas wells
-    producing free water and/or condensate with the gas. This correlation empirically calculates liquid
-    holdup to compute the potential energy gradient and empirically calculates an effective pipe roughness
-    to determine the frictional pressure gradient.
-
-    Petroleum Production Systems, Economides. Chapter 7 7.4.3.5. The Gray Correlation page 197
-    """
 
 def gas_outflow_curve(
     md, 
@@ -668,16 +659,20 @@ def flow_regime_plot(
     fax.set_xscale('log')
 
 def hb_correlation(
-    p,  #Pressure [psi]
-    t, #Temperature [F]
-    ql, # Liquid Flow [bbl/d]
-    qg, # gas flow [kscfd]
-    ten_liquid, #Surface tension dyne/cm2
-    rho_liquid, # density lb/ft3
-    mu_liquid, # Viscosity [cp]
-    z, # Gas compressibility Factor
-    di # Diameter
+    pressure=None,  #Pressure [psi]
+    temperature=None, #Temperature [F]
+    liquid_rate=None, # Liquid Flow [bbl/d]
+    gas_rate=None, # gas flow [kscfd]
+    ten_liquid=None, #Surface tension dyne/cm2
+    rho_liquid=None, # density lb/ft3
+    rho_gas=None, # density lb/ft3
+    mu_liquid=None, # Viscosity [cp]
+    mu_gas=None, # Viscosity [cp]
+    z=1, # Gas compressibility Factor
+    di=None, # Diameter,
+    epsilon = 0.0006,
 ):
+
     """
     The modified Hagedorn and Brown method (mH-B) is an empirical two-phase flow correlation based
     on the original work of Hagedorn and Brown (1965). The heart of the Hagedorn-Brown method is a
@@ -688,24 +683,131 @@ def hb_correlation(
     Petroleum Production Systems, Economides. Chapter 7 7.4.3.1. The Modified Hagedorn and Brown Method  Page 187
 
     """
-    usl = (ql * 5.615)/(0.0278 * 86400)
-    usg = (4*qg*1000*z*(460+t*14.7)/(p*520*np.pi*np.power(di/12,2)) 
+    #Check types and converto to np.ndarray
+    assert isinstance(pressure,(int,float,np.ndarray,np.float64,np.int64))
+    pressure = np.atleast_1d(pressure)
+
+    assert isinstance(temperature,(int,float,np.ndarray,np.float64,np.int64))
+    temperature = np.atleast_1d(temperature)
+
+    assert isinstance(liquid_rate,(int,float,np.ndarray,np.float64,np.int64))
+    liquid_rate = np.atleast_1d(liquid_rate)
+
+    assert isinstance(gas_rate,(int,float,np.ndarray,np.float64,np.int64))
+    gas_rate = np.atleast_1d(gas_rate)
+
+    assert isinstance(ten_liquid,(int,float,np.ndarray,np.float64,np.int64))
+    ten_liquid = np.atleast_1d(ten_liquid)
+
+    assert isinstance(rho_liquid,(int,float,np.ndarray,np.float64,np.int64))
+    rho_liquid = np.atleast_1d(rho_liquid)
+
+    assert isinstance(rho_gas,(int,float,np.ndarray,np.float64,np.int64))
+    rho_gas = np.atleast_1d(rho_gas)
+
+    assert isinstance(mu_liquid,(int,float,np.ndarray,np.float64,np.int64))
+    mu_liquid = np.atleast_1d(mu_liquid)
+
+    assert isinstance(mu_gas,(int,float,np.ndarray,np.float64,np.int64))
+    mu_gas = np.atleast_1d(mu_gas)
+
+    assert isinstance(z,(int,float,np.ndarray,np.float64,np.int64))
+    z = np.atleast_1d(z)
+
+    assert isinstance(di,(int,float,np.ndarray,np.float64,np.int64))
+    di = np.atleast_1d(di)
+
+    assert isinstance(epsilon,(int,float,np.ndarray,np.float64,np.int64))
+    epsilon = np.atleast_1d(epsilon)
+
+    griffith = False
+
+    usl = (liquid_rate * 5.615)/(0.0278 * 86400)
+    usg = (4*gas_rate*1000*z*(460+temperature)*14.7)/(86400*pressure*520*np.pi*np.power(di/12,2)) 
     
+    area = np.power((di*0.5)/12,2)*np.pi
     #Mixure Velocity
     um = usl + usg 
+    lambda_g = usg / um 
+    lambda_l = 1 - lambda_g
+    #Check if Buble flow exist
+    lb = 1.071 - 0.2218 * (np.power(um,2)/(di/12))
     
+    if lb < 0.13:
+        lb = 0.13
 
+    if lb > lambda_g:
+        yl=1-0.5*(1+(um/0.8)-np.sqrt(np.power(1+(um/0.8),2)-4*(usg/0.8)))
+        griffith=True
+    else:
+        #Calculate Dimensionless numbers
+        nvl= 1.938*usl*np.power(rho_liquid/ten_liquid,0.25)              #Liquid Velocity Number
+        nvg=1.938*usg*np.power(rho_liquid/ten_liquid,0.25)             #Gas Velocity Number
+        nd=120.872*(di/12)*np.power(rho_liquid/ten_liquid,0.5)               #Pipe Diameter Number
+        nl=0.15726*mu_liquid*np.power(1/(rho_liquid * np.power(ten_liquid,3)),0.25)  
+
+        #cnl=(0.0019+0.0322*nl-0.6642*np.power(nl,2)+4.9951*np.power(nl,3))/(1+10.0147*nl-33.8696*np.power(nl,2)+277.2817*np.power(nl,3)) # original
+        cnl=(0.0019+0.0505*nl-0.0929*np.power(nl,2)+0.061*np.power(nl,3))   #pengtools
+
+        # H
+        h = (nvl/np.power(nvg,0.575)) * np.power(pressure/14.7,0.1) * (cnl/nd)
+
+        #yi/phi ratio
+        yl_ratio = np.power(((0.0047+1123.32*h-729489.64*np.power(h,2))/(1+1097.1566*h-722153.97*np.power(h,2))),0.5)
+
+        #B
+        b = nvg * np.power(nl,0.38)/np.power(nd,2.14)
+
+        #Psi calculated by equation from pengtools
+        # https://wiki.pengtools.com/index.php?title=Hagedorn_and_Brown_correlation
+        if b > 0.055:
+            psi = 2.5714*b + 1.5962
+        elif b > 0.025:
+            psi = -533.33*np.power(b,2) + 58.524*b + 0.1171
+        else:
+            psi = 27170*np.power(b,3) - 317.52 * np.power(b,2) + 0.5472*b + 0.9999
+
+        # Psi calculated from Economides
+        #psi=(1.0886+69.9473*b-2334.3497*np.power(b,2)+12896.683*np.power(b,3))/(1+53.4401*b-1517.9369*np.power(b,2)+8419.8115*np.power(b,3))
+
+        #yl
+        yl = yl_ratio * psi
+
+    if yl < lambda_l:
+        yl = lambda_l
+
+    # Mass flow in lb/d
+    mass_flow = area * (usl * rho_liquid + usg * rho_gas) * 86400 
+
+    #Reynolds Number
+    nre = (2.2e-2 * mass_flow) / ((di/2) * np.power(mu_liquid,yl) * np.power(mu_gas,1-yl))
+
+    #Friction Factor
+    ff = np.power((1/(-4*np.log10((epsilon/3.7065)-(5.0452/nre)*np.log10((np.power(epsilon,1.1098)/2.8257)+np.power(7.149/nre,0.8981))))),2)
+
+    #Average density
+    rho_avg = yl*rho_liquid + (1-yl)*rho_gas
+
+    if griffith:
+        pressure_gradient = (1/144)*(rho_avg+((ff*np.power(mass_flow,2))/(7.413e10*np.power(di/12,5)*rho_avg*np.power(yl,2))))
+    else:
+        pressure_gradient = (1/144)*(rho_avg+((ff*np.power(mass_flow,2))/(7.413e10*np.power(di/12,5)*rho_avg)))
+
+    return pressure_gradient
 
 
 def two_phase_pressure_profile(
-    depth,
-    thp,
-    oil_rate,
-    gas_rate,
-    bsw,
-    oil_obj,
-    gas_obj,
-    water_obj, 
+    depth = None,
+    thp = None,
+    liquid_rate = None,
+    oil_rate = None,
+    gas_rate = None,
+    glr = None,
+    gor = None,
+    bsw = None,
+    oil_obj = None,
+    gas_obj = None,
+    water_obj = None, 
     epsilon=0.0006, 
     surface_temperature=80, 
     temperature_gradient=1,  
@@ -726,13 +828,34 @@ def two_phase_pressure_profile(
     thp = np.atleast_1d(thp)
     assert thp.shape == (1,)
 
-    assert isinstance(oil_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
-    oil_rate = np.atleast_1d(oil_rate)
-    assert oil_rate.shape == (1,)
+    if oil_rate is not None:
+        assert isinstance(oil_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        oil_rate = np.atleast_1d(oil_rate)
+        assert oil_rate.shape == (1,)
 
-    assert isinstance(gas_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
-    gas_rate = np.atleast_1d(gas_rate)
-    assert gas_rate.shape == (1,)
+    if liquid_rate is not None:
+        assert isinstance(liquid_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        liquid_rate = np.atleast_1d(liquid_rate)
+        assert liquid_rate.shape == (1,)
+
+    assert any(oil_rate is not None,liquid_rate is not None)
+
+    if gas_rate is not None:
+        assert isinstance(gas_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        gas_rate = np.atleast_1d(gas_rate)
+        assert gas_rate.shape == (1,)
+
+    if gor is not None:
+        assert isinstance(gor, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        gor = np.atleast_1d(gor)
+        assert gor.shape == (1,)
+
+    if glr is not None:
+        assert isinstance(glr, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        glr = np.atleast_1d(glr)
+        assert glr.shape == (1,)
+
+    assert any(gas_rate is not None,gor is not None,glr is not None)
 
     assert isinstance(bsw, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
     bsw = np.atleast_1d(bsw)
@@ -747,9 +870,10 @@ def two_phase_pressure_profile(
     elif isinstance(di,(int,float)):
         di = np.full(depth.shape,di)
 
-    assert isinstance(epsilon,(int,float,np.ndarray))
-    epsilon = np.atleast_1d(epsilon)
-    assert epsilon.shape == (1,)
+    if isinstance(epsilon,(np.ndarray,pd.Series,list)):
+        assert epsilon.shape == depth.shape
+    elif isinstance(di,(int,float)):
+        epsilon = np.full(depth.shape,epsilon)
 
     assert isinstance(surface_temperature,(int,float,np.ndarray))
     surface_temperature = np.atleast_1d(surface_temperature)
@@ -758,21 +882,30 @@ def two_phase_pressure_profile(
     temperature_gradient = np.atleast_1d(temperature_gradient)
 
     #Start
-    qo = oil_rate * (5.615/86400)
-    ql = qo / (1-bsw)
-    qw = ql * bsw
+    if liquid_rate is None:
+        liquid_rate = oil_rate / (1-bsw)
+    else:
+        oil_rate = liquid_rate*(1-bsw)
+
+    water_rate = liquid_rate * bsw 
+
+    if gas_rate is None:
+        if gor is None:
+            gas_rate = glr * liquid_rate * 1e-3
+        else:
+            gas_rate = gor * oil_rate * 1e-3
 
     pressure_profile = np.zeros(depth.shape)
     pressure_profile[0] = thp
     pressure_gradient = np.zeros(depth.shape)
     iterations = np.zeros(depth.shape)
-
+    free_gas_rate = np.zeros(depth.shape)
     temperature_profile = np.abs(depth[0] - depth) * temperature_gradient + surface_temperature
 
     #Initials Densities
     rho_oil_i = oil_obj.pvt.interpolate(thp,property = 'rho').iloc[0,0]
     rho_water_i = water_obj.pvt.interpolate(thp,property = 'rho').iloc[0,0]
-    rho_l = rho_oil_i * (1-bsw) + rho_oil_i * bsw 
+    rho_l = rho_oil_i * (1-bsw) + rho_water_i * bsw 
 
     pressure_gradient[0] = rho_l * (0.433/62.4)
     for i in range(1,depth.shape[0]):
@@ -788,12 +921,33 @@ def two_phase_pressure_profile(
             oil_pvt_guess = oil_obj.pvt.interpolate(p_guess)
             water_pvt_guess = water_obj.pvt.interpolate(p_guess)
 
+            ten_liquid = oil_pvt_guess['tension'].iloc[0] * (1-bsw) + water_pvt_guess['tension'].iloc[0] * bsw
+            rho_liquid = oil_pvt_guess['rhoo'].iloc[0] * (1-bsw) + water_pvt_guess['rhow'].iloc[0] * bsw
+            mu_liquid = oil_pvt_guess['muo'].iloc[0] * (1-bsw) + water_pvt_guess['muw'].iloc[0] * bsw
+            rho_gas = (28.97 * gas_obj.sg * p_guess)/(gas_pvt_guess['z'].iloc[0]*10.73*(temperature_profile[i]+460))
+            mu_gas = gas_pvt_guess['mug'].iloc[0]
+            z = gas_pvt_guess['z'].iloc[0]
+
+            free_gas = gas_rate - (oil_pvt_guess['rs']*oil_rate*1e-3)
             if method == 'hagedorn_brown':
-                grad_new = hb_correlation()
-            elif method == 'beggs_brill':
-                grad_new = bb_correlation()
-            elif method == 'gray':
-                grad_new = bb_correlation()
+                grad_new = hb_correlation(
+                    pressure=p_guess,
+                    temperature=temperature_profile[i],
+                    liquid_rate = liquid_rate,
+                    gas_rate = free_gas,
+                    ten_liquid = ten_liquid,
+                    rho_liquid = rho_liquid,
+                    rho_gas = rho_gas,
+                    mu_liquid = mu_liquid,
+                    mu_gas = mu_gas,
+                    z = z,
+                    di = di[i],
+                    epsilon = epsilon[i],
+                )
+            #elif method == 'beggs_brill':
+            #    grad_new = bb_correlation()
+            #elif method == 'gray':
+            #    grad_new = bb_correlation()
             else:
                 raise ValueError('No method has been chosen')
 
@@ -803,11 +957,13 @@ def two_phase_pressure_profile(
 
         pressure_gradient[i] = grad_new 
         pressure_profile[i] = p_guess
+        free_gas_rate[i] = free_gas
         iterations[i] = it
 
     df_dict = {
         'pressure':pressure_profile,
         'pressure_gradient': pressure_gradient,
+        'free_gas_rate': free_gas_rate,
         'temperature': temperature_profile,
         'iterations': iterations
     }
