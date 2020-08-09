@@ -299,7 +299,7 @@ def gas_pressure_profile(
 
     angle = np.radians(90 - inc) 
 
-    assert isinstance(thp, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+    assert isinstance(thp, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
     thp = np.atleast_1d(thp)
     assert thp.shape == (1,)
 
@@ -817,47 +817,45 @@ def two_phase_pressure_profile(
     method = 'hagedorn_brown'
 ):
 
-
-
     # Assert the right types and shapes for input
     assert isinstance(depth, (np.ndarray,pd.Series,list))
     depth = np.atleast_1d(depth)
     assert depth.ndim == 1
 
-    assert isinstance(thp, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+    assert isinstance(thp, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
     thp = np.atleast_1d(thp)
     assert thp.shape == (1,)
 
     if oil_rate is not None:
-        assert isinstance(oil_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        assert isinstance(oil_rate, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
         oil_rate = np.atleast_1d(oil_rate)
         assert oil_rate.shape == (1,)
 
     if liquid_rate is not None:
-        assert isinstance(liquid_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        assert isinstance(liquid_rate, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
         liquid_rate = np.atleast_1d(liquid_rate)
         assert liquid_rate.shape == (1,)
 
     assert any([oil_rate is not None,liquid_rate is not None])
 
     if gas_rate is not None:
-        assert isinstance(gas_rate, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        assert isinstance(gas_rate, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
         gas_rate = np.atleast_1d(gas_rate)
         assert gas_rate.shape == (1,)
 
     if gor is not None:
-        assert isinstance(gor, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        assert isinstance(gor, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
         gor = np.atleast_1d(gor)
         assert gor.shape == (1,)
 
     if glr is not None:
-        assert isinstance(glr, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+        assert isinstance(glr, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
         glr = np.atleast_1d(glr)
         assert glr.shape == (1,)
 
     assert any([gas_rate is not None,gor is not None,glr is not None])
 
-    assert isinstance(bsw, (int,np.int32,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+    assert isinstance(bsw, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
     bsw = np.atleast_1d(bsw)
     assert bsw.shape == (1,)
 
@@ -866,14 +864,14 @@ def two_phase_pressure_profile(
     assert isinstance(water_obj,water) and water_obj.pvt is not None
 
     if isinstance(di,(np.ndarray,pd.Series,list)):
+        di = np.atleast_1d(di)
         assert di.shape == depth.shape
     elif isinstance(di,(int,float)):
         di = np.full(depth.shape,di)
 
-    if isinstance(epsilon,(np.ndarray,pd.Series,list)):
-        assert epsilon.shape == depth.shape
-    elif isinstance(epsilon,(int,float)):
-        epsilon = np.full(depth.shape,epsilon)
+    assert isinstance(epsilon, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+    epsilon = np.atleast_1d(epsilon)
+    assert epsilon.shape == (1,)
 
     assert isinstance(surface_temperature,(int,float,np.ndarray))
     surface_temperature = np.atleast_1d(surface_temperature)
@@ -944,7 +942,7 @@ def two_phase_pressure_profile(
                     mu_gas = mu_gas,
                     z = z,
                     di = di[i],
-                    epsilon = epsilon[i],
+                    epsilon = epsilon,
                 )
             #elif method == 'beggs_brill':
             #    grad_new = bb_correlation()
@@ -975,8 +973,161 @@ def two_phase_pressure_profile(
 
     return df, pwf
 
-    
+def two_phase_outflow_curve(
+    depth = None,
+    thp = None,
+    liquid_rate = None,
+    oil_rate = None,
+    gas_rate = None,
+    glr = None,
+    gor = None,
+    bsw = None,
+    oil_obj = None,
+    gas_obj = None,
+    water_obj = None, 
+    epsilon=0.0006, 
+    surface_temperature=80, 
+    temperature_gradient=1,  
+    di=2.99, 
+    tol=0.02,
+    max_iter = 20,
+    method = 'hagedorn_brown'
+):
 
-    
+    # Assert the right types and shapes for input
+    assert isinstance(depth, (np.ndarray,pd.Series,list))
+    depth = np.atleast_1d(depth)
+    assert depth.ndim == 1
+
+    assert isinstance(thp, (int,np.int64,np.float64,float,np.ndarray,list)), f'{type(thp)} not accepted'
+    thp = np.atleast_1d(thp)
+    assert thp.ndim == 1
+
+    if oil_rate is not None:
+        assert isinstance(oil_rate, (int,np.int64,np.float64,float,np.ndarray,list)), f'{type(thp)} not accepted'
+        oil_rate = np.atleast_1d(oil_rate)
+        assert oil_rate.ndim == 1
+
+    if liquid_rate is not None:
+        assert isinstance(liquid_rate, (int,np.int64,np.float64,float,np.ndarray,list)), f'{type(thp)} not accepted'
+        liquid_rate = np.atleast_1d(liquid_rate)
+        assert liquid_rate.ndim == 1
+
+    assert any([oil_rate is not None,liquid_rate is not None])
+
+    if gas_rate is not None:
+        assert isinstance(gas_rate, (int,np.int64,np.float64,float,np.ndarray,list)), f'{type(thp)} not accepted'
+        gas_rate = np.atleast_1d(gas_rate)
+        assert gas_rate.ndim == 1
+
+    if gor is not None:
+        assert isinstance(gor, (int,np.int64,np.float64,float,np.ndarray,list)), f'{type(thp)} not accepted'
+        gor = np.atleast_1d(gor)
+        assert gor.ndim == 1
+
+    if glr is not None:
+        assert isinstance(glr, (int,np.int64,np.float64,float,np.ndarray,list)), f'{type(thp)} not accepted'
+        glr = np.atleast_1d(glr)
+        assert glr.ndim == 1
+
+    assert any([gas_rate is not None,gor is not None,glr is not None])
+
+    assert isinstance(bsw, (int,np.int64,np.float64,float,np.ndarray,list)), f'{type(thp)} not accepted'
+    bsw = np.atleast_1d(bsw)
+    assert bsw.ndim == 1
+
+    assert isinstance(gas_obj,gas) and gas_obj.pvt is not None
+    assert isinstance(oil_obj,oil) and oil_obj.pvt is not None
+    assert isinstance(water_obj,water) and water_obj.pvt is not None
+
+    if isinstance(di,(np.ndarray,list)):
+        di = np.atleast_2d(di)
+        assert di.shape[0] == depth.shape[0]
+    elif isinstance(di,(int,float)):
+        di = np.full((depth.shape[0],1),di)
+
+    assert isinstance(epsilon, (int,np.int64,np.float64,float,np.ndarray)), f'{type(thp)} not accepted'
+    epsilon = np.atleast_1d(epsilon)
+    assert epsilon.shape == (1,)
+
+    assert isinstance(surface_temperature,(int,float,np.ndarray))
+    surface_temperature = np.atleast_1d(surface_temperature)
+
+    assert isinstance(temperature_gradient,(int,float,np.ndarray))
+    temperature_gradient = np.atleast_1d(temperature_gradient)
+
+    #Start
+    if liquid_rate is None:
+        liquid_rate = np.zeros(len(oil_rate)*len(bsw))
+        c = 0
+        for o in oil_rate:
+            for b in bsw:
+               liquid_rate[c] = o / (1-b)
+               c += 1
+    else:
+        oil_rate = np.zeros(len(liquid_rate)*len(bsw))
+        c = 0
+        for l in liquid_rate:
+            for b in bsw:
+               oil_rate[c] = l * (1 - b)
+               c += 1
+
+    if gas_rate is None:
+        if gor is None:
+            gas_arr = glr
+            gas_name = 'glr'
+        else:
+            gas_arr = gor
+            gas_name = 'gor'
+    else:
+        gas_arr = gas_rate  
+        gas_name = 'gas_rate'
+
+    #Estimate number of columns for 2d matrix
+    number_columns = len(bsw)*len(gas_arr)*len(thp)*di.shape[1]
+
+    #Create matrix for results
+    pwf = np.zeros((len(liquid_rate),number_columns))
+
+    name_list = []
+
+    c = 0
+    for b in bsw:
+        for g in gas_arr:
+            for pi in thp:
+                for d in range(di.shape[1]):
+                    i = 0
+                    for l in liquid_rate:
+                        _,pwf[i,c] = two_phase_pressure_profile(
+                            depth = depth,
+                            thp = pi,
+                            liquid_rate = l,
+                            oil_rate = None,
+                            gas_rate = g if gas_rate is not None else None,
+                            glr = g if glr is not None else None,
+                            gor = g if gor is not None else None,
+                            bsw = b,
+                            oil_obj = oil_obj,
+                            gas_obj = gas_obj,
+                            water_obj = water_obj, 
+                            epsilon=epsilon, 
+                            surface_temperature=surface_temperature,
+                            temperature_gradient=temperature_gradient,  
+                            di=di[:,d], 
+                            tol=tol,
+                            max_iter = max_iter,
+                            method = method
+                        )
+                        i += 1
+                    print(c)
+                    c += 1 
+                    col_name = f"bsw_{b} {gas_name}_{g} thp_{pi} di_{np.round(di[:,d].mean(),decimals=2)}"
+                    print(col_name)
+                    name_list.append(col_name)
+
+    df = pd.DataFrame(pwf,columns=name_list,index=liquid_rate)
+
+    return df  
+  
 
 
