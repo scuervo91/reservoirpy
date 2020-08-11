@@ -272,7 +272,12 @@ class well:
 
     @openlog.setter
     def openlog(self,value):
-        assert isinstance(value,(log,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
+        if value is not None:
+            assert isinstance(value,dict)
+            for i in value:
+                assert isinstance(value[i],log)    
+        else:
+            value = {}       
         self._openlog = value
 
     @property
@@ -281,7 +286,12 @@ class well:
 
     @masterlog.setter
     def masterlog(self,value):
-        assert isinstance(value,(log,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
+        if value is not None:
+            assert isinstance(value,dict)
+            for i in value:
+                assert isinstance(value[i],log)    
+        else:
+            value = {}       
         self._masterlog = value
 
     @property
@@ -290,7 +300,12 @@ class well:
 
     @caselog.setter
     def caselog(self,value):
-        assert isinstance(value,(log,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.welllogspy.log.log'
+        if value is not None:
+            assert isinstance(value,dict)
+            for i in value:
+                assert isinstance(value[i],log)    
+        else:
+            value = {}       
         self._caselog = value
 
     @property
@@ -358,6 +373,21 @@ class well:
 
 #####################################################
 ############## methods ###########################
+
+    def add_logs(self,logs_dict, which='openlog'):
+
+        assert isinstance(logs_dict,dict)
+        for i in logs_dict:
+            assert isinstance(logs_dict[i],log)     
+        
+        if which=='openlog':
+            self._openlog.update(logs_dict)
+        elif which == 'masterlog':
+            self._masterlog.update(logs_dict)
+        elif which == 'caselog':
+            self._caselog.update(logs_dict)
+        else:
+            raise ValueError('No attribute target defined')
 
     def sample_deviation(self,step=100):
         if self._survey is not None:
@@ -461,31 +491,46 @@ class well:
                 
                 if 'openlog' in which:
                     if self._openlog is not None:
-                        _d = self._openlog.df().index.values
-                        _tvd = _tvd_int(_d)
-                        _tvdss = _tvdss_int(_d)
-                        self._openlog.add_curve('tvd',_tvd,descr='tvd')
-                        self._openlog.add_curve('tvdss',_tvdss,descr='tvdss')
+                        for i in self._openlog:
+                            try:
+                                _d = self._openlog[i].df().index.values
+                                _tvd = _tvd_int(_d)
+                                _tvdss = _tvdss_int(_d)
+                                self._openlog[i].add_curve('tvd',_tvd,descr='tvd')
+                                self._openlog[i].add_curve('tvdss',_tvdss,descr='tvdss')
+                            except:
+                                print(f"{i} not calculated")
+                                pass
                     else:
                         print(f" {self.name} No openlog have been set")
 
                 if 'masterlog' in which:
                     if self._masterlog is not None:
-                        _d = self._masterlog.df().index.values
-                        _tvd = _tvd_int(_d)
-                        _tvdss = _tvdss_int(_d)
-                        self._masterlog.add_curve('tvd',_tvd,descr='tvd')
-                        self._masterlog.add_curve('tvdss',_tvdss,descr='tvdss')
+                       for i in self._masterlog:
+                            try:
+                                _d = self._masterlog[i].df().index.values
+                                _tvd = _tvd_int(_d)
+                                _tvdss = _tvdss_int(_d)
+                                self._masterlog[i].add_curve('tvd',_tvd,descr='tvd')
+                                self._masterlog[i].add_curve('tvdss',_tvdss,descr='tvdss')
+                            except:
+                                print(f"{i} not calculated")
+                                pass
                     else:
                         print(f" {self.name} No masterlog have been set")
 
                 if 'caselog' in which:
                     if self._caselog is not None:
-                        _d = self._caselog.df().index.values
-                        _tvd = _tvd_int(_d)
-                        _tvdss = _tvdss_int(_d)
-                        self._caselog.add_curve('tvd',_tvd,descr='tvd')
-                        self._caselog.add_curve('tvdss',_tvdss,descr='tvdss')
+                       for i in self._caselog:
+                            try:
+                                _d = self._caselog[i].df().index.values
+                                _tvd = _tvd_int(_d)
+                                _tvdss = _tvdss_int(_d)
+                                self._caselog[i].add_curve('tvd',_tvd,descr='tvd')
+                                self._caselog[i].add_curve('tvdss',_tvdss,descr='tvdss')
+                            except:
+                                print(f"{i} not calculated")
+                                pass
                     else:
                         print(f" {self.name} No caselog have been set")
 
@@ -556,38 +601,53 @@ class well:
                 raise ValueError("No log specification")
             else:
                 if ('masterlog' in which) & (self._masterlog is not None):
-                    _d = self._masterlog.df().index
-                    _m = pd.DataFrame(index=_d)
-                    for i in df.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[0]
-                    self._masterlog.add_curve(_item,_m[_item].values,descr=_item)
+                    for j in self._masterlog:
+                        _d = self._masterlog[j].df().index
+                        _m = pd.DataFrame(index=_d)
+                        for i in df.iterrows():
+                            _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[0]
+                        self._masterlog[j].add_curve(_item,_m[_item].values,descr=_item)
                 if ('openlog' in which) & (self._openlog is not None):
-                    _d = self._openlog.df().index
-                    _m = pd.DataFrame(index=_d)
-                    for i in df.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[0]
-                    self._openlog.add_curve(_item,_m[_item].values,descr=_item)
+                    for j in self._openlog:
+                        _d = self._openlog[j].df().index
+                        _m = pd.DataFrame(index=_d)
+                        for i in df.iterrows():
+                            _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[0]
+                        self._openlog[j].add_curve(_item,_m[_item].values,descr=_item)
                 if ('caselog' in which) & (self._caselog is not None):
-                    _d = self._caselog.df().index
-                    _m = pd.DataFrame(index=_d)
-                    for i in df.iterrows():
-                        _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[1][_item]
-                    self._caselog.add_curve(_item,_m[_item].values,descr=_item)
+                    for j in self._caselog:
+                        _d = self._caselog[j].df().index
+                        _m = pd.DataFrame(index=_d)
+                        for i in df.iterrows():
+                            _m.loc[(_m.index>=i[1]['md_top'])&(_m.index<=i[1]['md_bottom']),_item] = i[1][_item]
+                        self._caselog[j].add_curve(_item,_m[_item].values,descr=_item)
 
-    def add_to_logs(self,df):
-        if self._openlog is None:
-            raise ValueError("openlog has not been added")
-        else:
-            #col_exist = self.openlog.df().columns
-            col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self._openlog.df().columns))]
-            df_merge = self._openlog.df().merge(df[col_add], how='left', left_index=True,right_index=True)
-            assert df_merge.shape[0] == self._openlog.df().shape[0]
+    def add_to_logs(self,df,key,which='openlog'):
+
+        if which =='openlog':
+            col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self._openlog[key].df().columns))]
+            df_merge = self._openlog[key].df().merge(df[col_add], how='left', left_index=True,right_index=True)
+            assert df_merge.shape[0] == self._openlog[key].df().shape[0]
             for i in df_merge[col_add].iteritems():
-                self._openlog.add_curve(i[0],i[1])
+                self._openlog[key].add_curve(i[0],i[1])         
+
+        if which =='masterlog':
+            col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self._masterlog[key].df().columns))]
+            df_merge = self._masterlog[key].df().merge(df[col_add], how='left', left_index=True,right_index=True)
+            assert df_merge.shape[0] == self._masterlog[key].df().shape[0]
+            for i in df_merge[col_add].iteritems():
+                self._masterlog[key].add_curve(i[0],i[1])   
+
+        if which =='caselog':
+            col_add = df.columns[~df.columns.isin(np.intersect1d(df.columns, self._caselog[key].df().columns))]
+            df_merge = self._caselog[key].df().merge(df[col_add], how='left', left_index=True,right_index=True)
+            assert df_merge.shape[0] == self._caselog[key].df().shape[0]
+            for i in df_merge[col_add].iteritems():
+                self._caselog[key].add_curve(i[0],i[1])   
 
     def interval_attributes(self,perforations:bool=False, 
                             intervals:perforations=None, 
-                            curves:list = None,
+                            curves:list = None, which = 'openlog',key=None,
                             aggfunc = ['min','max','mean']):
         if perforations == True :
             p = self._perforations
@@ -598,7 +658,15 @@ class well:
         log_appended = pd.DataFrame()
         #add column to identify the interval
         for i,c in p.iterrows():
-            logdf = self._openlog.df().copy()
+            if which == 'openlog': 
+                logdf = self._openlog[key].df().copy()
+            elif which == 'masterlog':
+                logdf = self._masterlog[key].df().copy()
+            elif which == 'caselog':
+                logdf = self._caselog[key].df().copy()
+            else:
+                raise ValueError('No logs selected')
+
             logdf.loc[(logdf.index >= c['md_top'])&(logdf.index<=c['md_bottom']),'inter']=i
             
             #filter all the intervals
@@ -607,6 +675,7 @@ class well:
             #Group and aggregate functions
             log_grp = logdf[curves].groupby('inter').agg(aggfunc)
             log_appended = log_appended.append(log_grp)
+
         p_result = pd.concat([p,log_appended],axis=1)
         if perforations ==True:
             self._perforations = p_result 
