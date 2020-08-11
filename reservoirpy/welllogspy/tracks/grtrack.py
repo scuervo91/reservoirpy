@@ -32,6 +32,7 @@ def grtrack(df: pd.DataFrame,
                 depth_ref='md',
                 gr_colormap: str='autumn',
                 sp_colormap: str='gray',
+                sp_norm = True
                ):
     
     """
@@ -183,20 +184,30 @@ def grtrack(df: pd.DataFrame,
     if sp is not None:
         spax=grax.twiny()
         if isinstance(sp,str):
-            spax.plot(df[sp],depth,**sp_kw)   #Plotting
+            sp_filter = df.loc[df[sp]>-999,sp]
+            sp_mean = sp_filter.mean() if sp_norm else 0
+            sp_norm = sp_filter - sp_mean
+            sp_min = sp_norm.min()
+            sp_max = sp_norm.max()
+            spax.plot(df[sp]-sp_mean,depth,**sp_kw)   #Plotting
         elif isinstance(sp,list):
             cmap = mpl.cm.get_cmap(sp_colormap,len(sp))
             for i,s in enumerate(sp):
                 sp_kw['color']=cmap(i)
-                spax.plot(df[s],depth,**sp_kw)
+                sp_filter = df.loc[df[s]>-999,s]
+                sp_mean = sp_filter.mean() if sp_norm else 0
+                sp_norm = sp_filter - sp_mean
+                sp_min = sp_norm.min()
+                sp_max = sp_norm.max()
+                spax.plot(df[s]-sp_mean,depth,**sp_kw)
 
         spax.xaxis.set_label_position("bottom")
         spax.xaxis.tick_bottom()
         spax.set_xlabel('Sp')
        
         if sp_lim is None:
-            spax.set_xlim([df[sp][df[sp]>-999.25].min(),df[sp][df[sp]>-999.25].max()])
-            spax.set_xticks(np.linspace(df[sp][df[sp]>-999.25].min(),df[sp][df[sp]>-999.25].max(),4))
+            spax.set_xlim([sp_min,sp_max])
+            spax.set_xticks(np.linspace(sp_min,sp_max,4))
  
         else:
             spax.set_xlim(sp_lim)
