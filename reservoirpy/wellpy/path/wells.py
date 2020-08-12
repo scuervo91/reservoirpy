@@ -1209,8 +1209,17 @@ class wells_group:
 
         return dist_matrix
 
-    def structural_view(self,wells:list=None, horizons:list=None, show_surveys=True, 
-        show_horizons=True, azi=0, center=None,ax=None,margin=500,units=False, **kwargs):
+    def structural_view(self,
+        wells:list=None, 
+        horizons:list=None, 
+        show_surveys=True, 
+        show_horizons=True, 
+        azi=0, 
+        center=None,
+        ax=None,
+        margin=500,
+        units=False, 
+        **kwargs):
         """
         plot a structural view of the tops and wells in a 2D representation
 
@@ -1248,17 +1257,50 @@ class wells_group:
         fm_color = kwargs.pop('formation_cmap','Set1')
         well_color = kwargs.pop('well_cmap','GnBu_d')
         legend = kwargs.pop('legend','brief')
+        horizon_scatter = kwargs.pop('scatter',False)
+        ann = kwargs.pop('ann',True)
+        ann_fontsize = kwargs.pop('ann_fontsize',11)
 
         if show_horizons:
             tops, center_tops = self.wells_tops(wells=wells, horizons=horizons, projection1d=True, azi=azi,center=center, units=units)
             tops.reset_index(inplace=True)
-            sns.lineplot(x='projection',y='tvdss_top', data=tops, 
-                    hue='unit' if units else 'formation',markers=True, ax=stax, palette=fm_color, legend=legend)
-        
+            if horizon_scatter:
+                sns.scatterplot(
+                    x='projection',
+                    y='tvdss_top', 
+                    data=tops, 
+                    hue='unit' if units else 'formation',
+                    markers=True, 
+                    ax=stax, 
+                    palette=fm_color, 
+                    legend=legend)
+            else:
+                sns.lineplot(
+                    x='projection',
+                    y='tvdss_top', 
+                    data=tops, 
+                    hue='unit' if units else 'formation',
+                    markers=True, 
+                    ax=stax, 
+                    palette=fm_color, 
+                    legend=legend)
+            
+        if ann:
+            for i,v in tops.iterrows():
+                stax.annotate(
+                    f"{v['well']}",
+                    xy=(v['projection'],v['tvdss_top']),
+                    xycoords='data',
+                    horizontalalignment='right', 
+                    fontsize=ann_fontsize,
+                    bbox={'boxstyle':'round', 'fc':'0.8'}
+                    )
+                
+
         if show_surveys:
             surv,_ = self.wells_surveys(wells=wells,projection1d=True, azi=azi, center=center_tops if show_horizons==True else None)
             sns.lineplot(x='projection',y='tvdss', data=surv, 
-                    hue='well', ax=stax, palette=well_color, legend=legend)
+                    hue='well', ax=stax, palette=well_color, legend=False)
 
         ## y lims
         ylims = kwargs.pop('ylims',None)
@@ -1271,6 +1313,10 @@ class wells_group:
                 ylims=[tops['tvdss_top'].max()-margin,surv['tvdss_top'].min()+margin]
 
         stax.set_ylim([ylims[1],ylims[0]])
+
+        xlims = kwargs.pop('xlims',None)
+        if xlims is not None:
+            stax.set_xlim([xlims[0],xlims[1]])
 
     def wells_surveys_vtk(self, wells:list=None):
         """
