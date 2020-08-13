@@ -722,10 +722,11 @@ def hb_correlation(
 
     griffith = False
 
-    usl = (liquid_rate * 5.615)/(0.0278 * 86400)
+    area = np.power((di*0.5)/12,2)*np.pi
+    usl = (liquid_rate * 5.615)/(area * 86400)
     usg = (4*gas_rate*1000*z*(460+temperature)*14.7)/(86400*pressure*520*np.pi*np.power(di/12,2)) 
     
-    area = np.power((di*0.5)/12,2)*np.pi
+    
     #Mixure Velocity
     um = usl + usg 
     lambda_g = usg / um 
@@ -794,6 +795,113 @@ def hb_correlation(
         pressure_gradient = (1/144)*(rho_avg+((ff*np.power(mass_flow,2))/(7.413e10*np.power(di/12,5)*rho_avg)))
 
     return pressure_gradient
+
+def gray_correlation(
+    pressure=None,  #Pressure [psi]
+    temperature=None, #Temperature [F]
+    liquid_rate=None, # Liquid Flow [bbl/d]
+    gas_rate=None, # gas flow [kscfd]
+    ten_liquid=None, #Surface tension dyne/cm2
+    rho_liquid=None, # density lb/ft3
+    rho_gas=None, # density lb/ft3
+    mu_liquid=None, # Viscosity [cp]
+    mu_gas=None, # Viscosity [cp]
+    z=1, # Gas compressibility Factor
+    di=None, # Diameter,
+    epsilon = 0.0006,
+):
+    #Check types and converto to np.ndarray
+    assert isinstance(pressure,(int,float,np.ndarray,np.float64,np.int64))
+    pressure = np.atleast_1d(pressure)
+
+    assert isinstance(temperature,(int,float,np.ndarray,np.float64,np.int64))
+    temperature = np.atleast_1d(temperature)
+
+    assert isinstance(liquid_rate,(int,float,np.ndarray,np.float64,np.int64))
+    liquid_rate = np.atleast_1d(liquid_rate)
+
+    assert isinstance(gas_rate,(int,float,np.ndarray,np.float64,np.int64))
+    gas_rate = np.atleast_1d(gas_rate)
+
+    assert isinstance(ten_liquid,(int,float,np.ndarray,np.float64,np.int64))
+    ten_liquid = np.atleast_1d(ten_liquid)
+
+    assert isinstance(rho_liquid,(int,float,np.ndarray,np.float64,np.int64))
+    rho_liquid = np.atleast_1d(rho_liquid)
+
+    assert isinstance(rho_gas,(int,float,np.ndarray,np.float64,np.int64))
+    rho_gas = np.atleast_1d(rho_gas)
+
+    assert isinstance(mu_liquid,(int,float,np.ndarray,np.float64,np.int64))
+    mu_liquid = np.atleast_1d(mu_liquid)
+
+    assert isinstance(mu_gas,(int,float,np.ndarray,np.float64,np.int64))
+    mu_gas = np.atleast_1d(mu_gas)
+
+    assert isinstance(z,(int,float,np.ndarray,np.float64,np.int64))
+    z = np.atleast_1d(z)
+
+    assert isinstance(di,(int,float,np.ndarray,np.float64,np.int64))
+    di = np.atleast_1d(di)
+
+    assert isinstance(epsilon,(int,float,np.ndarray,np.float64,np.int64))
+    epsilon = np.atleast_1d(epsilon)
+
+    area = np.power((di*0.5)/12,2)*np.pi
+    usl = (liquid_rate * 5.615)/(area * 86400)
+    usg = (4*gas_rate*1000*z*(460+temperature)*14.7)/(86400*pressure*520*np.pi*np.power(di/12,2)) 
+
+    #Total velocity
+    um = usl + usg
+
+    #Lambda liquid
+    lambda_l = usl / um
+    
+    # Rho m
+    rho_m = lambda_l*rho_liquid + (1 - lambda_l) * rho_gas 
+
+    #Calculate N
+    n1 = (np.power(rho_m,2)*np.power(um,4))/(32.172*6.85e-5*ten_liquid*(rho_liquid-rho_gas))
+    n2 = (32.172 * np.power(di/12,2)*(rho_liquid-rho_gas))/(ten_liquid*6.85e-5)
+    
+    #N3
+    rv = usl / usg
+    n3 = 0.0814 * (1 - 0.0554 * np.log(1+((730*rv)/(rv + 1))))
+
+    #Liquid Holdup
+    fl = -2.314 * np.power(n1*(1+(205/n2)),n3)
+    yl = 1 - (1-lambda_l)*(1 - np.exp(fl))
+
+    #Rho avg
+    rho_avg = yl*rho_liquid + (1-yl)*rho_gas
+
+    #potential energy
+    ppe = rho_avg / 144 
+
+    # Absolute Roughness
+    k = epsilon * (di/12)
+
+    ko = (0.285*ten_liquid)/(rho_m * np.power(um,2))
+
+    if rv >= 0.007:
+        ke = ko
+    else:
+        ke = k + rv*((ko - k)/0.007) 
+
+    epsilon_relative = ke / (di/12)
+
+    #Friction Factor
+    nre = np.power(10,7)
+    ff = np.power((1/(-4*np.log10((epsilon_relative/3.7065)-(5.0452/nre)*np.log10((np.power(epsilon_relative,1.1098)/2.8257)+np.power(7.149/nre,0.8981))))),2)
+
+
+    #ppf
+    ppf = (2*ff*rho_m*np.power(um,2))/(32.172 * (di/12) * 144)
+
+    pressure_gradient = ppe + ppf
+
+    return pressure_gradient
+
 
 
 def two_phase_pressure_profile(
