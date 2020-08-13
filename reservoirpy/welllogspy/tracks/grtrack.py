@@ -286,6 +286,7 @@ def grtrack(df: pd.DataFrame,
     if perf is not None:
         perf_ann = perf_kw.pop('ann',False)
         perf_ann_fontsize = perf_kw.pop('fontsize',8)
+        perf_ann_xytext = perf_kw.pop('xytext',(-180,0))
         for i in perf.iterrows():
             if depth_ref == 'tvdss':
                 if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
@@ -302,7 +303,7 @@ def grtrack(df: pd.DataFrame,
                 except:
                     grax.annotate(f"Top:{i[1][f'{depth_ref}_top']} \nBottom:{i[1][f'{depth_ref}_bottom']}",
                     xy=(0,(i[1][f'{depth_ref}_top']+i[1][f'{depth_ref}_bottom'])/2),xycoords='data',
-                    xytext=(-180, 0), textcoords='offset points', fontsize = perf_ann_fontsize,
+                    xytext=perf_ann_xytext, textcoords='offset points', fontsize = perf_ann_fontsize,
                     arrowprops=dict(arrowstyle="->"))
                 else: 
                     pass
