@@ -1293,14 +1293,28 @@ class wells_group:
                     xycoords='data',
                     horizontalalignment='right', 
                     fontsize=ann_fontsize,
-                    bbox={'boxstyle':'round', 'fc':'0.8'}
+                    bbox={'boxstyle':'round', 'fc':'0.8'},
+                    xytext=(0, 20),
+                    textcoords='offset points'
                     )
                 
 
         if show_surveys:
-            surv,_ = self.wells_surveys(wells=wells,projection1d=True, azi=azi, center=center_tops if show_horizons==True else None)
-            sns.lineplot(x='projection',y='tvdss', data=surv, 
-                    hue='well', ax=stax, palette=well_color, legend=False)
+            surv,_ = self.wells_surveys(
+                wells=wells,
+                projection1d=True, 
+                azi=azi, 
+                center=center_tops if show_horizons==True else None
+            )
+            sns.lineplot(
+                x='projection',
+                y='tvdss', 
+                data=surv, 
+                hue='well', 
+                ax=stax, 
+                palette=well_color, 
+                legend=False
+            )
 
         ## y lims
         ylims = kwargs.pop('ylims',None)
