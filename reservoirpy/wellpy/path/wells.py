@@ -179,6 +179,7 @@ class well:
         self.declination = kwargs.pop('declination',None)
         self.kh = kwargs.pop('kh',None)
         self.productivity_index = kwargs.pop('productivity_index',None)
+        self.constrains = kwargs.pop('constrains',None)
 
 
 #####################################################
@@ -369,6 +370,26 @@ class well:
         if isinstance(value,dict):
             assert all(isinstance(value[i],(int,float)) for i in value)
         self._kh = value    
+
+    @property
+    def constrains(self):
+        return self._constrains
+
+    @constrains.setter
+    def constrains(self,value):
+        if value is not None:
+            #Assert is a dictionary
+            assert isinstance(value,dict)
+            keys = list(value.keys())
+            
+            #assert 'date','constrain','value' are in the dict
+            assert all(i in keys for i in ['date','constrain','value'])
+
+            #assert items are list or numpy ndarray
+            for i in value:
+                assert isinstance(value[i],(list,np.ndarray))
+
+        self._constrains = value
 
 
 #####################################################
