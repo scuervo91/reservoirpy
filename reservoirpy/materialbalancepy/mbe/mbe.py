@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from ...pvtpy.black_oil import oil, water, gas 
-from .kr import kr
+from ...krpy import kr
 from ...wellproductivitypy.decline import bsw_to_wor
 from .aquifer import pot_aquifer
 import matplotlib.pyplot as plt
