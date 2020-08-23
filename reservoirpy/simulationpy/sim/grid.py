@@ -4,7 +4,7 @@ import vtk
 from shapely.geometry import Point
 import math
 
-petrophysical_properties = ['PORO','PERMX','PERMY','PERMZ','SW']
+petrophysical_properties = ['PORO','PERMX','PERMY','PERMZ','SW','RT']
 
 ## Auxilary functions
 def cell_id(i,j,k,nx,ny):
@@ -420,7 +420,7 @@ class grid():
 
         if isinstance(value,dict):
             for i in value:
-                assert i in petrophysical_properties, f"Keyword {i} not in supported properties {petrophysical_properties} "
+                #assert i in petrophysical_properties, f"Keyword {i} not in supported properties {petrophysical_properties} "
                 assert isinstance(value[i],(int,float,list,np.ndarray))     
 
                 if isinstance(value[i],(int,float)):

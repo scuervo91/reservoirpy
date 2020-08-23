@@ -1,2 +1,5 @@
 from .grid import grid, cell_id, cell_ijk,interpolate_z_pillar
-from .model import numerical, sim_model
+from .model import model
+from .numerical import numerical
+from .initial_conditions import initial_conditions
+from .results import results

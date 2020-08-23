@@ -4,44 +4,11 @@ from .grid import grid
 from ...pvtpy.black_oil import oil, gas, water
 from ...krpy import water_oil_kr, gas_oil_kr
 from ...wellpy.path import wells_group
-
-
-class numerical:
-    def __init__(self, **kwargs):
-        self.relaxation = kwargs.pop('relaxation',1)
-        self.max_iter = kwargs.pop('max_iter',30)
-        self.date_range = kwargs.pop('date_range', None)
-
-    @property
-    def relaxation(self):
-        return self._relaxation
-
-    @relaxation.setter 
-    def relaxation(self,value):
-        assert isinstance(value,(int,float))
-        assert value >= 0 
-        self._relaxation = value 
-
-    @property 
-    def max_iter(self):
-        return self._max_iter
-
-    @max_iter.setter 
-    def max_iter(self,value):
-        assert isinstance(value,int) and value > 0
-        self._max_iter = value 
+from .numerical import numerical
+from .results import results
+from .initial_conditions import initial_conditions
     
-    @property
-    def date_range(self):
-        return self._date_range 
-    
-    @date_range.setter
-    def date_range(self,value):
-        assert isinstance(value,np.ndarray)
-        assert all(isinstance(i,np.datetime64) for i in value)
-        self._date_range = value
-
-class sim_model:
+class model:
 
     def __init__(self,**kwargs):
 
@@ -62,6 +29,12 @@ class sim_model:
 
         #Numerical
         self.numerical = kwargs.pop('numerical',None)
+
+        #Initial conditions
+        self.initial_conditions = kwargs.pop('initial_conditions', None)
+
+        #Results
+        self.results = kwargs.pop('results', None)
 
     ## Properties
 
@@ -96,6 +69,7 @@ class sim_model:
         
         for i in value:
             assert i in self.phase
+            assert isinstance(value[i], (oil,gas,water))
         self._pvt  = value
 
     @property 
@@ -138,6 +112,9 @@ class sim_model:
     def wells(self,value):
         if value is not None:
             assert isinstance(value, wells_group)
+            for w in value.wells:
+                assert value.wells[w].perforations is not None
+                assert value.wells[w].constrains is not None
         self._wells = value
 
     @property
@@ -148,4 +125,24 @@ class sim_model:
     def numerical(self,value):
         assert isinstance(value, numerical)
         self._numerical = value
+
+    @property
+    def initial_conditions(self):
+        return self._initial_conditions 
+
+    @initial_conditions.setter
+    def initial_conditions(self,value):
+        assert isinstance(value,initial_conditions)
+        self._initial_conditions = value
     
+    @property
+    def results(self):
+        return self._results 
+
+    @results.setter
+    def results(self,value):
+        if value is not None:
+            assert isinstance(value,results)
+        self._results = value
+
+
