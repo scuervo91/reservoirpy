@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd 
 import matplotlib.pyplot as plt
 from ...pvtpy.black_oil import pvt, gas, oil, water
+from scipy.optimize import root_scalar
 
 ## Incompressible pressure drop
 def potential_energy_change(
@@ -267,11 +268,11 @@ def gas_pressure_profile_correlation(thp,sg,depth):
 
 
 def gas_pressure_profile(
-    md, 
-    inc, 
-    thp, 
-    rate, 
-    gas_obj,
+    md = None, 
+    inc = None, 
+    thp = None, 
+    rate = None, 
+    gas_obj = None,
     di=2.99,
     surf_temp=80,
     temp_grad=1,
@@ -387,12 +388,56 @@ def gas_pressure_profile(
 
     return df, pwf
 
+def gas_upward_pressure(
+    md = None, 
+    inc = None, 
+    pwf = None, 
+    rate = None, 
+    gas_obj = None,
+    di=2.99,
+    surf_temp=80,
+    temp_grad=1,
+    epsilon = 0.0006, 
+    tol = 0.05, 
+    max_iter=20,
+    guess=None,
+    grad_guess = [0.02,0.05]
+):
+
+    if guess is None:
+        grad = np.atleast_1d(grad_guess)
+        delta_h = np.abs(md[-1] - md[0])
+        guess = pwf - grad * delta_h
+    else:
+        assert isinstance(guess,(list,np.ndarray))
+        guess = np.atleast_1d(guess)
+
+    def solve(x):
+        _,_pwf = gas_pressure_profile(
+            md = md, 
+            inc = inc, 
+            thp = x,  
+            rate = rate, 
+            gas_obj = gas_obj,
+            di=di,
+            surf_temp=surf_temp,
+            temp_grad=temp_grad,
+            epsilon = epsilon, 
+            tol = tol, 
+            max_iter=max_iter,
+        )
+
+        return pwf - _pwf
+
+    sol = root_scalar(solve, x0=guess[0],x1=guess[1])
+
+    return sol.root
 
 def gas_outflow_curve(
-    md, 
-    inc, 
-    thp, 
-    gas_obj,
+    md = None, 
+    inc = None, 
+    thp = None, 
+    gas_obj = None,
     rate=None,
     min_rate=100,
     max_rate=8000,
@@ -441,7 +486,16 @@ def gas_outflow_curve(
         for d in di:
             i = 0
             for q in rate:
-                _,pwf[i,c] = gas_pressure_profile(md,inc,p,q,gas_obj,surf_temp=surf_temp,temp_grad=temp_grad,di=d)
+                _,pwf[i,c] = gas_pressure_profile(
+                    md = md,
+                    inc = inc,
+                    thp = p,
+                    rate = q,
+                    gas_obj = gas_obj,
+                    surf_temp=surf_temp,
+                    temp_grad=temp_grad,
+                    di=d
+                )
                 i += 1
             c += 1
             col_name = f'thp-{p}_di-{np.mean(d)}'
@@ -1080,6 +1134,66 @@ def two_phase_pressure_profile(
     pwf = pressure_profile[-1]
 
     return df, pwf
+
+def two_phase_upward_pressure(
+    depth = None,
+    pwf = None,
+    liquid_rate = None,
+    oil_rate = None,
+    gas_rate = None,
+    glr = None,
+    gor = None,
+    bsw = None,
+    oil_obj = None,
+    gas_obj = None,
+    water_obj = None, 
+    epsilon=0.0006, 
+    surface_temperature=80, 
+    temperature_gradient=1,  
+    di=2.99, 
+    tol=0.02,
+    max_iter = 20,
+    method = 'hagedorn_brown',
+    guess=None,
+    grad_guess = [0.41,0.38]
+):
+
+    if guess is None:
+        grad = np.atleast_1d(grad_guess)
+        delta_h = np.abs(depth[-1] - depth[0])
+        guess = pwf - grad * delta_h
+    else:
+        assert isinstance(guess,(list,np.ndarray))
+        guess = np.atleast_1d(guess)
+
+    def solve(x):
+        _,_pwf = two_phase_pressure_profile(
+            depth = depth,
+            thp = x,
+            liquid_rate = liquid_rate,
+            oil_rate = oil_rate,
+            gas_rate = gas_rate,
+            glr = glr,
+            gor = gor,
+            bsw = bsw,
+            oil_obj = oil_obj,
+            gas_obj = gas_obj,
+            water_obj = water_obj, 
+            epsilon=epsilon, 
+            surface_temperature=surface_temperature,
+            temperature_gradient=temperature_gradient,  
+            di=di, 
+            tol=tol,
+            max_iter = max_iter,
+            method = method
+        )
+
+        return pwf - _pwf
+
+    sol = root_scalar(solve, x0=guess[0],x1=guess[1])
+
+    return sol.root
+
 
 def two_phase_outflow_curve(
     depth = None,
