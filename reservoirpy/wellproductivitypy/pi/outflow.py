@@ -91,7 +91,7 @@ def kinetic_energy_change(d1=None,d2=None, ge=1,rate=None,p1=0):
 
 
     # Rate in bbl/d
-    assert isinstance(rate,(float,int,np.ndarray,np.int64,np.float64)) and rate>0
+    assert isinstance(rate,(float,int,np.ndarray,np.int64,np.float64)) and rate>=0
     rate = np.atleast_1d(rate) 
 
     #Estimate Density in lb/ft3
@@ -121,7 +121,7 @@ def frictional_pressure_drop(
     length=None):
 
     # Rate in bbl/d
-    assert isinstance(rate,(float,int,np.ndarray,np.int64,np.float64)) and rate>0
+    assert isinstance(rate,(float,int,np.ndarray,np.int64,np.float64)) and rate>=0
     rate = np.atleast_1d(rate) 
 
     # pipe relative roughness
@@ -148,7 +148,10 @@ def frictional_pressure_drop(
     nre = reynolds_number(rate,rho,d,mu)
 
     #Friction Factor
-    ff = np.power((1/(-4*np.log10((epsilon/3.7065)-(5.0452/nre)*np.log10((np.power(epsilon,1.1098)/2.8257)+np.power(7.149/nre,0.8981))))),2)
+    if nre == 0:
+        ff = 0
+    else:
+        ff = np.power((1/(-4*np.log10((epsilon/3.7065)-(5.0452/nre)*np.log10((np.power(epsilon,1.1098)/2.8257)+np.power(7.149/nre,0.8981))))),2)
 
     #Velocity ft/s
     u = (4*rate*5.615)/(np.pi*np.power(d/12,2)*86400)
@@ -159,7 +162,7 @@ def frictional_pressure_drop(
 
 
 
-def incompressible_pressure_profile(
+def one_phase_pressure_profile(
     p1=0,
     ge=1,
     epsilon=0.001,
@@ -167,7 +170,8 @@ def incompressible_pressure_profile(
     tvd=None,
     d = None,
     rate = None,
-    mu=None
+    mu=None,
+    backwards=1
     ):
 
     assert isinstance(md,(int,float,list,np.ndarray))
@@ -176,15 +180,15 @@ def incompressible_pressure_profile(
     tvd = np.atleast_1d(tvd)
     assert isinstance(d,(int,float,list,np.ndarray))
     d = np.atleast_1d(d)
-    assert isinstance(rate,(int,float))
+    assert isinstance(rate,(int,float, np.ndarray))
     rate = np.atleast_1d(rate)
-    assert isinstance(mu,(int,float))
+    assert isinstance(mu,(int,float, np.ndarray))
     mu = np.atleast_1d(mu)
-    assert isinstance(p1,(int,float))
+    assert isinstance(p1,(int,float, np.ndarray))
     p1 = np.atleast_1d(p1)
-    assert isinstance(ge,(int,float))
+    assert isinstance(ge,(int,float, np.ndarray))
     ge = np.atleast_1d(ge)
-    assert isinstance(epsilon,(int,float))
+    assert isinstance(epsilon,(int,float, np.ndarray))
     epsilon = np.atleast_1d(epsilon)
 
     assert md.shape[0] == tvd.shape[0] == d.shape[0]
@@ -197,6 +201,7 @@ def incompressible_pressure_profile(
     pke = np.zeros(n)
     pf = np.zeros(n)
     delta_p = np.zeros(n)
+    gradient = np.zeros(n)
 
     pressure[0] = p1
 
@@ -225,11 +230,11 @@ def incompressible_pressure_profile(
             d=d[i], 
             mu=mu, 
             length=np.abs(md[i-1]-md[i])
-        )
+        ) * backwards
 
         delta_p[i] = ppe[i] + pke[i] + pf[i]
         pressure[i] = pressure[i-1] + delta_p[i]
-
+        gradient[i] = (pressure[i] - pressure[i-1])/np.abs(tvd[i] - tvd[i-1])
     
         # Create dataframe
     pressure_profile = pd.DataFrame({
@@ -240,10 +245,13 @@ def incompressible_pressure_profile(
         'ppe': ppe,
         'pke': pke,
         'pf' : pf,
-        'delta_p': delta_p
+        'delta_p': delta_p,
+        'gradient': gradient
     })
+    
+    p2 = pressure[-1]
 
-    return pressure_profile
+    return pressure_profile, p2
 
 
 ## Gas Outflow functions
@@ -976,7 +984,8 @@ def two_phase_pressure_profile(
     di=2.99, 
     tol=0.02,
     max_iter = 20,
-    method = 'hagedorn_brown'
+    method = 'hagedorn_brown',
+    min_glr = 10
 ):
 
     # Assert the right types and shapes for input
@@ -1061,6 +1070,7 @@ def two_phase_pressure_profile(
     pressure_gradient = np.zeros(depth.shape)
     iterations = np.zeros(depth.shape)
     free_gas_rate = np.zeros(depth.shape)
+    glr = np.zeros(depth.shape)
     temperature_profile = np.abs(depth[0] - depth) * (temperature_gradient/100) + surface_temperature
 
     #Initials Densities
@@ -1090,29 +1100,44 @@ def two_phase_pressure_profile(
             z = gas_pvt_guess['z'].iloc[0]
 
             free_gas = gas_rate - (oil_pvt_guess['rs'].iloc[0]*oil_rate*1e-3)
+            free_gas = 0 if free_gas < 0 else free_gas
+            
+            glr_ratio = free_gas*1e3 / liquid_rate
 
-            if method == 'hagedorn_brown':
-                grad_new = hb_correlation(
-                    pressure=p_guess,
-                    temperature=temperature_profile[i],
-                    liquid_rate = liquid_rate,
-                    gas_rate = free_gas,
-                    ten_liquid = ten_liquid,
-                    rho_liquid = rho_liquid,
-                    rho_gas = rho_gas,
-                    mu_liquid = mu_liquid,
-                    mu_gas = mu_gas,
-                    z = z,
-                    di = di[i],
-                    epsilon = epsilon,
-                )
-            #elif method == 'beggs_brill':
-            #    grad_new = bb_correlation()
-            #elif method == 'gray':
-            #    grad_new = bb_correlation()
+            if glr_ratio > 10:
+                if method == 'hagedorn_brown':
+                    grad_new = hb_correlation(
+                        pressure=p_guess,
+                        temperature=temperature_profile[i],
+                        liquid_rate = liquid_rate,
+                        gas_rate = free_gas,
+                        ten_liquid = ten_liquid,
+                        rho_liquid = rho_liquid,
+                        rho_gas = rho_gas,
+                        mu_liquid = mu_liquid,
+                        mu_gas = mu_gas,
+                        z = z,
+                        di = di[i],
+                        epsilon = epsilon,
+                    )
+                #elif method == 'beggs_brill':
+                #    grad_new = bb_correlation()
+                #elif method == 'gray':
+                #    grad_new = bb_correlation()
             else:
-                raise ValueError('No method has been chosen')
+                df, _ = one_phase_pressure_profile(
+                    p1=p_guess,
+                    ge=rho_l /62.4,
+                    epsilon=epsilon,
+                    md=[depth[i], depth[i-1]],
+                    tvd=[depth[i], depth[i-1]],
+                    d = [di[i], di[i]],
+                    rate = liquid_rate,
+                    mu=mu_liquid
+                    )
 
+                grad_new = df['gradient'].iloc[-1]
+                
             err =  abs(grad_guess-grad_new)/grad_new
             grad_guess = grad_new
             it += 1
@@ -1120,6 +1145,7 @@ def two_phase_pressure_profile(
         pressure_gradient[i] = grad_new 
         pressure_profile[i] = p_guess
         free_gas_rate[i] = free_gas
+        glr[i] = glr_ratio
         iterations[i] = it
 
     df_dict = {
@@ -1127,7 +1153,8 @@ def two_phase_pressure_profile(
         'pressure_gradient': pressure_gradient,
         'free_gas_rate': free_gas_rate,
         'temperature': temperature_profile,
-        'iterations': iterations
+        'iterations': iterations,
+        'grl': glr
     }
 
     df = pd.DataFrame(df_dict, index = depth)

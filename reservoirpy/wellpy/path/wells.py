@@ -180,6 +180,7 @@ class well:
         self.kh = kwargs.pop('kh',None)
         self.productivity_index = kwargs.pop('productivity_index',None)
         self.constrains = kwargs.pop('constrains',None)
+        self.als = kwargs.pop('als',None)
 
 
 #####################################################
@@ -390,6 +391,16 @@ class well:
                 assert isinstance(value[i],(list,np.ndarray))
 
         self._constrains = value
+
+    @property
+    def als(self):
+        return self._als
+
+    @als.setter 
+    def als(self, value):
+        if value is not None:
+            assert issubclass(value,pi.als)
+        self._als = value
 
 
 #####################################################
