@@ -51,7 +51,7 @@ class ubh(als):
         self.brand = kwargs.pop('brand',None)
         self.nozzle = kwargs.pop('nozzle',None)
         self.throat = kwargs.pop('throat', None)
-        self.power_fluid_ge =kwargs.pop('power_fluid_ge',0.433)
+        self.power_fluid_ge =kwargs.pop('power_fluid_ge',1)
         self.injection_di = kwargs.pop('injection_di',2.99)
         self.return_di = kwargs.pop('return_di',5)
         self.prod_di = kwargs.pop('prod_di',5)
@@ -298,7 +298,7 @@ class ubh(als):
         max_iter_qn = 20,
         tol = 0.05,
         tol_profile = 0.05,
-        tol_qn = 0.15,
+        tol_qn = 0.05,
         method_profile = 'hagedorn_brown'
 
     ):
@@ -397,14 +397,15 @@ class ubh(als):
 
         #Iterations
         it_qn = np.zeros(max_iter)
+        er_it = np.zeros(max_iter)
 
         ##### Part A: Nozzle Pressure, Nozzle Flow
 
         err = tol + 0.01 
         i = 0
 
-        while err > tol and i < max_iter:
-            
+        while err > tol and i < max_iter-1:
+
             #Estimate the pwf from flow rate
             pwf[i] = inflow.flow_to_pwf(qs[i])
 
@@ -430,16 +431,14 @@ class ubh(als):
                 method = method_profile,
                 guess=None
             )
-            
             # Suction Gradient
             gs[i] = (pwf[i] - pps[i]) / np.abs(self.pump_to_perf_depth[0] - self.pump_to_perf_depth[-1])
-
             #gor
             oil_rate = qs[i]*(1-bsw)
-
             if gor is None:
                 if glr is None:
-                    gor = gas_rate * 1e-3 / oil_rate
+                    gor = gas_rate * 1e3 / oil_rate
+
                 else:
                     gor = glr * qs[i] / oil_rate
 
@@ -475,14 +474,16 @@ class ubh(als):
                 #Nozzle flow
                 _qn = nozzle_flow(
                     self.get_area('nozzle'),
-                    pn[i],
+                    _pn,
                     pps[i],
                     self.power_fluid_ge * 0.433
                 )
 
                 err_qn = np.abs(_qn - qn[i])/qn[i]
+
                 qn_it += 1
                 qn[i] = _qn
+                pn[i] = _pn
 
             #Update Nozzle pressure
             pn[i] = _pn
@@ -494,7 +495,7 @@ class ubh(als):
             qd[i] = qs[i] + qn[i]
 
             #return gradiend
-            gd[i] = (qn[i]*self.power_fluid_ge + qs[i]*gs[i]) / qd[i]
+            gd[i] = (qn[i]*self.power_fluid_ge*0.433 + qs[i]*gs[i]) / qd[i]
 
             #Return water cut
             if self.power_fluid_ge ==1:
@@ -508,17 +509,17 @@ class ubh(als):
             #return_viscosity
             muo = oil_obj.pvt.interpolate(return_pressure,property = 'muo').iloc[0,0]
             muw = water_obj.pvt.interpolate(return_pressure,property = 'muw').iloc[0,0]
-            mur = (1 - wcd[i]) * muo + wcd[i] * muw
+            mur[i] = (1 - wcd[i]) * muo + wcd[i] * muw
 
-            if fgl > 10:
+            if fgl[i] > 10:
                 _,ppd[i] = two_phase_pressure_profile(
-                    depth = self.pump_to_perf_depth,
+                    depth = self.surf_to_pump_depth,
                     thp = return_pressure,
                     liquid_rate = qd[i],
                     oil_rate = None,
                     gas_rate = gas_rate,
-                    glr = glr[i],
-                    gor = gor,
+                    glr = fgl[i],
+                    gor = None,
                     bsw = wcd[i],
                     oil_obj = oil_obj,
                     gas_obj = gas_obj,
@@ -531,6 +532,7 @@ class ubh(als):
                     max_iter = max_iter_profile,
                     method = method_profile,
                 )
+
             else:
                 _,ppd[i] = one_phase_pressure_profile(
                     p1=return_pressure,
@@ -543,14 +545,22 @@ class ubh(als):
                     mu = mur,
                     backwards=-1
                     )
-            
+
             #Pressure Ratio
             fpd[i] = (ppd[i] - pps[i])/(pn[i] - ppd[i])
 
             #Flow ratio
-            fmfd2_num = (qs[i] * gs[i] *((1 + 2.8 * np.power(gor/pps[i],1.2)) * (1-bsw) + bsw))
-            fmfd2_den = (qn[i] * self.power_fluid_ge)
-            fmfd2[i] = fmfd2_num / fmfd2_den
+            #fmfd2_num = (qs[i] * gs[i] *((1 + 2.8 * np.power(gor/pps[i],1.2)) * (1-bsw) + bsw))
+            #fmfd2_den = (qn[i] * self.power_fluid_ge*0.433)
+            #fmfd2[i] = fmfd2_num / fmfd2_den
+
+            rs_pps = oil_obj.pvt.interpolate(pps[i],property='rs').iloc[0,0]
+            bg_pps = gas_obj.pvt.interpolate(pps[i],property='bg').iloc[0,0]
+            free_gas_sc = gas_rate - (rs_pps*oil_rate*1e-3)
+
+            free_gas_pps = free_gas_sc*1e3*bg_pps
+
+            fmfd2[i] = ((qs[i] + free_gas_pps)/qn[i])
 
             #flow ratio from fig
             fad = self.fad()
@@ -560,12 +570,12 @@ class ubh(als):
             D2 = (1 + self.kn)
 
             fmfd1[i] = (2*C2 - np.sqrt(np.power(-2*C2,2) - 4*(B2-C2)*((A2-C2)-((fpd[i]*D2)/(fpd[i] + 1))))) / (2*(B2-C2))
-
             #Calculate new Qs
             qs[i+1] = qs[i] * fmfd1[i]/fmfd2[i]
 
             #Error
             err = np.abs(qs[i+1]-qs[i])/qs[i]
+            er_it[i] = err
 
             i += 1
 
@@ -588,6 +598,7 @@ class ubh(als):
         'cav':cav[:i+1],
         'gs':gs[:i+1],
         'it_qn':it_qn[:i+1], 
+        'error':er_it[:i+1]
         }
 
         df = pd.DataFrame(df_dict)

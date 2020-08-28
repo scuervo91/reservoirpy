@@ -60,7 +60,7 @@ def potential_energy_change(
 
 
     #Assert ge be positive
-    assert isinstance(ge,(float,int,np.ndarray,np.int64,np.float64)) and ge>0
+    assert isinstance(ge,(float,int,np.ndarray,np.int64,np.float64)) and ge>0, f"{ge} {type(ge)} not allowed"
 
     #Calculate Delta P
     delta_p = 0.433 * ge * delta_z
@@ -1098,12 +1098,10 @@ def two_phase_pressure_profile(
             rho_gas = (28.97 * gas_obj.sg * p_guess)/(gas_pvt_guess['z'].iloc[0]*10.73*(temperature_profile[i]+460))
             mu_gas = gas_pvt_guess['mug'].iloc[0]
             z = gas_pvt_guess['z'].iloc[0]
-
             free_gas = gas_rate - (oil_pvt_guess['rs'].iloc[0]*oil_rate*1e-3)
             free_gas = 0 if free_gas < 0 else free_gas
             
             glr_ratio = free_gas*1e3 / liquid_rate
-
             if glr_ratio > 10:
                 if method == 'hagedorn_brown':
                     grad_new = hb_correlation(
@@ -1127,7 +1125,7 @@ def two_phase_pressure_profile(
             else:
                 df, _ = one_phase_pressure_profile(
                     p1=p_guess,
-                    ge=rho_l /62.4,
+                    ge=rho_liquid /62.4,
                     epsilon=epsilon,
                     md=[depth[i], depth[i-1]],
                     tvd=[depth[i], depth[i-1]],
