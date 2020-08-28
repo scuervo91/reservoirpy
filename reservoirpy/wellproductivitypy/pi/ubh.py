@@ -406,6 +406,11 @@ class ubh(als):
 
         while err > tol and i < max_iter-1:
 
+            if gas_rate is None:
+                if gor is None:
+                    gas_rate = glr * qs[i] * 1e-3
+                else:
+                    gas_rate = gor * qs[i] * (1 - bsw) * 1e-3
             #Estimate the pwf from flow rate
             pwf[i] = inflow.flow_to_pwf(qs[i])
 
