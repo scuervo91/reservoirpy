@@ -351,6 +351,10 @@ class ubh(als):
 
         #Well production flow bbl/d
         qs = np.zeros(max_iter)
+        qo = np.zeros(max_iter)
+        qg = np.zeros(max_iter)
+        _gor = np.zeros(max_iter)
+        _glr = np.zeros(max_iter)
         qs[0] = liquid_rate_guess
 
         #Nozzle Flow and pressure
@@ -404,13 +408,21 @@ class ubh(als):
         err = tol + 0.01 
         i = 0
 
-        while err > tol and i < max_iter-1:
+        if gas_rate is None:
+            if gor is None:
+                qg[0] = glr * qs[0] * 1e-3
+            else:
+                qg[0] = gor * qs[0] * (1 - bsw) * 1e-3
+        else:
+            qg[0] = gas_rate
 
-            if gas_rate is None:
-                if gor is None:
-                    gas_rate = glr * qs[i] * 1e-3
-                else:
-                    gas_rate = gor * qs[i] * (1 - bsw) * 1e-3
+        qo[0] = qs[0]*(1-bsw)
+
+        _gor[0] = qg[0]*1e3 / qo[0]
+        _glr[0] = qg[0]*1e3 / qs[0] 
+
+        while err > tol and i < max_iter-1:
+          
             #Estimate the pwf from flow rate
             pwf[i] = inflow.flow_to_pwf(qs[i])
 
@@ -434,18 +446,11 @@ class ubh(als):
                 tol=tol_profile,
                 max_iter = max_iter_profile,
                 method = method_profile,
-                guess=None
+                guess=[pwf[i], pwf[i]*0.9]
             )
             # Suction Gradient
             gs[i] = (pwf[i] - pps[i]) / np.abs(self.pump_to_perf_depth[0] - self.pump_to_perf_depth[-1])
             #gor
-            oil_rate = qs[i]*(1-bsw)
-            if gor is None:
-                if glr is None:
-                    gor = gas_rate * 1e3 / oil_rate
-
-                else:
-                    gor = glr * qs[i] / oil_rate
 
 
             #Minimum Suction Area
@@ -454,7 +459,7 @@ class ubh(als):
                 gs[i],
                 pps[i],
                 bsw,
-                gor
+                _gor[i]
             ) 
 
             #Evaluate if cavitate
@@ -509,7 +514,7 @@ class ubh(als):
                 wcd[i] = bsw*qs[i]/qd[i]
 
             #return gas/liquid ratio
-            fgl[i] = qs[i] *(1 - bsw)*gor / qd[i]
+            fgl[i] = qs[i] *(1 - bsw)*_gor[i] / qd[i]
 
             #return_viscosity
             muo = oil_obj.pvt.interpolate(return_pressure,property = 'muo').iloc[0,0]
@@ -522,7 +527,7 @@ class ubh(als):
                     thp = return_pressure,
                     liquid_rate = qd[i],
                     oil_rate = None,
-                    gas_rate = gas_rate,
+                    gas_rate = qg[i],
                     glr = fgl[i],
                     gor = None,
                     bsw = wcd[i],
@@ -561,7 +566,7 @@ class ubh(als):
 
             rs_pps = oil_obj.pvt.interpolate(pps[i],property='rs').iloc[0,0]
             bg_pps = gas_obj.pvt.interpolate(pps[i],property='bg').iloc[0,0]
-            free_gas_sc = gas_rate - (rs_pps*oil_rate*1e-3)
+            free_gas_sc = qg[i] - (rs_pps*qo[i]*1e-3)
 
             free_gas_pps = free_gas_sc*1e3*bg_pps
 
@@ -582,10 +587,27 @@ class ubh(als):
             err = np.abs(qs[i+1]-qs[i])/qs[i]
             er_it[i] = err
 
+            #Calculate rates next iteration
+            if gas_rate is None:
+                if gor is None:
+                    qg[i+1] = glr * qs[i+1] * 1e-3
+                else:
+                    qg[i+1] = gor * qs[i+1] * (1 - bsw) * 1e-3
+            else:
+                qg[i+1] = gas_rate
+
+            qo[i+1] = qs[i+1]*(1-bsw)
+
+            _gor[i+1] = qg[i+1]*1e3 / qo[i+1]
+            _glr[i+1] = qg[i+1]*1e3 / qs[i+1] 
             i += 1
 
         df_dict = {
         'qs':qs[:i+1],
+        'qo':qo[:i+1],
+        'qg':qg[:i+1],
+        'gor':_gor[:i+1],
+        'glr':_glr[:i+1],
         'qn':qn[:i+1],
         'pwf':pwf[:i+1],
         'pn':pn[:i+1],
