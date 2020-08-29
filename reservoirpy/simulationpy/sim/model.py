@@ -86,7 +86,7 @@ class model:
             rt_list =  np.unique(self.grid.petrophysics['RT']).tolist()
 
             #Assert all rock types are present in rock fluid
-            assert all(i in list(value.keys()) for i in rt_list)
+            assert all(str(i) in list(value.keys()) for i in rt_list)
 
             for i in value:
                 #Assert the keys for each rocktype are dictionary
@@ -145,4 +145,4 @@ class model:
             assert isinstance(value,results)
         self._results = value
 
-
+    def initialization(self):

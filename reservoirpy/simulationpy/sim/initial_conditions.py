@@ -5,13 +5,14 @@ class initial_conditions:
         self.pi = kwargs.pop('pi', None)
         self.woc = kwargs.pop('woc',None)
         self.goc = kwargs.pop('goc', None)
+        self.swi = kwargs.pop('swi',None)
         self.cap_press_init = kwargs.pop('cap_press_init', True)
 
     #properties
 
     @property
     def pi(self):
-        return self.pi 
+        return self._pi 
 
     @pi.setter 
     def pi(self,value):
@@ -46,3 +47,15 @@ class initial_conditions:
     def cap_press_init(self,value):
         assert isinstance(value, bool)
         self._cap_press_init = value
+
+    @property
+    def swi(self):
+        return self._swi
+
+    @swi.setter 
+    def swi(self,value):
+        if value is not None:
+            assert isinstance(value, dict)
+            for i in value:
+                assert isinstance(value[i],(float,np.float)) and all([value[i]>=0,value[i]<=1])
+        self._swi = value
