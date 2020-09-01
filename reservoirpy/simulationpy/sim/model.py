@@ -145,4 +145,3 @@ class model:
             assert isinstance(value,results)
         self._results = value
 
-    def initialization(self):

@@ -42,12 +42,13 @@ def minimum_suction_area(
 
     return acm
 
-class ubh(als):
+class jet_pump(als):
     def __init__(self,**kwargs):
         self.n = kwargs.pop('n',15)
-        self.surf_to_pump_depth = kwargs.pop('surf_to_pump_depth',None)
-        self.pump_to_perf_depth = kwargs.pop('pump_to_perf_depth',None) 
-        self.reference = kwargs.pop('ref', 'tvd')
+        self.surf_to_pump_depth_md = kwargs.pop('surf_to_pump_depth_md',None)
+        self.pump_to_perf_depth_md = kwargs.pop('pump_to_perf_depth_md',None) 
+        self.surf_to_pump_depth_tvd = kwargs.pop('surf_to_pump_depth_tvd',None)
+        self.pump_to_perf_depth_tvd = kwargs.pop('pump_to_perf_depth_tvd',None) 
         self.brand = kwargs.pop('brand',None)
         self.nozzle = kwargs.pop('nozzle',None)
         self.throat = kwargs.pop('throat', None)
@@ -61,45 +62,82 @@ class ubh(als):
         super().__init__(**kwargs)
 
     @property 
-    def surf_to_pump_depth(self):
-        return self._surf_to_pump_depth
+    def surf_to_pump_depth_md(self):
+        return self._surf_to_pump_depth_md
 
-    @surf_to_pump_depth.setter 
-    def surf_to_pump_depth(self,value):
-        if isinstance(value,(int,float)):
-            value = np.linspace(0,value,self.n)
-        elif isinstance(value,(list,np.ndarray)):
-            value = np.atleast_1d(value)
-            assert value.ndim == 1 
-            assert np.all(np.diff(value) > 0)
-        else:
-            raise ValueError('Type not allowed')
-        self._surf_to_pump_depth = value
+    @surf_to_pump_depth_md.setter 
+    def surf_to_pump_depth_md(self,value):
+        if value is not None:
+            if isinstance(value,(int,float)):
+                value = np.linspace(0,value,self.n)
+            elif isinstance(value,(list,np.ndarray)):
+                value = np.atleast_1d(value)
+                assert value.ndim == 1 
+                assert np.all(np.diff(value) > 0)
+            else:
+                raise ValueError('Type not allowed')
+        self._surf_to_pump_depth_md = value
 
     @property 
-    def pump_to_perf_depth(self):
-        return self._pump_to_perf_depth
+    def pump_to_perf_depth_md(self):
+        return self._pump_to_perf_depth_md
 
-    @pump_to_perf_depth.setter 
-    def pump_to_perf_depth(self,value):
-        if isinstance(value,(int,float)):
-            value = np.linspace(self.surf_to_pump_depth[-1],value,self.n)
-        elif isinstance(value,(list,np.ndarray)):
-            value = np.atleast_1d(value)
-            assert value.ndim == 1 
-            assert np.all(np.diff(value) > 0)
+    @pump_to_perf_depth_md.setter 
+    def pump_to_perf_depth_md(self,value):
+        if value is not None:
+            if isinstance(value,(int,float)):
+                try:
+                    value = np.linspace(self.surf_to_pump_depth_md[-1],value,self.n)
+                except:
+                    value = np.linspace(self.surf_to_pump_depth_tvd[-1],value,self.n)
+            elif isinstance(value,(list,np.ndarray)):
+                value = np.atleast_1d(value)
+                assert value.ndim == 1 
+                assert np.all(np.diff(value) > 0)
+            else:
+                raise ValueError('Type not allowed')
+        self._pump_to_perf_depth_md = value
+
+    @property 
+    def surf_to_pump_depth_tvd(self):
+        return self._surf_to_pump_depth_tvd
+
+    @surf_to_pump_depth_tvd.setter 
+    def surf_to_pump_depth_tvd(self,value):
+        if value is not None:
+            if isinstance(value,(int,float)):
+                value = np.linspace(0,value,self.n)
+            elif isinstance(value,(list,np.ndarray)):
+                value = np.atleast_1d(value)
+                assert value.ndim == 1 
+                assert np.all(np.diff(value) > 0)
+            else:
+                raise ValueError('Type not allowed')
         else:
-            raise ValueError('Type not allowed')
-        self._pump_to_perf_depth = value
+            assert self.surf_to_pump_depth_md is not None
+        self._surf_to_pump_depth_tvd = value
 
-    @property
-    def reference(self):
-        return self._reference 
+    @property 
+    def pump_to_perf_depth_tvd(self):
+        return self._pump_to_perf_depth_tvd
 
-    @reference.setter 
-    def reference(self,value):
-        assert isinstance(value,str) and value in ['md', 'tvd']
-        self._reference = value
+    @pump_to_perf_depth_tvd.setter 
+    def pump_to_perf_depth_tvd(self,value):
+        if value is not None:
+            if isinstance(value,(int,float)):
+                try:
+                    value = np.linspace(self.surf_to_pump_depth_md[-1],value,self.n)
+                except:
+                    value = np.linspace(self.surf_to_pump_depth_tvd[-1],value,self.n)
+            elif isinstance(value,(list,np.ndarray)):
+                value = np.atleast_1d(value)
+                assert value.ndim == 1 
+                assert np.all(np.diff(value) > 0)
+            else:
+                raise ValueError('Type not allowed')
+        else:
+            assert self.pump_to_perf_depth_md is not None
+        self._pump_to_perf_depth_tvd = value
 
     @property
     def brand(self):
@@ -174,10 +212,16 @@ class ubh(als):
         :type value: [float]
         """
         if isinstance(value,(int,float)):
-            value = np.full(self.surf_to_pump_depth.shape,value)
+            try:
+                value = np.full(self.pump_to_perf_depth_md.shape,value)
+            except:
+                value = np.full(self.pump_to_perf_depth_tvd.shape,value)
         elif isinstance(value,(list,np.ndarray)):
             value = np.atleast_1d(value)
-            assert value.shape == self.surf_to_pump_depth.shape
+            try:
+                assert value.shape == self.pump_to_perf_depth_md.shape
+            except:
+                assert value.shape == self.pump_to_perf_depth_tvd.shape
         self._injection_di = value
 
     @property
@@ -192,10 +236,16 @@ class ubh(als):
         :type value: [float]
         """
         if isinstance(value,(int,float)):
-            value = np.full(self.surf_to_pump_depth.shape,value)
+            try:
+                value = np.full(self.pump_to_perf_depth_md.shape,value)
+            except:
+                value = np.full(self.pump_to_perf_depth_tvd.shape,value)
         elif isinstance(value,(list,np.ndarray)):
             value = np.atleast_1d(value)
-            assert value.shape == self.surf_to_pump_depth.shape
+            try:
+                assert value.shape == self.pump_to_perf_depth_md.shape
+            except:
+                assert value.shape == self.pump_to_perf_depth_tvd.shape
         self._return_di = value
 
     @property
@@ -210,10 +260,16 @@ class ubh(als):
         :type value: [float]
         """
         if isinstance(value,(int,float)):
-            value = np.full(self.pump_to_perf_depth.shape,value)
+            try:
+                value = np.full(self.pump_to_perf_depth_md.shape,value)
+            except:
+                value = np.full(self.pump_to_perf_depth_tvd.shape,value)
         elif isinstance(value,(list,np.ndarray)):
             value = np.atleast_1d(value)
-            assert value.shape == self.pump_to_perf_depth.shape
+            try:
+                assert value.shape == self.pump_to_perf_depth_md.shape
+            except:
+                assert value.shape == self.pump_to_perf_depth_tvd.shape
         self._prod_di = value
 
     @property
@@ -347,6 +403,9 @@ class ubh(als):
         #assert max inter int
         assert isinstance(bsw,(int,float)) and bsw >= 0 and bsw <= 1
 
+        #Assert tvd depth
+        assert self.surf_to_pump_depth_tvd is not None
+        assert self.pump_to_perf_depth_tvd is not None
         ##### Create Arrays
 
         #Well production flow bbl/d
@@ -428,7 +487,7 @@ class ubh(als):
 
             #Estimate pps - Pump intake pressure
             pps[i] = two_phase_upward_pressure(
-                depth = self.pump_to_perf_depth,
+                depth = self.pump_to_perf_depth_tvd,
                 pwf = pwf[i],
                 liquid_rate = qs[i],
                 oil_rate = None,
@@ -449,7 +508,7 @@ class ubh(als):
                 guess=[pwf[i], pwf[i]*0.9]
             )
             # Suction Gradient
-            gs[i] = (pwf[i] - pps[i]) / np.abs(self.pump_to_perf_depth[0] - self.pump_to_perf_depth[-1])
+            gs[i] = (pwf[i] - pps[i]) / np.abs(self.pump_to_perf_depth_tvd[0] - self.pump_to_perf_depth_tvd[-1])
             #gor
 
 
@@ -474,8 +533,8 @@ class ubh(als):
                     p1=injection_pressure,
                     ge=self.power_fluid_ge,
                     epsilon=epsilon,
-                    md=self.surf_to_pump_depth *-1,
-                    tvd=self.surf_to_pump_depth *-1,
+                    md=self.surf_to_pump_depth_tvd *-1,
+                    tvd=self.surf_to_pump_depth_tvd *-1,
                     d = self.injection_di,
                     rate = qn[i],
                     mu = mu_inj
@@ -523,7 +582,7 @@ class ubh(als):
 
             if fgl[i] > 10:
                 _,ppd[i] = two_phase_pressure_profile(
-                    depth = self.surf_to_pump_depth,
+                    depth = self.surf_to_pump_depth_tvd,
                     thp = return_pressure,
                     liquid_rate = qd[i],
                     oil_rate = None,
@@ -548,8 +607,8 @@ class ubh(als):
                     p1=return_pressure,
                     ge=gd[i],
                     epsilon=epsilon,
-                    md=self.surf_to_pump_depth *-1,
-                    tvd=self.surf_to_pump_depth *-1,
+                    md=self.surf_to_pump_depth_tvd *-1,
+                    tvd=self.surf_to_pump_depth_tvd *-1,
                     d = self.injection_di,
                     rate = qn[i],
                     mu = mur,

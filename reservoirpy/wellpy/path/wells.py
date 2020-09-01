@@ -399,7 +399,11 @@ class well:
     @als.setter 
     def als(self, value):
         if value is not None:
-            assert issubclass(value,pi.als)
+            assert issubclass(type(value),pi.als)
+            if value.surf_to_pump_depth_tvd is None:
+                value.surf_to_pump_depth_tvd = self.to_tvd(value.surf_to_pump_depth_md)
+            if value.pump_to_perf_depth_tvd is None:
+                value.pump_to_perf_depth_tvd = self.to_tvd(value.pump_to_perf_depth_md)
         self._als = value
 
 

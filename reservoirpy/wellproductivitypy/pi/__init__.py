@@ -5,4 +5,4 @@ from .outflow import (gas_pressure_profile, gas_outflow_curve, gas_pressure_prof
     two_phase_outflow_curve, gray_correlation, two_phase_upward_pressure,gas_upward_pressure)
 from .forecast import pressure_model, forecast_model
 from .als import als
-from .ubh import ubh, nozzle_flow, minimum_suction_area
+from .jet_pump import jet_pump, nozzle_flow, minimum_suction_area
