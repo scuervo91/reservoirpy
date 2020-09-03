@@ -213,15 +213,15 @@ class jet_pump(als):
         """
         if isinstance(value,(int,float)):
             try:
-                value = np.full(self.pump_to_perf_depth_md.shape,value)
+                value = np.full(self.surf_to_pump_depth_md.shape,value)
             except:
-                value = np.full(self.pump_to_perf_depth_tvd.shape,value)
+                value = np.full(self.surf_to_pump_depth_tvd.shape,value)
         elif isinstance(value,(list,np.ndarray)):
             value = np.atleast_1d(value)
             try:
-                assert value.shape == self.pump_to_perf_depth_md.shape
+                assert value.shape == self.surf_to_pump_depth_md.shape
             except:
-                assert value.shape == self.pump_to_perf_depth_tvd.shape
+                assert value.shape == self.surf_to_pump_depth_tvd.shape
         self._injection_di = value
 
     @property
@@ -237,15 +237,15 @@ class jet_pump(als):
         """
         if isinstance(value,(int,float)):
             try:
-                value = np.full(self.pump_to_perf_depth_md.shape,value)
+                value = np.full(self.surf_to_pump_depth_md.shape,value)
             except:
-                value = np.full(self.pump_to_perf_depth_tvd.shape,value)
+                value = np.full(self.surf_to_pump_depth_tvd.shape,value)
         elif isinstance(value,(list,np.ndarray)):
             value = np.atleast_1d(value)
             try:
-                assert value.shape == self.pump_to_perf_depth_md.shape
+                assert value.shape == self.surf_to_pump_depth_md.shape
             except:
-                assert value.shape == self.pump_to_perf_depth_tvd.shape
+                assert value.shape == self.surf_to_pump_depth_tvd.shape
         self._return_di = value
 
     @property
@@ -659,6 +659,8 @@ class jet_pump(als):
 
             _gor[i+1] = qg[i+1]*1e3 / qo[i+1]
             _glr[i+1] = qg[i+1]*1e3 / qs[i+1] 
+
+            print(f'\r Iteration {i}: -> Liquid Rate: {qs[i]:.0f} bbl -> pip: {pps[i]:.0f} psi -> error {er_it[i]*100:.0f}%', sep='',end='', flush=True)
             i += 1
 
         df_dict = {

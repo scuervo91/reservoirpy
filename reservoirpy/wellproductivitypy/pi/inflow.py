@@ -104,7 +104,7 @@ class oil_inflow:
     def __init__(self,**kwargs):
         self.pr = kwargs.pop('pr',None)
         self.j = kwargs.pop('j',None)
-        self.pb = kwargs.pop('pb',0) 
+        self.pb = kwargs.pop('pb',None) 
         self.n = kwargs.pop('n',20) 
 
 
@@ -135,7 +135,10 @@ class oil_inflow:
 
     @pb.setter
     def pb(self,value):
-        assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        else:
+            value = self.pr
         self._pb = value
 
     @property
