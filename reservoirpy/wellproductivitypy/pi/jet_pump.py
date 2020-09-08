@@ -458,6 +458,9 @@ class jet_pump(als):
         #Suction gradient
         gs = np.zeros(max_iter)
 
+        #Hydraulic Horse Power
+        hp = np.zeros(max_iter)
+
         #Iterations
         it_qn = np.zeros(max_iter)
         er_it = np.zeros(max_iter)
@@ -642,6 +645,9 @@ class jet_pump(als):
             #Calculate new Qs
             qs[i+1] = qs[i] * fmfd1[i]/fmfd2[i]
 
+            #Horse Power 
+            hp[i] = 0.000017 * qn[i] * injection_pressure
+
             #Error
             err = np.abs(qs[i+1]-qs[i])/qs[i]
             er_it[i] = err
@@ -686,7 +692,8 @@ class jet_pump(als):
         'cav':cav[:i+1],
         'gs':gs[:i+1],
         'it_qn':it_qn[:i+1], 
-        'error':er_it[:i+1]
+        'error':er_it[:i+1],
+        'hp':hp[:i+1]
         }
 
         df = pd.DataFrame(df_dict)
