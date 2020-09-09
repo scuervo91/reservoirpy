@@ -736,7 +736,7 @@ class well:
 
         return surv_vtk
 
-    def well_map(self,zoom=10, map_style = 'OpenStreetMap',z_unit='ft', to_crs='EPSG:4326', tooltip=False,popup=True):
+    def well_map(self,zoom=10, map_style = 'OpenStreetMap',z_unit='ft', to_crs='EPSG:4326', tooltip=False,popup=True, ax=None):
         """
         Make a Foluim map with the selected well
 
@@ -764,10 +764,14 @@ class well:
         center = _coord[['lat','lon']].mean(axis=0)
 
         #make the map
-        map_folium = folium.Map(
-            location=(center['lat'],center['lon']),
-            zoom_start=zoom,
-            tiles = map_style)
+        if ax is None:
+            map_folium = folium.Map(
+                location=(center['lat'],center['lon']),
+                zoom_start=zoom,
+                tiles = map_style)
+        else:
+            assert isinstance(ax,folium.folium.Map)
+            map_folium = ax
 
         for i, r in _coord.iterrows():
             folium.Marker(
@@ -1147,7 +1151,7 @@ class wells_group:
 
         return dist_matrix
 
-    def wells_map(self, wells:list=None,zoom=10, map_style = 'OpenStreetMap',tooltip=False,popup=True):
+    def wells_map(self, wells:list=None,zoom=10, map_style = 'OpenStreetMap',tooltip=False,popup=True,ax=None):
         """
         Make a Foluim map with the selected wells
 
@@ -1165,10 +1169,14 @@ class wells_group:
         center = _coord[['lat','lon']].mean(axis=0)
 
         #make the map
-        map_folium = folium.Map(
-            location=(center['lat'],center['lon']),
-            zoom_start=zoom,
-            tiles = map_style)
+        if ax is None:
+            map_folium = folium.Map(
+                location=(center['lat'],center['lon']),
+                zoom_start=zoom,
+                tiles = map_style)
+        else:
+            assert isinstance(ax,folium.folium.Map)
+            map_folium = ax
 
         for i, r in _coord.iterrows():
             folium.Marker(
@@ -1569,6 +1577,8 @@ class wells_group:
 
             try:
                 _survey = _s.loc[_s['well']==i,['md','inc','azi']]
+                if _survey.empty:
+                    _survey = None
             except:
                 _survey = None
             
