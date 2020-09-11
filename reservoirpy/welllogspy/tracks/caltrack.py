@@ -7,7 +7,8 @@ import numpy as np
 def caltrack(df: pd.DataFrame,
              cali: (list,str) = None, 
              bit: (list,str) = None, 
-             lims: (list,str) =None,
+             lims: (list) =None,
+             cal_lim:list=[5,20],
             dtick:bool=False,
             fill:bool=False,
             fontsize: int=8,
@@ -84,10 +85,10 @@ def caltrack(df: pd.DataFrame,
         cal.plot(df[bit],depth,**bit_kw) 
     
 
-    cal.set_xlim([5,17])
+    cal.set_xlim(cal_lim)
     cal.set_xlabel("Caliper [in]")
-    cal.set_xticks(np.linspace(5,17,4))
-    cal.set_xticklabels(np.round(np.linspace(5,17,4),decimals=2))
+    cal.set_xticks(np.linspace(cal_lim[0],cal_lim[1],4))
+    cal.set_xticklabels(np.round(np.linspace(cal_lim[0],cal_lim[1],4),decimals=1))
     cal.xaxis.tick_top()
     cal.xaxis.set_label_position("top")
     cal.tick_params("both",labelsize=fontsize)
