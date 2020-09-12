@@ -416,7 +416,7 @@ class well:
     def schema(self, value):
         if value is not None:
             assert isinstance(value,well_schema)
-        self._als = value
+        self._schema = value
 
 
 #####################################################

@@ -121,6 +121,7 @@ class well_schema:
         tight_layout=True,
         dtick=True,
         xtick = True,
+        lims=None,
         pipe_width=0.08,
         hatch_density=3,
         oh_kw={},
@@ -229,7 +230,11 @@ class well_schema:
         ax.xaxis.set_label_position("top")
         ax.xaxis.tick_top()
         ax.set_xlim([0,1])
-        ax.set_ylim([self.bottom(),self.top()])
+
+        if lims is None:
+            ax.set_ylim([self.bottom(),self.top()])
+        else:
+            ax.set_ylim([lims[1],lims[0]])
 
         if tight_layout:
             ax.figure.tight_layout()
