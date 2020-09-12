@@ -18,6 +18,7 @@ from ...welllogspy.log import log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import declination
 from sqlalchemy import create_engine
+from ...wellschematicspy import well_schema
 
 class perforations(gpd.GeoDataFrame):
 
@@ -181,6 +182,7 @@ class well:
         self.productivity_index = kwargs.pop('productivity_index',None)
         self.constrains = kwargs.pop('constrains',None)
         self.als = kwargs.pop('als',None)
+        self.schema = kwargs.pop('schema',None)
 
 
 #####################################################
@@ -404,6 +406,16 @@ class well:
                 value.surf_to_pump_depth_tvd = self.to_tvd(value.surf_to_pump_depth_md)
             if value.pump_to_perf_depth_tvd is None:
                 value.pump_to_perf_depth_tvd = self.to_tvd(value.pump_to_perf_depth_md)
+        self._als = value
+
+    @property
+    def schema(self):
+        return self._schema
+
+    @schema.setter 
+    def schema(self, value):
+        if value is not None:
+            assert isinstance(value,well_schema)
         self._als = value
 
 
