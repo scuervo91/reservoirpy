@@ -20,7 +20,8 @@ def track(df: pd.DataFrame,
           grid:bool = True,
           track_kw=[],
           corr_kw={},
-          depth_ref:str='md'):
+          depth_ref:str='md',
+          ):
     """track [summary]
 
     Parameters
@@ -89,11 +90,16 @@ def track(df: pd.DataFrame,
         for i,g in enumerate(curves):
             if len(track_kw)<i+1:
                 track_kw.append(defkwa)
-            track_kw[i]['color']=cmap(i)
+                track_kw[i]['color']=cmap(i)
             for (k,v) in defkwa.items():
                 if k not in track_kw[i]:
                     track_kw[i][k]=v
-            tax.plot(df[g],depth,label=g,**track_kw[i])
+
+            scatter = track_kw[i].pop('scatter',False)
+            if scatter:
+                tax.scatter(df[g],depth,label=g,**track_kw[i])
+            else:
+                tax.plot(df[g],depth,label=g,**track_kw[i])
     
     if lims==None: #Depth Limits
         lims=[depth.min(),depth.max()]
@@ -116,8 +122,13 @@ def track(df: pd.DataFrame,
 
     tax.set_xlim(clims)
 
-    tax.set_xticks(np.linspace(clims[0],clims[1],4))
-    tax.set_xticklabels(np.round(np.linspace(clims[0],clims[1],4),decimals=2))
+    if scale=='log':
+        ticks=np.round(np.power(10,np.linspace(np.log10(clims[0]),np.log10(clims[1]),int(np.log10(clims[1]/clims[0])+1))),decimals=1)
+    else:
+        ticks = np.round(np.linspace(clims[0],clims[1],4),decimals=1)
+
+    tax.set_xticks(ticks)
+    tax.set_xticklabels(ticks)
     tax.xaxis.tick_top()
     tax.xaxis.set_label_position("top")
     tax.tick_params("both",labelsize=fontsize)
