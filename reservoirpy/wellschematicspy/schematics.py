@@ -52,6 +52,17 @@ class well_schema:
             for oh in value:
                 assert isinstance(value[oh], dict)
                 assert all(i in list(value[oh].keys()) for i in ['type','top','bottom','diameter'])
+                if 'cement' in list(value[oh].keys()):
+                    assert isinstance(value[oh]['cement'],list)
+                    for c in value[oh]['cement']:
+                        assert isinstance(c,dict)
+                        assert all(i in list(c.keys()) for i in ['top','bottom','oh'])
+
+                if 'perforations' in list(value[oh].keys()):
+                    assert isinstance(value[oh]['perforations'],list)
+                    for c in value[oh]['perforations']:
+                        assert isinstance(c,dict)
+                        assert all(i in list(c.keys()) for i in ['top','bottom','oh'])
         self._casing = value
 
     @property
@@ -163,13 +174,15 @@ class well_schema:
                 bottom = self.open_hole[o]['bottom']
                 length = bottom - top
                 diameter = self.open_hole[o]['diameter']
-                color = oh_kw['color']
+                color = self.open_hole[o].pop('color','#cfd4d3')
+                hatch = self.open_hole[o].pop('hatch',None)
                 oh_patch = mpatches.Rectangle(
                     (0.5*(1-diameter/di_factor), top),
                     (0.5*(1+diameter/di_factor)) - (0.5*(1-diameter/di_factor)),
                     length,
                     facecolor=color,
                     transform=t,
+                    hatch = hatch
                 )
                 patches.append(oh_patch)
 
@@ -180,9 +193,9 @@ class well_schema:
                 bottom = self.casing[c]['bottom']
                 length = bottom - top
                 diameter = self.casing[c]['diameter']
-                pipe_width=csg_kw['pipe_width']
-                shoe_scale=csg_kw['shoe_scale']
-                color = csg_kw['color']
+                pipe_width=self.casing[c].pop('pipe_width',0.04)
+                shoe_scale=self.casing[c].pop('shoe_scale',5)
+                color = self.casing[c].pop('color','k')
 
                 xl =  0.5*(1-diameter/di_factor)
                 xr =  0.5*(1+diameter/di_factor)
@@ -202,7 +215,6 @@ class well_schema:
                 )
                 
                 #Shoe
-                
                 left_shoe = np.array([[xl,0],[xl,-1*shoe_scale],[xl-pipe_width,0]])
                 left_shoe[:,1] = left_shoe[:,1] + bottom
                 right_shoe = np.array([[xr,0],[xr,-1*shoe_scale],[xr+pipe_width,0]])
@@ -211,6 +223,68 @@ class well_schema:
                 rs = mpatches.Polygon(right_shoe, color='k')
 
                 patches.extend([seg_left,seg_right,ls,rs])
+
+                if 'cement' in self.casing[c]:
+                    for cem in self.casing[c]['cement']:
+                        cement_color = cem.pop('color','#adadad')
+                        cement_hatch = cem.pop('hatch','/')
+                        cement_oh = cem['oh']
+                        cement_top = cem['top']
+                        cement_bottom = cem['bottom']
+
+                        cl =  0.5*(1-cement_oh/di_factor)
+                        cement_width = xl - cl
+                        cement_length = cement_bottom - cement_top
+
+                        cem_left = mpatches.Rectangle(
+                            (cl, cement_top), 
+                            cement_width, 
+                            cement_length, 
+                            facecolor=cement_color,
+                            transform=t,
+                            hatch = cement_hatch
+                        )
+
+                        cem_right = mpatches.Rectangle(
+                            (xr, cement_top), 
+                            cement_width, 
+                            cement_length, 
+                            facecolor=cement_color,
+                            transform=t,
+                            hatch = cement_hatch
+                        )
+                        patches.extend([cem_left,cem_right])
+                
+                if 'perforations' in self.casing[c]:
+                    for perf in self.casing[c]['perforations']:
+                        perf_color = perf.pop('color','#030302')
+                        perf_hatch = perf.pop('hatch','*')
+                        perf_scale = perf.pop('scale',1)
+                        perf_penetrate = perf.pop('penetrate',1.05)
+                        perf_oh = perf['oh']
+                        perf_top = perf['top']
+                        perf_bottom = perf['bottom']
+
+                        pl =  0.5*(1-perf_oh*perf_penetrate/di_factor)
+                        pr =  0.5*(1+perf_oh*perf_penetrate/di_factor)
+                        
+                        for i in np.arange(perf_top,perf_bottom,perf_scale):
+                            left_perf = np.array([[pl,perf_scale/2],[xl,perf_scale],[xl,0]])
+                            left_perf[:,1] = left_perf[:,1] + i
+                            right_perf = np.array([[pr,perf_scale/2],[xr,perf_scale],[xr,0]])
+                            right_perf[:,1] = right_perf[:,1] + i
+
+                            lp = mpatches.Polygon(
+                                left_perf, 
+                                color=perf_color,
+                                hatch=perf_hatch
+                            )
+                            rp = mpatches.Polygon(
+                                right_perf, 
+                                color=perf_color,
+                                hatch=perf_hatch
+                            )
+                            patches.extend([lp,rp])
 
         for patch in patches:
             ax.add_artist(patch)
