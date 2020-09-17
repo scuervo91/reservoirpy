@@ -22,6 +22,47 @@ def caltrack(df: pd.DataFrame,
             depth_ref:str='md',
             cal_colormap: str='winter',
             bit_colormap: str='bone'):
+    """caltrack [summary]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    cali : [type], optional
+        [description], by default None
+    bit : [type], optional
+        [description], by default None
+    lims : [type], optional
+        [description], by default None
+    cal_lim : list, optional
+        [description], by default [5,20]
+    dtick : bool, optional
+        [description], by default False
+    fill : bool, optional
+        [description], by default False
+    fontsize : int, optional
+        [description], by default 8
+    grid_numbers : list, optional
+        [description], by default [11,51]
+    steps : list, optional
+        [description], by default None
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    ax : [type], optional
+        [description], by default None
+    cal_kw : dict, optional
+        [description], by default {}
+    corr_kw : dict, optional
+        [description], by default {}
+    bit_kw : dict, optional
+        [description], by default {}
+    depth_ref : str, optional
+        [description], by default 'md'
+    cal_colormap : str, optional
+        [description], by default 'winter'
+    bit_colormap : str, optional
+        [description], by default 'bone'
+    """
 
     assert isinstance(df,pd.DataFrame)
     assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"

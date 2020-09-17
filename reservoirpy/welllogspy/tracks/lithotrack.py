@@ -14,7 +14,35 @@ def lithotrack(df:pd.DataFrame,
                grid_numbers : list = [11,51],
                steps: list  = None,
                corr_kw={}):
-    
+    """lithotrack [summary]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    codecols : list
+        [description]
+    percols : list
+        [description]
+    dtick : bool, optional
+        [description], by default False
+    lims : list, optional
+        [description], by default None
+    codedict : dict, optional
+        [description], by default None
+    fontsize : int, optional
+        [description], by default 8
+    ax : [type], optional
+        [description], by default None
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    grid_numbers : list, optional
+        [description], by default [11,51]
+    steps : list, optional
+        [description], by default None
+    corr_kw : dict, optional
+        [description], by default {}
+    """
     lit=ax or plt.gca()
     
     def_corr_kw = {

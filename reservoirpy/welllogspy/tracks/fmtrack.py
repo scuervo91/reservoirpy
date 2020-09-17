@@ -10,7 +10,25 @@ def fmtrack(df,
             fm_colormap: str='winter',
             ax=None
             ):
-    
+    """fmtrack [summary]
+
+    Parameters
+    ----------
+    df : [type]
+        [description]
+    lims : list, optional
+        [description], by default None
+    depth_ref : str, optional
+        [description], by default 'md'
+    area_kw : dict, optional
+        [description], by default {}
+    line_kw : dict, optional
+        [description], by default {}
+    fm_colormap : str, optional
+        [description], by default 'winter'
+    ax : [type], optional
+        [description], by default None
+    """
     
     #fm=None,lims=None, top='top',bottom='bottom',name='name',ax=None):
 

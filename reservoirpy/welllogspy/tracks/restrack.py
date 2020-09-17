@@ -18,7 +18,41 @@ def restrack(df: pd.DataFrame,
              corr_kw:dict={},
              res_kw:dict=[],
              depth_ref:str='md'):
+    """restrack [summary]
 
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    res : list, optional
+        [description], by default None
+    lims : list, optional
+        [description], by default None
+    dtick : bool, optional
+        [description], by default False
+    ax : [type], optional
+        [description], by default None
+    res_range : list, optional
+        [description], by default [0.2,20000]
+    fontsize : int, optional
+        [description], by default 8
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    grid_numbers : list, optional
+        [description], by default [11,51]
+    steps : list, optional
+        [description], by default None
+    legend : bool, optional
+        [description], by default True
+    colormap : str, optional
+        [description], by default 'summer_r'
+    corr_kw : dict, optional
+        [description], by default {}
+    res_kw : dict, optional
+        [description], by default []
+    depth_ref : str, optional
+        [description], by default 'md'
+    """
     assert isinstance(df,pd.DataFrame)
     assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
     

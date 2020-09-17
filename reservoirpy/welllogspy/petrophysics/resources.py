@@ -4,6 +4,36 @@ import scipy.stats as st
 
 
 def resources(log, phi=None, sw=None, cutoff=None,a=1,h=1,beta=1.1, fluid='oil',m=1000,seed=1706):
+    """resources [summary]
+
+    Parameters
+    ----------
+    log : [type]
+        [description]
+    phi : [type], optional
+        [description], by default None
+    sw : [type], optional
+        [description], by default None
+    cutoff : [type], optional
+        [description], by default None
+    a : int, optional
+        [description], by default 1
+    h : int, optional
+        [description], by default 1
+    beta : float, optional
+        [description], by default 1.1
+    fluid : str, optional
+        [description], by default 'oil'
+    m : int, optional
+        [description], by default 1000
+    seed : int, optional
+        [description], by default 1706
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     np.random.seed(seed=seed)
     # Define coefficients depending on the fluid
     if fluid == 'oil':

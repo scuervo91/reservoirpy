@@ -4,7 +4,17 @@ from lasio import LASFile
 import os
 
 class log(LASFile):
+
     def __init__(self, file_ref,find_mnemonics=False,**kwargs):
+        """__init__ [summary]
+
+        Parameters
+        ----------
+        file_ref : [type]
+            [description]
+        find_mnemonics : bool, optional
+            [description], by default False
+        """
         mnemonics_df = kwargs.pop('mnemonics', None)
         LASFile.__init__(self, file_ref=file_ref,
                          autodetect_encoding = True, **kwargs)

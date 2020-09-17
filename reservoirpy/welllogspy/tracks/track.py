@@ -21,7 +21,47 @@ def track(df: pd.DataFrame,
           track_kw=[],
           corr_kw={},
           depth_ref:str='md'):
-    
+    """track [summary]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    curves : list, optional
+        [description], by default None
+    lims : list, optional
+        [description], by default None
+    clims : list, optional
+        [description], by default None
+    dtick : bool, optional
+        [description], by default False
+    scale : str, optional
+        [description], by default 'linear'
+    curvetitle : str, optional
+        [description], by default 'Track'
+    colormap : str, optional
+        [description], by default 'plasma'
+    ax : [type], optional
+        [description], by default None
+    fontsize : int, optional
+        [description], by default 8
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    grid_numbers : list, optional
+        [description], by default [11,51]
+    steps : list, optional
+        [description], by default None
+    legend : bool, optional
+        [description], by default True
+    grid : bool, optional
+        [description], by default True
+    track_kw : list, optional
+        [description], by default []
+    corr_kw : dict, optional
+        [description], by default {}
+    depth_ref : str, optional
+        [description], by default 'md'
+    """
     #get number of curves to build the colormap
     n_curves = len(curves)
     cmap = mpl.cm.get_cmap(colormap,n_curves)

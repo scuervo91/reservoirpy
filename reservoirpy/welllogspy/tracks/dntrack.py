@@ -22,46 +22,46 @@ def dntrack(df: pd.DataFrame,
             ntr_colormap:str='winter',
             depth_ref:str='md'
            ):
-    """
+    """dntrack [summary]
+
     Parameters
     ----------
     df : pd.DataFrame
-        Series with Depth Array
-    rho : str, optional
-        Series with Density Array. The default is None.
-    ntr : str, optional
-        Series with Neutron Array. The default is None.
+        [description]
+    rho : [type], optional
+        [description], by default None
+    ntr : [type], optional
+        [description], by default None
     lims : list, optional
-        list that contains the depth limits to plot. e.g lims = [5800,6500]. The default is None.
+        [description], by default None
     lime : bool, optional
-        Define the logs calibration depending if limestone or sandstone. The default is False.
+        [description], by default False
     dtick : bool, optional
-        Bool If show the depth ticks.. The default is False.
+        [description], by default False
     fill : bool, optional
-        Bool if fill the logs cross. The default is True.
+        [description], by default True
     fontsize : int, optional
-       Ticks Fontsize. The default is 8.
+        [description], by default 8
     grid_numbers : list, optional
-        List indicates the number of the grids to show in the depth 
-        axis for mayor and minor. The default is [11,51].
+        [description], by default [11,51]
     steps : list, optional
-        List indicates the step size of the grids to show in the depth 
-        axis for mayor and minor. If 'steps' is provided 'grid_numbers'
-        is not used. The default is None.
-    correlation : plot correlate lines at specific depth. he default is None
-    rho_kw : TYPE, optional
-        kwargs for Density curve. The default is {}.
-    ntr_kw : TYPE, optional
-        kwargs for Neutron curve.. The default is {}.
-    corr_kw : TYPE, optional
-        kwargs for Neutron curve.. The default is {}.
-    ax : TYPE, optional
-        Ax to plot. The default is None.
-
-    Returns
-    -------
-    Figure
-
+        [description], by default None
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    rho_kw : dict, optional
+        [description], by default {}
+    ntr_kw : dict, optional
+        [description], by default {}
+    corr_kw : dict, optional
+        [description], by default {}
+    ax : [type], optional
+        [description], by default None
+    rho_colormap : str, optional
+        [description], by default 'hot'
+    ntr_colormap : str, optional
+        [description], by default 'winter'
+    depth_ref : str, optional
+        [description], by default 'md'
     """
     assert isinstance(df,pd.DataFrame)
     assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"

@@ -18,7 +18,41 @@ def oilshowtrack(df: pd.DataFrame,
                  show_kw={},
                  fill_kw={},
                  depth_ref:str='md'):
+    """oilshowtrack [summary]
 
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    oilshow : str, optional
+        [description], by default None
+    lims : list, optional
+        [description], by default None
+    dtick : bool, optional
+        [description], by default False
+    fill : bool, optional
+        [description], by default True
+    ax : [type], optional
+        [description], by default None
+    fontsize : int, optional
+        [description], by default 8
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    grid_numbers : list, optional
+        [description], by default [11,51]
+    steps : list, optional
+        [description], by default None
+    oilshow_colormap : str, optional
+        [description], by default 'summer'
+    corr_kw : dict, optional
+        [description], by default {}
+    show_kw : dict, optional
+        [description], by default {}
+    fill_kw : dict, optional
+        [description], by default {}
+    depth_ref : str, optional
+        [description], by default 'md'
+    """
     oax=ax or plt.gca()
     
     defkwa = {

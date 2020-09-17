@@ -17,7 +17,39 @@ def flagtrack(df: pd.DataFrame,
               pay_kw={},
               depth_ref:str='md'
               ):
-    
+    """flagtrack [summary]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    sand : str, optional
+        [description], by default None
+    res : str, optional
+        [description], by default None
+    pay : str, optional
+        [description], by default None
+    ax : [type], optional
+        [description], by default None
+    lims : list, optional
+        [description], by default None
+    fontsize : int, optional
+        [description], by default 8
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    legend : bool, optional
+        [description], by default True
+    corr_kw : dict, optional
+        [description], by default {}
+    sand_kw : dict, optional
+        [description], by default {}
+    res_kw : dict, optional
+        [description], by default {}
+    pay_kw : dict, optional
+        [description], by default {}
+    depth_ref : str, optional
+        [description], by default 'md'
+    """
     #Create the axes
     fax=ax or plt.gca()
     

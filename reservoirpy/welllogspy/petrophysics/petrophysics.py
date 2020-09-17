@@ -16,6 +16,30 @@ def petrophysics(logs,dfrom,dto,
                 sw_pnn_kw = None, 
                 return_partial = False
                 ):
+    """petrophysics [summary]
+
+    Parameters
+    ----------
+    logs : [type]
+        [description]
+    dfrom : [type]
+        [description]
+    dto : [type]
+        [description]
+    vshale_gr_kw : [type], optional
+        [description], by default None
+    vshale_dn_kw : [type], optional
+        [description], by default None
+    phi_rho_kw : [type], optional
+        [description], by default None
+    return_partial : bool, optional
+        [description], by default False
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     logf=logs[(logs.index >= dfrom) & (logs.index<=dto)].copy()
     new_cols = []
 

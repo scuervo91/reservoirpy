@@ -4,6 +4,32 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 def cutoff(log,phi=None,sw=None,vsh=None,elbow=0.9,swaq=0.7,ax=None, plot=True):
+    """cutoff [summary]
+
+    Parameters
+    ----------
+    log : [type]
+        [description]
+    phi : [type], optional
+        [description], by default None
+    sw : [type], optional
+        [description], by default None
+    vsh : [type], optional
+        [description], by default None
+    elbow : float, optional
+        [description], by default 0.9
+    swaq : float, optional
+        [description], by default 0.7
+    ax : [type], optional
+        [description], by default None
+    plot : bool, optional
+        [description], by default True
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     step=np.mean(np.diff(log.index))
     Hc=log.loc[log[sw]<swaq,phi]*(1-log.loc[log[sw]<swaq,sw])*step
     Hct=sum(Hc[~np.isnan(Hc)])
@@ -48,7 +74,26 @@ def cutoff(log,phi=None,sw=None,vsh=None,elbow=0.9,swaq=0.7,ax=None, plot=True):
     return re
 
 def pickett(rw=0.15,a=1,m=2,n=2,swr=np.linspace(0.1,1,5)):
+    """pickett [summary]
 
+    Parameters
+    ----------
+    rw : float, optional
+        [description], by default 0.15
+    a : int, optional
+        [description], by default 1
+    m : int, optional
+        [description], by default 2
+    n : int, optional
+        [description], by default 2
+    swr : [type], optional
+        [description], by default np.linspace(0.1,1,5)
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     Phi_rt1=np.power(rw,1/m)  #Phi at Rt=1. Log(phi)=-mlog(Rt/Rw)
     rts=(a*rw)/(np.power(Phi_rt1,m)*np.power(swr,n))
     Rti=rts*np.power(Phi_rt1,m)/a
@@ -72,6 +117,20 @@ def pickett(rw=0.15,a=1,m=2,n=2,swr=np.linspace(0.1,1,5)):
     return ax
 
 def windland(phirange=None,r35range=None):
+    """windland [summary]
+
+    Parameters
+    ----------
+    phirange : [type], optional
+        [description], by default None
+    r35range : [type], optional
+        [description], by default None
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     if phirange is None:
         phirange=np.linspace(0.05,0.30,5)
     else:

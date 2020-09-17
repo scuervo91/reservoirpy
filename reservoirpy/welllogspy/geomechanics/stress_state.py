@@ -3,18 +3,75 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 def coulomb(mu):
+    """coulomb [summary]
+
+    Parameters
+    ----------
+    mu : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     c = np.power(np.sqrt(np.power(mu,2) + 1) + mu, 2)
     return c
 
 def shmin(sv,pp,mu):
+    """shmin [summary]
+
+    Parameters
+    ----------
+    sv : [type]
+        [description]
+    pp : [type]
+        [description]
+    mu : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     smin = ((sv - pp) / coulomb(mu)) + pp
     return smin
 
 def shmax(sv,pp,mu):
+    """shmax [summary]
+
+    Parameters
+    ----------
+    sv : [type]
+        [description]
+    pp : [type]
+        [description]
+    mu : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     smax = coulomb(mu) * (sv - pp) + pp
     return smax 
 
 def zobackogram(sv,pp,mu, ax=None):
+    """zobackogram [summary]
+
+    Parameters
+    ----------
+    sv : [type]
+        [description]
+    pp : [type]
+        [description]
+    mu : [type]
+        [description]
+    ax : [type], optional
+        [description], by default None
+    """
     ax = ax or plt.gca()  
 
     smin = shmin(sv,pp,mu)
@@ -51,11 +108,3 @@ def zobackogram(sv,pp,mu, ax=None):
     ax.set_ylabel('Shmax')
     ax.legend(lb)
     ax.set_title('Stress State')
-
-
-
-
-
-
-
-

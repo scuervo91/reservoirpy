@@ -23,40 +23,48 @@ def vshtrack(df: pd.DataFrame,
             depth_ref:str='md',
             ax=None
             ):
-    """
-    
+    """vshtrack [summary]
 
     Parameters
     ----------
     df : pd.DataFrame
-        DESCRIPTION.
-    vsh : str, optional
-        DESCRIPTION. The default is None.
+        [description]
+    vsh : [type], optional
+        [description], by default None
     lims : list, optional
-        DESCRIPTION. The default is None.
+        [description], by default None
     inverse : bool, optional
-        DESCRIPTION. The default is False.
+        [description], by default False
     dtick : bool, optional
-        DESCRIPTION. The default is False.
+        [description], by default False
     fill : bool, optional
-        DESCRIPTION. The default is False.
-    cutoff : float, optional
-        DESCRIPTION. The default is 0.5.
+        [description], by default True
     fontsize : int, optional
-        DESCRIPTION. The default is 8.
+        [description], by default 8
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    fm : pd.DataFrame, optional
+        [description], by default None
+    perf : pd.DataFrame, optional
+        [description], by default None
     grid_numbers : list, optional
-        DESCRIPTION. The default is [11,51].
+        [description], by default [11,51]
     steps : list, optional
-        DESCRIPTION. The default is None.
-    vsh_kw : TYPE, optional
-        DESCRIPTION. The default is {}.
-    ax : TYPE, optional
-        DESCRIPTION. The default is None.
-
-    Returns
-    -------
-    None.
-
+        [description], by default None
+    vsh_kw : dict, optional
+        [description], by default {}
+    corr_kw : dict, optional
+        [description], by default {}
+    fm_kw : dict, optional
+        [description], by default {}
+    perf_kw : dict, optional
+        [description], by default {}
+    vsh_colormap : str, optional
+        [description], by default 'copper'
+    depth_ref : str, optional
+        [description], by default 'md'
+    ax : [type], optional
+        [description], by default None
     """
     assert isinstance(df,pd.DataFrame)
     assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"

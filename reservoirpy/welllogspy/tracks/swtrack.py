@@ -20,7 +20,45 @@ def swtrack(df: pd.DataFrame,
             fill_oil_kw={},
             sw_kw=[],
             depth_ref:str='md'):
-    
+    """swtrack [summary]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    sw : list, optional
+        [description], by default None
+    lims : list, optional
+        [description], by default None
+    dtick : bool, optional
+        [description], by default False
+    ax : [type], optional
+        [description], by default None
+    fontsize : int, optional
+        [description], by default 8
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    grid_numbers : list, optional
+        [description], by default [11,51]
+    steps : list, optional
+        [description], by default None
+    legend : bool, optional
+        [description], by default True
+    fill : bool, optional
+        [description], by default True
+    colormap : str, optional
+        [description], by default 'winter'
+    corr_kw : dict, optional
+        [description], by default {}
+    fill_water_kw : dict, optional
+        [description], by default {}
+    fill_oil_kw : dict, optional
+        [description], by default {}
+    sw_kw : list, optional
+        [description], by default []
+    depth_ref : str, optional
+        [description], by default 'md'
+    """
     #get number of curves to build the colormap
     n_curves = len(sw)
     cmap = mpl.cm.get_cmap(colormap,n_curves)

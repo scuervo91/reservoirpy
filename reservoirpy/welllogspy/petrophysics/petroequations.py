@@ -3,6 +3,29 @@ import pandas as pd
 from scipy.interpolate import interp1d
 
 def vshale_gr(gr_curve,gr_sand,gr_shale,type='linear'):
+    """vshale_gr [summary]
+
+    Parameters
+    ----------
+    gr_curve : [type]
+        [description]
+    gr_sand : [type]
+        [description]
+    gr_shale : [type]
+        [description]
+    type : str, optional
+        [description], by default 'linear'
+
+    Returns
+    -------
+    [type]
+        [description]
+
+    Raises
+    ------
+    ValueError
+        [description]
+    """
     gr_curve=np.atleast_1d(gr_curve)
     gr_sand=np.atleast_1d(gr_sand)
     gr_shale=np.atleast_1d(gr_shale)
@@ -26,6 +49,28 @@ def vshale_gr(gr_curve,gr_sand,gr_shale,type='linear'):
     return vsh
 
 def vshale_dn(rho_curve, ntr_curve, rho_ma=2.65, rho_f=1.0, hi_shl=0.46,rho_shl=2.43):
+    """vshale_dn [summary]
+
+    Parameters
+    ----------
+    rho_curve : [type]
+        [description]
+    ntr_curve : [type]
+        [description]
+    rho_ma : float, optional
+        [description], by default 2.65
+    rho_f : float, optional
+        [description], by default 1.0
+    hi_shl : float, optional
+        [description], by default 0.46
+    rho_shl : float, optional
+        [description], by default 2.43
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     rho_curve= np.atleast_1d(rho_curve)
     ntr_curve= np.atleast_1d(ntr_curve)
     rho_ma = np.atleast_1d(rho_ma)
@@ -39,6 +84,22 @@ def vshale_dn(rho_curve, ntr_curve, rho_ma=2.65, rho_f=1.0, hi_shl=0.46,rho_shl=
     
 
 def phi_rho(rho_curve,rho_ma=2.65,rho_f=1.0):
+    """phi_rho [summary]
+
+    Parameters
+    ----------
+    rho_curve : [type]
+        [description]
+    rho_ma : float, optional
+        [description], by default 2.65
+    rho_f : float, optional
+        [description], by default 1.0
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     rho_curve=np.atleast_1d(rho_curve)
     rho_ma=np.atleast_1d(rho_ma)
     rho_f=np.atleast_1d(rho_f)
@@ -48,6 +109,20 @@ def phi_rho(rho_curve,rho_ma=2.65,rho_f=1.0):
     return phi_rho_curve
 
 def phie(phi_curve,vsh_curve):
+    """phie [summary]
+
+    Parameters
+    ----------
+    phi_curve : [type]
+        [description]
+    vsh_curve : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     phi_curve=np.atleast_1d(phi_curve)
     vsh_curve=np.atleast_1d(vsh_curve)
     phie_curve=phi_curve*(1 -vsh_curve)
@@ -56,6 +131,22 @@ def phie(phi_curve,vsh_curve):
     return phie_curve
 
 def phia(phi_rho_curve, ntr_curve, method='geometric'):
+    """phia [summary]
+
+    Parameters
+    ----------
+    phi_rho_curve : [type]
+        [description]
+    ntr_curve : [type]
+        [description]
+    method : str, optional
+        [description], by default 'geometric'
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     phi_rho_curve = np.atleast_1d(phi_rho_curve)
     ntr_curve = np.atleast_1d(ntr_curve)
     c = np.transpose(np.vstack((phi_rho_curve,ntr_curve)))
@@ -66,6 +157,22 @@ def phia(phi_rho_curve, ntr_curve, method='geometric'):
     return phia_curve
         
 def facies_dnp(rho_curve, ntr_curve,pef_curve,**kw):
+    """facies_dnp [summary]
+
+    Parameters
+    ----------
+    rho_curve : [type]
+        [description]
+    ntr_curve : [type]
+        [description]
+    pef_curve : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     rho_curve = np.atleast_1d(rho_curve)
     ntr_curve = np.atleast_1d(ntr_curve)
     pef_curve = np.atleast_1d(pef_curve)
@@ -78,6 +185,36 @@ def facies_dnp(rho_curve, ntr_curve,pef_curve,**kw):
     return uma, dga
     
 def sw(rt_curve,phi_curve,rw,vsh_curve=None,a=0.62,m=2.15,n=2,rsh=4.0,alpha=0.3,method="archie"):
+    """sw [summary]
+
+    Parameters
+    ----------
+    rt_curve : [type]
+        [description]
+    phi_curve : [type]
+        [description]
+    rw : [type]
+        [description]
+    vsh_curve : [type], optional
+        [description], by default None
+    a : float, optional
+        [description], by default 0.62
+    m : float, optional
+        [description], by default 2.15
+    n : int, optional
+        [description], by default 2
+    rsh : float, optional
+        [description], by default 4.0
+    alpha : float, optional
+        [description], by default 0.3
+    method : str, optional
+        [description], by default "archie"
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     a=np.atleast_1d(a)
     m=np.atleast_1d(m)
     n=np.atleast_1d(n)
@@ -116,12 +253,46 @@ def sw(rt_curve,phi_curve,rw,vsh_curve=None,a=0.62,m=2.15,n=2,rsh=4.0,alpha=0.3,
     return sw_curve
 
 def depth_temperature(depth, surface_temperature=77 ,gradient=1):
+    """depth_temperature [summary]
+
+    Parameters
+    ----------
+    depth : [type]
+        [description]
+    surface_temperature : int, optional
+        [description], by default 77
+    gradient : int, optional
+        [description], by default 1
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     depth = np.atleast_1d(depth)
     
     t = (gradient/100) * depth + surface_temperature 
     return t
 
 def rw_temp_convert(rw,t1,t2, temp_unit='f'):
+    """rw_temp_convert [summary]
+
+    Parameters
+    ----------
+    rw : [type]
+        [description]
+    t1 : [type]
+        [description]
+    t2 : [type]
+        [description]
+    temp_unit : str, optional
+        [description], by default 'f'
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     rw = np.atleast_1d(rw)
     t1 = np.atleast_1d(t1)
     t2 = np.atleast_1d(t2)
@@ -135,9 +306,21 @@ def rw_temp_convert(rw,t1,t2, temp_unit='f'):
     return rw2
 
 def rw(temp, salinity,temp_unit='f'):
-    """
-    Tc = 60.0       # Temperature (F)
-    Wse =  60000.0  # Salinity (ppm)
+    """rw [summary]
+
+    Parameters
+    ----------
+    temp : [type]
+        [description]
+    salinity : [type]
+        [description]
+    temp_unit : str, optional
+        [description], by default 'f'
+
+    Returns
+    -------
+    [type]
+        [description]
     """
     
     # 1) Convert from Celcius to Farenheit
@@ -152,21 +335,29 @@ def rw(temp, salinity,temp_unit='f'):
     return rw
 
 
-
 def rw2(T, Wse, verbose=False,Celcius=False):    
-    """
-    Uses method from textbook "Petrophysics" by Djebbar and Donaldson.
+    """rw2 [    Uses method from textbook "Petrophysics" by Djebbar and Donaldson.
     
     Supposedly more accurate than the approach used in calc_Rw because Hx and 
-    RwT account for non-linearlity in resistivity as a function of salinity.
-    
-    
-    #  Input Parameters
-    # -------------------
-    
-    Tc = 60.0       # Temperature (Celcius)
-    Wse = 60000.0   # Salinity (ppm)
+    RwT account for non-linearlity in resistivity as a function of salinity.]
+
+    Parameters
+    ----------
+    T : [type]
+        [description]
+    Wse : [type]
+        [description]
+    verbose : bool, optional
+        [description], by default False
+    Celcius : bool, optional
+        [description], by default False
+
+    Returns
+    -------
+    [type]
+        [description]
     """
+
     
     #  Calculations:
     
@@ -194,6 +385,24 @@ def rw2(T, Wse, verbose=False,Celcius=False):
     return Rw
 
 def perm(phie_curve,swir,fluid='oil',author='timur'):
+    """perm [summary]
+
+    Parameters
+    ----------
+    phie_curve : [type]
+        [description]
+    swir : [type]
+        [description]
+    fluid : str, optional
+        [description], by default 'oil'
+    author : str, optional
+        [description], by default 'timur'
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     phie=np.atleast_1d(phie_curve)
     swir=np.atleast_1d(swir)
     if author=='timur':
@@ -223,6 +432,22 @@ def perm(phie_curve,swir,fluid='oil',author='timur'):
 
 
 def flow_capacity(height,perm_curve,pay_curve):
+    """flow_capacity [summary]
+
+    Parameters
+    ----------
+    height : [type]
+        [description]
+    perm_curve : [type]
+        [description]
+    pay_curve : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     perm_curve=np.nan_to_num(np.atleast_1d(perm_curve))
     pay_curve=np.nan_to_num(np.atleast_1d(pay_curve))
     height=np.atleast_1d(height)
@@ -232,20 +457,46 @@ def flow_capacity(height,perm_curve,pay_curve):
     kht=np.sum(kh)
     khnorm=1-(khcum/kht)
     return kh, khnorm
-
+"""
+https://www.spec2000.net/14-swtdt.htm
+PHIe = effective porosity (fractional)
+SIGMA = TDT capture cross section log reading (capture units)
+SIGMAM = capture cross section matrix value (capture units)
+SIGW = capture cross section for water (capture units)
+SIGHY = capture cross section for hydrocarbons (capture units)
+SIGSH = capture cross section for shale (capture units)
+SWtdt = water saturation from TDT (fractional)
+Vsh = shale volume (fractional)
+WS = water salinity (ppm NaCl)
+"""
 def sw_pnn(phie,vsh, sigma,sighy,sigsh,ws=None,sigw=None,sigmam=None):
+    """sw_pnn [summary]
+
+    Parameters
+    ----------
+    phie : [type]
+        [description]
+    vsh : [type]
+        [description]
+    sigma : [type]
+        [description]
+    sighy : [type]
+        [description]
+    sigsh : [type]
+        [description]
+    ws : [type], optional
+        [description], by default None
+    sigw : [type], optional
+        [description], by default None
+    sigmam : [type], optional
+        [description], by default None
+
+    Returns
+    -------
+    [type]
+        [description]
     """
-    https://www.spec2000.net/14-swtdt.htm
-    PHIe = effective porosity (fractional)
-    SIGMA = TDT capture cross section log reading (capture units)
-    SIGMAM = capture cross section matrix value (capture units)
-    SIGW = capture cross section for water (capture units)
-    SIGHY = capture cross section for hydrocarbons (capture units)
-    SIGSH = capture cross section for shale (capture units)
-    SWtdt = water saturation from TDT (fractional)
-    Vsh = shale volume (fractional)
-    WS = water salinity (ppm NaCl)
-    """
+
     phie=np.atleast_1d(phie)
     vsh=np.atleast_1d(vsh)
     sigma=np.atleast_1d(sigma)
@@ -267,8 +518,27 @@ def sw_pnn(phie,vsh, sigma,sighy,sigsh,ws=None,sigw=None,sigmam=None):
     return sw
 
 def rw_from_sp(rmf=None, rmf_temp=75, res_temp=None, ssp=None,temp_unit='f', rw_75=False):
-    """
-    Estimate water resistivity from SP log
+    """rw_from_sp [summary]
+
+    Parameters
+    ----------
+    rmf : [type], optional
+        [description], by default None
+    rmf_temp : int, optional
+        [description], by default 75
+    res_temp : [type], optional
+        [description], by default None
+    ssp : [type], optional
+        [description], by default None
+    temp_unit : str, optional
+        [description], by default 'f'
+    rw_75 : bool, optional
+        [description], by default False
+
+    Returns
+    -------
+    [type]
+        [description]
     """
 
     #https://www.spec2000.net/05-7rwsp.htm
@@ -305,7 +575,22 @@ def rw_from_sp(rmf=None, rmf_temp=75, res_temp=None, ssp=None,temp_unit='f', rw_
     return rw
 
 def salinity_from_rw(rw=None, temp=75,temp_unit='f'):
+    """salinity_from_rw [summary]
 
+    Parameters
+    ----------
+    rw : [type], optional
+        [description], by default None
+    temp : int, optional
+        [description], by default 75
+    temp_unit : str, optional
+        [description], by default 'f'
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     if temp_unit=='c':
         temp = 1.8*temp + 32.0
 

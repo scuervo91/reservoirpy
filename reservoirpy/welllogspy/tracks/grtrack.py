@@ -34,60 +34,70 @@ def grtrack(df: pd.DataFrame,
                 sp_colormap: str='gray',
                 sp_norm = True
                ):
-    
-    """
-    Description:
-        Function that plots in a defined Axes the Gammaray and Sp log.
-    
-    Parameters:
-        depth: DataFrame that contains the depth 
-        gr: str that contains the GammaRay values
-        sp: str that contains the SP values
-        lims: list that contains the depth limits to plot. e.g lims = [5800,6500]
-        gr_max: int set the maximum limit to GammaRay axis 150,
-        fm: DataFrame that contains the top and base of interest zones to color and bound
-            fm = pd.DataFrame({'top':[11810,11945],'base':[11850,12400]})
-        perf: DataFrame that contains the top and base of perforations. Plot a series of horizontal lines in the interval depth
-                perf = pd.DataFrame({'top':[11810,11845],'bottom':[11815,11850]})
-        gr_sand_shale: DataFrame that contains the top and base of different Clean and shaly base lines. Plot a series of vertical lines in the interval depth
-                gr_sand_shale = pd.DataFrame({'top':[11810,11845],'bottom':[11815,11850],'sand':[10,23],'shale':[100,120]})
-        correlation: DataFrame that contains the depth to correlate. Plot a series of horizontal lines in the interval depth
-                gr_sand_shale = pd.DataFrame({'depth':[11810,11845,12500]})
-        fontsize: int Fontsize for the plot ticks
-        dtick: bool If show the depth ticks. Default True
-        grid_numbers : List indicates the number of the grids to show in the depth axis for mayor and minor. Default list = [11,51]
-        steps: List indicates the step size of the grids to show in the depth axis for mayor and minor. If 'steps' is provided 'grid_numbers' is not used
-        gr_kw: kwargs for GammaRay Curve. Default 
-                                                'color': 'darkred',
-                                                'linestyle':'-',
-                                                'linewidth': 2
-        sp_kw: kwargs for sp Curve. Default 
-                                                'color': 'darkblue',
-                                                'linestyle':'-',
-                                                'linewidth': 1
-        fm_kw: kwargs for formation. Default 
-                                                'color': 'black',
-                                                'linestyle':'-',
-                                                'linewidth': 1
-        perf_kw: kwargs for perf Curve. Default 
-                                                'color': 'black',
-                                                'linestyle':'-',
-                                                'linewidth': 1
-        gr_sand_kw: kwargs for Gr sand curve. Default 
-                                                'color': 'gold',
-                                                'linestyle':'-',
-                                                'linewidth': 1
-        gr_shale_kw: kwargs for Gr shale curve. Default 
-                                                'color': 'gray',
-                                                'linestyle':'-',
-                                                'linewidth': 1,
-        correlation_kw: kwargs for correlation curve. Default 
-                                                'color': 'red',
-                                                'linestyle':'--',
-                                                'linewidth': 2
-        ax: Axes object to plot 
-                
-    
+    """grtrack [summary]
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        [description]
+    gr : [type], optional
+        [description], by default None
+    sp : [type], optional
+        [description], by default None
+    lims : list, optional
+        [description], by default None
+    gr_max : int, optional
+        [description], by default 200
+    sp_lim : list, optional
+        [description], by default None
+    fm : pd.DataFrame, optional
+        [description], by default None
+    units : pd.DataFrame, optional
+        [description], by default None
+    perf : pd.DataFrame, optional
+        [description], by default None
+    gr_sand_shale : pd.DataFrame, optional
+        [description], by default None
+    correlation : pd.DataFrame, optional
+        [description], by default None
+    fontsize : int, optional
+        [description], by default 8
+    dtick : bool, optional
+        [description], by default True
+    sand_flag : pd.Series, optional
+        [description], by default None
+    grid_numbers : list, optional
+        [description], by default [11,51]
+    steps : list, optional
+        [description], by default None
+    legend : bool, optional
+        [description], by default False
+    gr_kw : dict, optional
+        [description], by default {}
+    sp_kw : dict, optional
+        [description], by default {}
+    fm_kw : dict, optional
+        [description], by default {}
+    unit_kw : dict, optional
+        [description], by default {}
+    perf_kw : dict, optional
+        [description], by default {}
+    gr_sand_kw : dict, optional
+        [description], by default {}
+    gr_shale_kw : dict, optional
+        [description], by default {}
+    corr_kw : dict, optional
+        [description], by default {}
+    ax : [type], optional
+        [description], by default None
+    depth_ref : str, optional
+        [description], by default 'md'
+    gr_colormap : str, optional
+        [description], by default 'autumn'
+    sp_colormap : str, optional
+        [description], by default 'gray'
+    sp_norm : bool, optional
+        [description], by default True
     """
     assert isinstance(df,pd.DataFrame)
     assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
