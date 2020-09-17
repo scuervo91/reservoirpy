@@ -279,9 +279,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],log)    
-        else:
-            value = {}       
+                assert isinstance(value[i],log)         
         self._openlog = value
 
     @property
@@ -293,9 +291,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],log)    
-        else:
-            value = {}       
+                assert isinstance(value[i],log)         
         self._masterlog = value
 
     @property
@@ -307,9 +303,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],log)    
-        else:
-            value = {}       
+                assert isinstance(value[i],log)       
         self._caselog = value
 
     @property
@@ -429,11 +423,20 @@ class well:
             assert isinstance(logs_dict[i],log)     
         
         if which=='openlog':
-            self._openlog.update(logs_dict)
+            if self.openlog is None:
+                self.openlog = logs_dict
+            else:
+                self._openlog.update(logs_dict)
         elif which == 'masterlog':
-            self._masterlog.update(logs_dict)
+            if self.masterlog is None:
+                self.masterlog = logs_dict
+            else:
+                self._masterlog.update(logs_dict)
         elif which == 'caselog':
-            self._caselog.update(logs_dict)
+            if self.caselog is None:
+                self.caselog = logs_dict
+            else:
+                self._caselog.update(logs_dict)
         else:
             raise ValueError('No attribute target defined')
 
