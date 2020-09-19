@@ -420,7 +420,7 @@ def plot_schematic(
     ax.set_xticklabels(np.around(np.concatenate([di,di]),decimals=1))
     ax.xaxis.set_label_position("top")
     ax.xaxis.tick_top()
-    ax.set_xlim([0,1])
+    ax.set_xlim([-0.2,1.2])
     ax.set_ylim(
         max([s["bottom"] for s in segments]) + 1, min([s["top"] for s in segments]) - 1
     )
