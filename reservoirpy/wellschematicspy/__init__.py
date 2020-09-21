@@ -1,1 +1,1 @@
-from .schematics import plot_schematic, well_schema 
+from .schematics import well_schema 
