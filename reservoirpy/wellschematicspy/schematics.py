@@ -8,8 +8,10 @@ import numpy as np
 
 completion_properties = {
     'tubing':{'hatch':None,'color':'#828783'},
-    'packer':{'hatch':'x','color':'#ab8989'},
-    'sleeve':{'hatch':'|','color':'#74876d'}
+    'bridge_plug':{'hatch':'xx','color':'#7a2222'},
+    'packer':{'hatch':'xx','color':'#7a2222'},
+    'sleeve':{'hatch':'|','color':'#74876d'},
+    'plug':{'hatch':'..','color':'#60b1eb'},
 }
 
 class well_schema:
@@ -218,8 +220,8 @@ class well_schema:
 
                 if 'cement' in self.casing[c]:
                     for cem in self.casing[c]['cement']:
-                        cement_color = cem.pop('color','#adadad')
-                        cement_hatch = cem.pop('hatch','/')
+                        cement_color = cem.pop('color','#60b1eb')
+                        cement_hatch = cem.pop('hatch','.')
                         cement_oh = cem['oh']
                         cement_top = cem['top']
                         cement_bottom = cem['bottom']
@@ -309,8 +311,31 @@ class well_schema:
                     )
 
                     patches.extend([seg_left,seg_right])
+
+                if ctype == 'packer':
+                    inner_diameter = self.completion[c]['inner_diameter']
+                    xli =  0.5*(1-inner_diameter/di_factor)
+                    width = xli - xl
+                    seg_left = mpatches.Rectangle(
+                        (xl, top), 
+                        width, 
+                        length, 
+                        facecolor=color,
+                        transform=t,
+                        hatch = hatch
+                    )
+                    seg_right = mpatches.Rectangle(
+                        (xr-width, top),
+                        width,
+                        length,
+                        facecolor=color,
+                        transform=t,
+                        hatch = hatch
+                    )
+
+                    patches.extend([seg_left,seg_right])
                 
-                elif ctype in ['packer','sleeve']:
+                elif ctype in ['bridge_plug','sleeve','plug']:
                     oh_patch = mpatches.Rectangle(
                         (0.5*(1-diameter/di_factor), top),
                         (0.5*(1+diameter/di_factor)) - (0.5*(1-diameter/di_factor)),
@@ -350,4 +375,4 @@ class well_schema:
         if tight_layout:
             ax.figure.tight_layout()
 
-        return patches
+        #return patches
