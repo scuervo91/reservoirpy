@@ -1166,7 +1166,7 @@ class wells_group:
 
         return dist_matrix
 
-    def wells_map(self, wells:list=None,zoom=10, map_style = 'OpenStreetMap',tooltip=False,popup=True,ax=None):
+    def wells_map(self, wells:list=None,zoom=10, map_style = 'OpenStreetMap',tooltip=True,popup=False,ax=None):
         """
         Make a Foluim map with the selected wells
 
