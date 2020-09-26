@@ -27,7 +27,8 @@ setuptools.setup(
         'vtk',
         'pyvista',
         'shapely',
-        'folium'
+        'folium',
+        'skimage'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
