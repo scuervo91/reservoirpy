@@ -149,7 +149,7 @@ class surface:
         area = self.get_contours_area(levels=levels,n=n,c=c,group=True)
 
         #Integrate
-        rv=simps(np.abs(area.index),area['area'])
+        rv=simps(area['area'],np.abs(area.index))
 
         return rv, area
 
@@ -192,7 +192,7 @@ class surface_group:
         area['dif']= area['area_top'] - area['area_bottom']
 
         #Integrate
-        rv=simps(np.abs(area.index),area['dif'])
+        rv=simps(area['dif'],np.abs(area.index))
 
         return rv, area
 
