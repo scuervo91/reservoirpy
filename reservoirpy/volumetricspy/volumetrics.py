@@ -8,7 +8,7 @@ from scipy.integrate import simps
 def poly_area(x,y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-class grid_surface:
+class surface:
     def __init__(self, **kwargs):
         self.x = kwargs.pop('x',None)
         self.y = kwargs.pop('y',None)
@@ -96,16 +96,20 @@ class grid_surface:
         for level in levels:
             contours = measure.find_contours(zz,level)
 
-            for contour in contours:
-                level_df = pd.DataFrame(contour, columns=['y','x'])
-                level_df['level'] = level
-                level_df['n'] = i
-                data = data.append(level_df,ignore_index=True)
-                i += 1
+            if contours == []:
+                continue
+            else:
+                for contour in contours:
+                    level_df = pd.DataFrame(contour, columns=['y','x'])
+                    level_df['level'] = level
+                    level_df['n'] = i
+                    data = data.append(level_df,ignore_index=True)
+                    i += 1
 
-        #re scale
-        data['x'] = (data['x']/zz.shape[1]) * (xmax - xmin) + xmin
-        data['y'] = (data['y']/zz.shape[0]) * (ymax - ymin) + ymin
+        if not data.empty:
+            #re scale
+            data['x'] = (data['x']/zz.shape[1]) * (xmax - xmin) + xmin
+            data['y'] = (data['y']/zz.shape[0]) * (ymax - ymin) + ymin
 
         return data
 
@@ -116,6 +120,8 @@ class grid_surface:
         #get contours
         contours = self.get_contours(levels=levels,n=n)
 
+        if contours.empty:
+            raise ValueError('None contours found')
         #dataframe
         data = pd.DataFrame()
 
@@ -137,13 +143,61 @@ class grid_surface:
         else:
             return data
 
-    def get_volume(self,levels=None,n=10,c=2.4697887e-4):
-
+    def get_volume(self,levels=None, n=10,c=2.4697887e-4):
+        
+        
         area = self.get_contours_area(levels=levels,n=n,c=c,group=True)
-        area.sort_values(by='area',inplace=True)
-        vol = simps(area.index,area['area'])
 
-        return vol
+        #Integrate
+        rv=simps(np.abs(area.index),area['area'])
+
+        return rv, area
+
+class surface_group:
+    def __init__(self,**kwargs):
+       
+        self.surfaces = kwargs.pop('surfaces',None) 
+
+    @property
+    def surfaces(self):
+        return self._surfaces
+
+    @surfaces.setter 
+    def surfaces(self,value):
+        if value is not None:
+            assert isinstance(value,dict)
+            assert all(isinstance(value[i],surface) for i in value)
+            self._surfaces = value
+        else:
+            self._surfaces = {}
+
+    def add_surface(self,surf):
+        assert isinstance(surf,dict)
+        assert all(isinstance(surf[i],surface) for i in surf)
+
+        _surface_dict = self.surfaces.copy()
+
+        _surface_dict.update(surf)
+        self._surfaces = _surface_dict
+
+    def get_volume(self, top_surface=None, bottom_surface=None, levels=None, n=10,c=2.4697887e-4):
+
+        assert all([top_surface is not None,bottom_surface is not None])
+
+        top_area = self.surfaces[top_surface].get_contours_area(levels=levels,n=n,c=c,group=True)
+        bottom_area = self.surfaces[bottom_surface].get_contours_area(levels=levels,n=n,c=c,group=True)
+
+        #Merge two contours ara for top and bottom indexed by depth
+        area=top_area.merge(bottom_area,how='outer',left_index=True,right_index=True,suffixes=['_top','_bottom']).fillna(0)
+        area['dif']= area['area_top'] - area['area_bottom']
+
+        #Integrate
+        rv=simps(np.abs(area.index),area['dif'])
+
+        return rv, area
+
+
+
 
 
 

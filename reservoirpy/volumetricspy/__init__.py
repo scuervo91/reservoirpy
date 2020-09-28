@@ -1,1 +1,1 @@
-from .volumetrics import grid_surface, poly_area
+from .volumetrics import surface, poly_area, surface_group
