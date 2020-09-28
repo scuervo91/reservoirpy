@@ -187,7 +187,7 @@ class well_schema:
                 bottom = self.casing[c]['bottom']
                 length = bottom - top
                 diameter = self.casing[c]['diameter']
-                pipe_width=self.casing[c].pop('pipe_width',0.04)
+                pipe_width=self.casing[c].pop('pipe_width',0.03)
                 shoe_scale=self.casing[c].pop('shoe_scale',5)
                 color = self.casing[c].pop('color','k')
 
@@ -254,7 +254,7 @@ class well_schema:
                         perf_color = perf.pop('color','#030302')
                         perf_hatch = perf.pop('hatch','*')
                         perf_scale = perf.pop('scale',1)
-                        perf_penetrate = perf.pop('penetrate',1.05)
+                        perf_penetrate = perf.pop('penetrate',1.1)
                         perf_oh = perf['oh']
                         perf_top = perf['top']
                         perf_bottom = perf['bottom']
@@ -311,6 +311,37 @@ class well_schema:
                     )
 
                     patches.extend([seg_left,seg_right])
+
+                if 'cement' in self.completion[c]:
+                    for cem in self.completion[c]['cement']:
+                        cement_color = cem.pop('color','#60b1eb')
+                        cement_hatch = cem.pop('hatch','.')
+                        cement_oh = cem['oh']
+                        cement_top = cem['top']
+                        cement_bottom = cem['bottom']
+
+                        cl =  0.5*(1-cement_oh/di_factor)
+                        cement_width = xl - cl
+                        cement_length = cement_bottom - cement_top
+
+                        cem_left = mpatches.Rectangle(
+                            (cl, cement_top), 
+                            cement_width, 
+                            cement_length, 
+                            facecolor=cement_color,
+                            transform=t,
+                            hatch = cement_hatch
+                        )
+
+                        cem_right = mpatches.Rectangle(
+                            (xr, cement_top), 
+                            cement_width, 
+                            cement_length, 
+                            facecolor=cement_color,
+                            transform=t,
+                            hatch = cement_hatch
+                        )
+                        patches.extend([cem_left,cem_right])
 
                 if ctype == 'packer':
                     inner_diameter = self.completion[c]['inner_diameter']

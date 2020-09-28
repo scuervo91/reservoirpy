@@ -19,6 +19,7 @@ from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import declination
 from sqlalchemy import create_engine
 from ...wellschematicspy import well_schema
+import pickle
 
 class perforations(gpd.GeoDataFrame):
 
@@ -409,12 +410,24 @@ class well:
     @schema.setter 
     def schema(self, value):
         if value is not None:
-            assert isinstance(value,well_schema)
+            assert isinstance(value,dict)
+            for i in value:
+                assert isinstance(value[i],well_schema)       
         self._schema = value
 
 
 #####################################################
 ############## methods ###########################
+
+    def add_schema(self,shema):
+        assert isinstance(schema,dict)
+        for i in schema:
+            assert isinstance(schema[i],well_schema) 
+
+        if self.schema is None:
+            self.schema = schema
+        else:
+            self._schema.update(schema)
 
     def add_logs(self,logs_dict, which='openlog'):
 
@@ -945,6 +958,7 @@ class wells_group:
 
         for well in self.wells:
             dict_attr = {
+                'schema':[False if self.wells[well].schema is None else True],
                 'rte':[self.wells[well].rte],
                 'surf_coord':[self.wells[well].surf_coord],
                 'crs':[self.wells[well].crs],
@@ -1650,3 +1664,7 @@ class wells_group:
         forecast_df['total_cum'] = forecast_df[cum_cols].sum(axis=1)
 
         return forecast_df
+
+    def save(self,file):
+        with open(file, 'wb') as f:
+            pickle.dump(self, f)
