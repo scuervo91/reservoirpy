@@ -600,7 +600,7 @@ def salinity_from_rw(rw=None, temp=75,temp_unit='f'):
     else:
         rw_75 = rw 
 
-    exp = (3.562-np.log10(rw-0.0123))/(0.955)
+    exp = (3.562-np.log10(rw_75-0.0123))/(0.955)
     sal = np.power(10,exp)
 
     return sal

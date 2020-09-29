@@ -16,9 +16,9 @@ completion_properties = {
 
 class well_schema:
     def __init__(self, **kwargs):
-        self.open_hole = kwargs.pop('open_hole',None)
-        self.casing = kwargs.pop('casing',None)
-        self.completion = kwargs.pop('completion',None)
+        self.open_hole = kwargs.get('open_hole',None)
+        self.casing = kwargs.get('casing',None)
+        self.completion = kwargs.get('completion',None)
 
     #Properties
     @property
@@ -127,10 +127,7 @@ class well_schema:
         dtick=True,
         xtick = True,
         lims=None,
-        pipe_width=0.08,
-        hatch_density=3,
-        oh_kw={},
-        csg_kw={}
+        fontsize=8
     ):
         if ax is None:
             fig = plt.figure(figsize=(4, 9))
@@ -141,26 +138,6 @@ class well_schema:
 
         di_factor = self.max_diameter()
 
-        def_oh_kw = {
-            'color': '#cfd4d3',
-            'fill':True,
-            'hatch':None
-        }    
-
-        for (k,v) in def_oh_kw.items():
-            if k not in oh_kw:
-                oh_kw[k]=v
-
-        def_csg_kw = {
-            'color': 'k',
-            'pipe_width':0.08,
-            'shoe_scale':5
-        }    
-
-        for (k,v) in def_csg_kw.items():
-            if k not in csg_kw:
-                csg_kw[k]=v
-
         #Open Hole
         if self.open_hole is not None:
             for o in self.open_hole:
@@ -168,8 +145,8 @@ class well_schema:
                 bottom = self.open_hole[o]['bottom']
                 length = bottom - top
                 diameter = self.open_hole[o]['diameter']
-                color = self.open_hole[o].pop('color','#cfd4d3')
-                hatch = self.open_hole[o].pop('hatch',None)
+                color = self.open_hole[o].get('color','#cfd4d3')
+                hatch = self.open_hole[o].get('hatch',None)
                 oh_patch = mpatches.Rectangle(
                     (0.5*(1-diameter/di_factor), top),
                     (0.5*(1+diameter/di_factor)) - (0.5*(1-diameter/di_factor)),
@@ -187,9 +164,9 @@ class well_schema:
                 bottom = self.casing[c]['bottom']
                 length = bottom - top
                 diameter = self.casing[c]['diameter']
-                pipe_width=self.casing[c].pop('pipe_width',0.03)
-                shoe_scale=self.casing[c].pop('shoe_scale',5)
-                color = self.casing[c].pop('color','k')
+                pipe_width=self.casing[c].get('pipe_width',0.03)
+                shoe_scale=self.casing[c].get('shoe_scale',5)
+                color = self.casing[c].get('color','k')
 
                 xl =  0.5*(1-diameter/di_factor)
                 xr =  0.5*(1+diameter/di_factor)
@@ -220,8 +197,8 @@ class well_schema:
 
                 if 'cement' in self.casing[c]:
                     for cem in self.casing[c]['cement']:
-                        cement_color = cem.pop('color','#60b1eb')
-                        cement_hatch = cem.pop('hatch','.')
+                        cement_color = cem.get('color','#60b1eb')
+                        cement_hatch = cem.get('hatch','.')
                         cement_oh = cem['oh']
                         cement_top = cem['top']
                         cement_bottom = cem['bottom']
@@ -251,10 +228,10 @@ class well_schema:
                 
                 if 'perforations' in self.casing[c]:
                     for perf in self.casing[c]['perforations']:
-                        perf_color = perf.pop('color','#030302')
-                        perf_hatch = perf.pop('hatch','*')
-                        perf_scale = perf.pop('scale',1)
-                        perf_penetrate = perf.pop('penetrate',1.1)
+                        perf_color = perf.get('color','#030302')
+                        perf_hatch = perf.get('hatch','*')
+                        perf_scale = perf.get('scale',1)
+                        perf_penetrate = perf.get('penetrate',1.1)
                         perf_oh = perf['oh']
                         perf_top = perf['top']
                         perf_bottom = perf['bottom']
@@ -287,9 +264,9 @@ class well_schema:
                 bottom = self.completion[c]['bottom']
                 length = bottom - top
                 diameter = self.completion[c]['diameter']
-                pipe_width=self.completion[c].pop('pipe_width',0.02)
-                color = self.completion[c].pop('color',completion_properties[ctype]['color'])
-                hatch = self.completion[c].pop('hatch',completion_properties[ctype]['hatch'])
+                pipe_width=self.completion[c].get('pipe_width',0.02)
+                color = self.completion[c].get('color',completion_properties[ctype]['color'])
+                hatch = self.completion[c].get('hatch',completion_properties[ctype]['hatch'])
 
                 xl =  0.5*(1-diameter/di_factor)
                 xr =  0.5*(1+diameter/di_factor)
@@ -314,8 +291,8 @@ class well_schema:
 
                 if 'cement' in self.completion[c]:
                     for cem in self.completion[c]['cement']:
-                        cement_color = cem.pop('color','#60b1eb')
-                        cement_hatch = cem.pop('hatch','.')
+                        cement_color = cem.get('color','#60b1eb')
+                        cement_hatch = cem.get('hatch','.')
                         cement_oh = cem['oh']
                         cement_top = cem['top']
                         cement_bottom = cem['bottom']
@@ -397,7 +374,8 @@ class well_schema:
         ax.xaxis.set_label_position("top")
         ax.xaxis.tick_top()
         ax.set_xlim([0,1])
-
+        ax.set_xlabel('Well Schematic')
+        ax.tick_params("both",labelsize=fontsize)
         if lims is None:
             ax.set_ylim([self.bottom(),self.top()])
         else:
