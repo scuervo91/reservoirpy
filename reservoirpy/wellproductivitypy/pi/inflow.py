@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from ...pvtpy.black_oil import pvt, gas
-
+from scipy.optimize import curve_fit
 
 
 def oil_j(mu=None,bo=None,h=None,k=None,kh=None,re=1490,rw=0.58,s=0):
@@ -104,7 +104,7 @@ class oil_inflow:
     def __init__(self,**kwargs):
         self.pr = kwargs.pop('pr',None)
         self.j = kwargs.pop('j',None)
-        self.pb = kwargs.pop('pb',None) 
+        self.pb = kwargs.pop('pb',0) 
         self.n = kwargs.pop('n',20) 
 
 
@@ -166,17 +166,17 @@ class oil_inflow:
     def __str__(self):
         return f"""Oil Inflow: 
             Reservoir Pressure: {self.pr} psi 
-            Productivity Index: {round(self.j,2)} bbl/d*psi 
-            Bubble Point Pressure: {self.pb} psi  
-            AOF = {round(self.aof,2)} bbl/d 
+            Productivity Index: {round(self.j,2) if self.j is not None else 0} bbl/d*psi 
+            Bubble Point Pressure: {self.pb if self.pb is not None else 0} psi  
+            AOF = {round(self.aof,2) if self.aof is not None else 0} bbl/d 
                 """
   
     def __repr__(self):
         return f"""Oil Inflow: 
             Reservoir Pressure: {self.pr} psi 
-            Productivity Index: {round(self.j,2)} bbl/d*psi 
-            Bubble Point Pressure: {self.pb} psi  
-            AOF = {round(self.aof,2)} bbl/d 
+            Productivity Index: {round(self.j,2) if self.j is not None else 0} bbl/d*psi 
+            Bubble Point Pressure: {self.pb if self.pb is not None else 0} psi  
+            AOF = {round(self.aof,2) if self.aof is not None else 0} bbl/d 
                 """
 
 
@@ -262,6 +262,64 @@ class oil_inflow:
         if legend:
             oax.legend()
 
+    def fit(self,df, pressure=None,rate=None,xdata='pressure',n=10, pr=None):
+
+        if xdata == 'pressure':
+            if pr is None:
+                def cost_function(pwf,res_pres,j):
+                    data, _ = oil_inflow_curve(res_pres,j,self.pb,n=n)
+
+                    _pwf_to_flow = interp1d(data['p'],data['q'],fill_value='extrapolate')
+                    pwf = np.atleast_1d(pwf)
+                    q = _pwf_to_flow(pwf)
+                    return q
+
+                popt, _ = curve_fit(cost_function, df[pressure].values, df[rate].values, bounds=([20,0.1], [5000, 100]))
+                self.pr = popt[0]
+                self.j = popt[1]
+            else:
+                def cost_function(pwf,j):
+
+                    data, _ = oil_inflow_curve(pr,j,self.pb,n=n)
+
+                    _pwf_to_flow = interp1d(data['p'],data['q'],fill_value='extrapolate')
+                    pwf = np.atleast_1d(pwf)
+                    q = _pwf_to_flow(pwf)
+                    return q
+
+                popt, _ = curve_fit(cost_function, df[pressure].values, df[rate].values, bounds=(0.1, 100))
+                self.pr = pr
+                self.j = popt[0]
+
+        elif xdata=='rate':
+
+            if pr is None:
+                def cost_function(rate,res_pres,j):
+
+                    data, _ = oil_inflow_curve(res_pres,j,self.pb,n=n)
+
+                    _flow_to_pwf = interp1d(data['q'],data['p'],fill_value='extrapolate')
+                    rate = np.atleast_1d(rate)
+                    pwf = _flow_to_pwf(rate)
+                    return pwf
+
+                popt, _ = curve_fit(cost_function, df[rate].values, df[pressure].values, bounds=([20,0.2], [5000, 100]))
+                self.pr = popt[0]
+                self.j = popt[1]
+            else:
+                def cost_function(rate,j):
+
+                    data, _ = oil_inflow_curve(pr,j,self.pb,n=n)
+
+                    _flow_to_pwf = interp1d(data['q'],data['p'],fill_value='extrapolate')
+                    rate = np.atleast_1d(rate)
+                    pwf = _flow_to_pwf(rate)
+                    return pwf
+
+                popt, _ = curve_fit(cost_function, df[rate].values, df[pressure].values, bounds=(0.2, 100))
+                self.pr = pr
+                self.j = popt[0]
+
 class gas_inflow:
 
     def __init__(self,**kwargs):
@@ -328,15 +386,15 @@ class gas_inflow:
     def __str__(self):
         return f"""Gas Inflow: 
             Reservoir Pressure: {self.pr} psi 
-            Productivity Index: {round(self.j,2)} Kscf/d*psi^2*cP
-            AOF = {round(self.aof,2)} Kscf/d 
+            Productivity Index: {self.j,2} Kscf/d*psi^2*cP
+            AOF = {self.aof} Kscf/d 
                 """
   
     def __repr__(self):
         return f"""Gas Inflow: 
             Reservoir Pressure: {self.pr} psi 
-            Productivity Index: {round(self.j,2)} Kscf/d*psi^2*cP
-            AOF = {round(self.aof,2)} Kscf/d 
+            Productivity Index: {self.j,2} Kscf/d*psi^2*cP
+            AOF = {self.aof if all([self.pr is not None,self.j is not None]) else 0} Kscf/d 
                 """
 
 
@@ -417,3 +475,67 @@ class gas_inflow:
 
         if legend:
             oax.legend()
+
+    def fit(self,df, pressure=None,rate=None,xdata='pressure',n=10, pr=None):
+
+        if xdata == 'pressure':
+            if pr is None:
+                def cost_function(pwf,res_pres,j):
+
+                    data, _ = gas_inflow_curve(res_pres,j,self.gas.pvt,n=n)
+
+                    _pwf_to_flow = interp1d(data['p'],data['q'],fill_value='extrapolate')
+                    pwf = np.atleast_1d(pwf)
+                    q = _pwf_to_flow(pwf)
+                    return q
+
+                popt, _ = curve_fit(cost_function, df[pressure].values, df[rate].values, bounds=(0, [30000, np.inf]))
+                self.pr = popt[0]
+                self.j = popt[1]
+            else:
+                def cost_function(pwf,j):
+
+                    data, _ = gas_inflow_curve(pr,j,self.gas.pvt,n=n)
+
+                    _pwf_to_flow = interp1d(data['p'],data['q'],fill_value='extrapolate')
+                    pwf = np.atleast_1d(pwf)
+                    q = _pwf_to_flow(pwf)
+                    return q
+
+                popt, _ = curve_fit(cost_function, df[pressure].values, df[rate].values, bounds=(0, np.inf))
+                self.pr = pr
+                self.j = popt[0]
+
+        elif xdata=='rate':
+
+            if pr is None:
+                def cost_function(rate,res_pres,j):
+
+                    data, _ = gas_inflow_curve(res_pres,j,self.gas.pvt,n=n)
+
+                    _flow_to_pwf = interp1d(data['q'],data['p'],fill_value='extrapolate')
+                    rate = np.atleast_1d(rate)
+                    pwf = _flow_to_pwf(rate)
+                    return pwf
+
+                popt, _ = curve_fit(cost_function, df[rate].values, df[pressure].values, bounds=(0, [np.inf, 30000]))
+                self.pr = popt[0]
+                self.j = popt[1]
+            else:
+                def cost_function(rate,j):
+
+                    data, _ = gas_inflow_curve(pr,j,self.gas.pvt,n=n)
+
+                    _flow_to_pwf = interp1d(data['q'],data['p'],fill_value='extrapolate')
+                    rate = np.atleast_1d(rate)
+                    pwf = _flow_to_pwf(rate)
+                    return pwf
+
+                popt, _ = curve_fit(cost_function, df[rate].values, df[pressure].values, bounds=(0, np.inf))
+                self.pr = pr
+                self.j = popt[0]
+
+
+
+
+

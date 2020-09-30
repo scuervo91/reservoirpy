@@ -32,7 +32,9 @@ def grtrack(df: pd.DataFrame,
                 depth_ref='md',
                 gr_colormap: str='autumn',
                 sp_colormap: str='gray',
-                sp_norm = True
+                sp_norm:bool = False,
+                sp_baseline:float = 0,
+                sp_fill:bool = False
                ):
     """grtrack [summary]
 
@@ -97,7 +99,11 @@ def grtrack(df: pd.DataFrame,
     sp_colormap : str, optional
         [description], by default 'gray'
     sp_norm : bool, optional
-        [description], by default True
+        [description], by default False
+    sp_baseline : float, optional
+        [description], by default 0
+    sp_fill : bool, optional
+        [description], by default False
     """
     assert isinstance(df,pd.DataFrame)
     assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
@@ -118,7 +124,9 @@ def grtrack(df: pd.DataFrame,
     def_sp_kw = {
     'color': 'darkblue',
     'linestyle':'-',
-    'linewidth': 1
+    'linewidth': 1,
+    'sp_left_color':(0.9,0.57,0.2,0.2),
+    'sp_right_color':(0.28,0.9,0.79,0.2)
     }    
     for (k,v) in def_sp_kw.items():
         if k not in sp_kw:
@@ -194,12 +202,18 @@ def grtrack(df: pd.DataFrame,
     if sp is not None:
         spax=grax.twiny()
         if isinstance(sp,str):
+            sp_left_color = sp_kw.pop('sp_left_color',(0.9,0.57,0.2,0.2))
+            sp_right_color = sp_kw.pop('sp_right_color',(0.28,0.9,0.79,0.2))
             sp_filter = df.loc[df[sp]>-999,sp]
-            sp_mean = sp_filter.mean() if sp_norm else 0
+            sp_mean = sp_filter.mean() if sp_norm else sp_baseline
             sp_norm = sp_filter - sp_mean
             sp_min = sp_norm.min()
             sp_max = sp_norm.max()
             spax.plot(df[sp]-sp_mean,depth,**sp_kw)   #Plotting
+            if sp_fill==True:
+                spax.fill_betweenx(depth,df[sp]-sp_mean,0,where=(df[sp]-sp_mean < 0),color=sp_left_color)
+                spax.fill_betweenx(depth,df[sp]-sp_mean,0,where=(df[sp]-sp_mean > 0),color=sp_right_color)
+
         elif isinstance(sp,list):
             cmap = mpl.cm.get_cmap(sp_colormap,len(sp))
             for i,s in enumerate(sp):
@@ -222,6 +236,7 @@ def grtrack(df: pd.DataFrame,
         else:
             spax.set_xlim(sp_lim)
             spax.set_xticks(np.linspace(sp_lim[0],sp_lim[1],5))
+
  
         
 

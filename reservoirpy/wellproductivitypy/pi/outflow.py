@@ -293,7 +293,6 @@ def gas_pressure_profile(
     must be included when integrating the mechanical energy balance equation.
 
     Petroleum Production Systems, Economides. Chapter 7 7.3. Single-Phase Flow of a Compressible, Newtonian Fluid. Page 175
-
     """
     # Assert the right types and shapes for input
     assert isinstance(md, (np.ndarray,pd.Series))
@@ -487,14 +486,16 @@ def gas_outflow_curve(
 
     assert gas_obj.sg is not None
 
-    pwf = np.zeros((rate.shape[0],thp.shape[0]*len(di)))
+    pwf = np.zeros(rate.shape[0]*thp.shape[0]*len(di))
+    thp_arr = np.zeros(pwf.shape)
+    di_arr = np.zeros(pwf.shape)
+    gas_arr = np.zeros(pwf.shape)
     name_list = []
-    c = 0
+    i = 0
     for p in thp:
         for d in di:
-            i = 0
             for q in rate:
-                _,pwf[i,c] = gas_pressure_profile(
+                _,pwf[i] = gas_pressure_profile(
                     md = md,
                     inc = inc,
                     thp = p,
@@ -504,12 +505,18 @@ def gas_outflow_curve(
                     temp_grad=temp_grad,
                     di=d
                 )
+                gas_arr[i] = q
+                thp_arr[i] = p
+                di_arr[i] = d
                 i += 1
-            c += 1
-            col_name = f'thp-{p}_di-{np.mean(d)}'
-            name_list.append(col_name)
+                case_name = f'thp-{p}_di-{d}'
+                name_list.append(case_name)
+                i += 1
 
     df = pd.DataFrame(pwf,columns=name_list,index=rate)
+    arr=np.column_stack((pwf,thp_arr,di_arr))
+    df = pd.DataFrame(arr,columns=['pwf','thp','di'],index=gas_arr)
+    df.index.name = 'gas'
 
     return df
 
@@ -1120,8 +1127,21 @@ def two_phase_pressure_profile(
                     )
                 #elif method == 'beggs_brill':
                 #    grad_new = bb_correlation()
-                #elif method == 'gray':
-                #    grad_new = bb_correlation()
+                elif method == 'gray':
+                    grad_new = gray_correlation(
+                        pressure=p_guess,  #Pressure [psi]
+                        temperature=temperature_profile[i], #Temperature [F]
+                        liquid_rate=liquid_rate, # Liquid Flow [bbl/d]
+                        gas_rate=free_gas, # gas flow [kscfd]
+                        ten_liquid=ten_liquid, #Surface tension dyne/cm2
+                        rho_liquid=rho_liquid, # density lb/ft3
+                        rho_gas=rho_gas, # density lb/ft3
+                        mu_liquid=mu_liquid, # Viscosity [cp]
+                        mu_gas=mu_gas, # Viscosity [cp]
+                        z=z, # Gas compressibility Factor
+                        di=di[i], # Diameter,
+                        epsilon =  epsilon
+                    )
             else:
                 df, _ = one_phase_pressure_profile(
                     p1=p_guess,
@@ -1238,7 +1258,8 @@ def two_phase_outflow_curve(
     di=2.99, 
     tol=0.02,
     max_iter = 20,
-    method = 'hagedorn_brown'
+    method = 'hagedorn_brown',
+    use_gas = False,
 ):
 
     # Assert the right types and shapes for input
@@ -1320,6 +1341,7 @@ def two_phase_outflow_curve(
                c += 1
 
     if gas_rate is None:
+        assert use_gas == 'False'
         if gor is None:
             gas_arr = glr
             gas_name = 'glr'
@@ -1331,21 +1353,27 @@ def two_phase_outflow_curve(
         gas_name = 'gas_rate'
 
     #Estimate number of columns for 2d matrix
-    number_columns = len(bsw)*len(gas_arr)*len(thp)*di.shape[1]
+    number_columns = len(bsw)*len(liquid_rate)*len(thp)*di.shape[1] if use_gas else len(bsw)*len(gas_arr)*len(thp)*di.shape[1]
 
     #Create matrix for results
-    pwf = np.zeros((len(liquid_rate),number_columns))
+    #pwf = np.zeros((len(gas_arr),number_columns)) if use_gas else np.zeros((len(liquid_rate),number_columns))
+    pwf = np.zeros(len(gas_arr)*number_columns) if use_gas else np.zeros(len(liquid_rate)*number_columns)
+    bsw_arr = np.zeros(pwf.shape)
+    liquid_arr = np.zeros(pwf.shape)
+    gas_ = np.zeros(pwf.shape)
+    thp_arr = np.zeros(pwf.shape)
+    di_arr = np.zeros(pwf.shape)
 
     name_list = []
+    i= 0
 
     c = 0
     for b in bsw:
-        for g in gas_arr:
+        for l in liquid_rate:
             for pi in thp:
                 for d in range(di.shape[1]):
-                    i = 0
-                    for l in liquid_rate:
-                        _,pwf[i,c] = two_phase_pressure_profile(
+                    for g in gas_arr:
+                        _,pwf[i] = two_phase_pressure_profile(
                             depth = depth,
                             thp = pi,
                             liquid_rate = l,
@@ -1365,15 +1393,25 @@ def two_phase_outflow_curve(
                             max_iter = max_iter,
                             method = method
                         )
+                        bsw_arr[i] = b
+                        gas_[i] = g
+                        liquid_arr[i] = l
+                        thp_arr[i] = pi
+                        di_arr[i] = d
                         i += 1
-                    print(c)
-                    c += 1 
-                    col_name = f"bsw_{b} {gas_name}_{g} thp_{pi} di_{np.round(di[:,d].mean(),decimals=2)}"
-                    print(col_name)
-                    name_list.append(col_name)
+                        c += 1 
+                        case_name = f"bsw_{b} liquid_{l} thp_{pi} di_{np.round(di[:,d].mean(),decimals=2)}"
+                        name_list.append(case_name)
 
-    df = pd.DataFrame(pwf,columns=name_list,index=liquid_rate)
-
+    if use_gas:
+        arr=np.column_stack((pwf,bsw_arr,liquid_arr,thp_arr,di_arr))
+        df = pd.DataFrame(arr,columns=['pwf','bsw','liquid','thp','di'],index=gas_)
+        df.index.name = 'gas'
+    else:
+        arr=np.column_stack((pwf,bsw_arr,gas_,thp_arr,di_arr))
+        df = pd.DataFrame(arr,columns=['pwf','bsw','liquid','thp','di'],index=liquid_arr)
+        df.index.name = 'liquid'
+    df['case'] = name_list
     return df  
   
 
