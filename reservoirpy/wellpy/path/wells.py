@@ -905,7 +905,7 @@ class well:
             self.to_coord(which=['perforations'])
 
 class wells_group:
-    def __init__(self,*args):
+    def __init__(self,*args,**kwargs):
         _well_list = []
 
         if args is not None:
@@ -913,6 +913,7 @@ class wells_group:
                 _well_list.append(i)
         
         self.wells = _well_list 
+        self.crs = kwargs.pop('crs', None)
 
     @property
     def wells(self):
@@ -929,6 +930,20 @@ class wells_group:
             for i in value:
                 w_dict[i.name] = i
             self._wells = w_dict
+
+    @property
+    def crs(self):
+        return self._crs
+
+    @crs.setter
+    def crs(self,value):
+        assert isinstance(value,(int,str,type(None))), f"{type(value)} not accepted. Name must be str. Example 'EPSG:3117'"
+        
+        if isinstance(value,int):
+            value = f'EPSG:{value}'
+        elif isinstance(value,str):
+            assert value.startswith('EPSG:'), 'if crs is string must starts with EPSG:. If integer must be the Coordinate system reference number EPSG http://epsg.io/'
+        self._crs = value
 
     def add_well(self,*args):
         _add_well = []
@@ -1061,7 +1076,6 @@ class wells_group:
             _well_list = wells
 
         _wells_survey = gpd.GeoDataFrame()
-
         for well in _well_list:
             if self.wells[well].survey is None:
                 continue
@@ -1071,6 +1085,7 @@ class wells_group:
                 _s = _s.reset_index()
                 _wells_survey = _wells_survey.append(gpd.GeoDataFrame(_s))
 
+        _wells_survey.crs = self.crs
         if projection1d == True:
             _pr,c = projection_1d(_wells_survey[['easting','northing']].values, azi, center=center)
             _wells_survey['projection'] = _pr
@@ -1213,6 +1228,95 @@ class wells_group:
                 tooltip=f"{i}" if tooltip else None,
                 popup = folium.Popup(html=f"{i}",show=True,max_width='50%') if popup else None,
                 icon=folium.Icon(icon='tint', color='green')
+                ).add_to(map_folium)
+
+        folium.LayerControl().add_to(map_folium)
+        #LocateControl().add_to(map_folium)
+        MeasureControl().add_to(map_folium)
+        MousePosition().add_to(map_folium)
+
+        return map_folium
+
+    def wells_tops_map(self, wells:list=None,horizons:list=None,zoom:int=10, map_style:str = 'OpenStreetMap',tooltip:bool=True,popup:bool=False,ax=None, units:bool=False):
+        """
+        Make a Foluim map with the selected wells
+
+        Input:
+            wells ->  (list, None) List of wells in the Group to show the matrix. 
+                    If None, all wells in the group will be selected
+            zoom -> (int, float) Initial zoom for folium map
+        Return:
+            w_map -> (folium.Map) Folium map object
+        """
+        assert isinstance(wells,(list,type(None)))
+
+        _coord = self.wells_tops(wells=wells, horizons=horizons, units=units)
+        _coord = _coord.to_crs('EPSG:4326')
+        _coord['lon'] = _coord['geometry'].x
+        _coord['lat'] = _coord['geometry'].y
+        center = _coord[['lat','lon']].mean(axis=0)
+
+        #make the map
+        if ax is None:
+            map_folium = folium.Map(
+                location=(center['lat'],center['lon']),
+                zoom_start=zoom,
+                tiles = map_style)
+        else:
+            assert isinstance(ax,folium.folium.Map)
+            map_folium = ax
+
+        for i, r in _coord.iterrows():
+            folium.Marker(
+                [r['lat'],r['lon']],
+                tooltip=f"{r['well']} {i}" if tooltip else None,
+                popup = folium.Popup(html=f"{r['well']} {i}",show=True,max_width='50%') if popup else None,
+                icon=folium.Icon(icon='tint', color='green')
+                ).add_to(map_folium)
+
+        folium.LayerControl().add_to(map_folium)
+        #LocateControl().add_to(map_folium)
+        MeasureControl().add_to(map_folium)
+        MousePosition().add_to(map_folium)
+
+        return map_folium
+
+    def wells_surveys_map(self, wells:list=None,zoom:int=10, map_style:str = 'OpenStreetMap',tooltip:bool=True,popup:bool=False,ax=None,radius=10):
+        """
+        Make a Foluim map with the selected wells
+
+        Input:
+            wells ->  (list, None) List of wells in the Group to show the matrix. 
+                    If None, all wells in the group will be selected
+            zoom -> (int, float) Initial zoom for folium map
+        Return:
+            w_map -> (folium.Map) Folium map object
+        """
+        assert isinstance(wells,(list,type(None)))
+
+        _coord = self.wells_surveys(wells=wells)
+        _coord = _coord.to_crs('EPSG:4326')
+        _coord['lon'] = _coord['geometry'].x
+        _coord['lat'] = _coord['geometry'].y
+        center = _coord[['lat','lon']].mean(axis=0)
+
+        #make the map
+        if ax is None:
+            map_folium = folium.Map(
+                location=(center['lat'],center['lon']),
+                zoom_start=zoom,
+                tiles = map_style)
+        else:
+            assert isinstance(ax,folium.folium.Map)
+            map_folium = ax
+
+        for i, r in _coord.iterrows():
+            folium.Circle(
+                [r['lat'],r['lon']],
+                tooltip=f"{r['well']} <br>md:{r['md']} <br>tvd:{r['tvd']} <br>tvdss:{r['tvdss']} <br>inc:{r['inc']} " if tooltip else None,
+                popup = folium.Popup(html=f"{r['well']} <br>md:{r['md']} <br>tvd:{r['tvd']} <br>tvdss:{r['tvdss']} <br>inc:{r['inc']} ",show=True,max_width='50%') if popup else None,
+                #icon=folium.Icon(icon='circle',prefix='fa', color='green'),
+                radius=radius
                 ).add_to(map_folium)
 
         folium.LayerControl().add_to(map_folium)

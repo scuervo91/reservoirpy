@@ -578,7 +578,8 @@ class gas_reservoir:
 
     @kr_gw.setter 
     def kr_gw(self,value):
-        assert isinstance(value,(kr,type(None)))
+        if value is not None:
+            assert isinstance(value,kr)
         self._kr_gw = value
 
     @property
