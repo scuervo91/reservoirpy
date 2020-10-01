@@ -4,6 +4,8 @@ import pyvista as pv
 import pandas as pd
 from skimage import measure
 from scipy.integrate import simps
+import geopandas as gpd
+from shapely.geometry import MultiPolygon, Polygon
 
 def poly_area(x,y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
@@ -13,6 +15,7 @@ class surface:
         self.x = kwargs.pop('x',None)
         self.y = kwargs.pop('y',None)
         self.z = kwargs.pop('z',None)
+        self.crs = kwargs.pop('crs',4326)
 
     #Properties
 
@@ -49,6 +52,20 @@ class surface:
             assert value.ndim == 2 
         self._z = value
 
+    @property
+    def crs(self):
+        return self._crs
+
+    @crs.setter
+    def crs(self,value):
+        assert isinstance(value,(int,str,type(None))), f"{type(value)} not accepted. Name must be str. Example 'EPSG:3117'"
+        
+        if isinstance(value,int):
+            value = f'EPSG:{value}'
+        elif isinstance(value,str):
+            assert value.startswith('EPSG:'), 'if crs is string must starts with EPSG:. If integer must be the Coordinate system reference number EPSG http://epsg.io/'
+        self._crs = value
+
     def contour(self,ax=None,**kwargs):
 
         #Create the Axex
@@ -71,7 +88,7 @@ class surface:
         return grid
 
     
-    def get_contours(self,levels=None,n=10):
+    def get_contours(self,levels=None,zmin=None,zmax=None,n=10):
         
         #define levels
         if levels is not None:
@@ -79,8 +96,8 @@ class surface:
             levels = np.atleast_1d(levels)
             assert levels.ndim==1
         else:
-            zmin = np.nanmin(self.z)
-            zmax = np.nanmax(self.z)
+            zmin = zmin if zmin is not None else np.nanmin(self.z)
+            zmax = zmax if zmax is not None else np.nanmax(self.z)
 
             levels = np.linspace(zmin,zmax,n)
 
@@ -111,6 +128,71 @@ class surface:
             data['x'] = (data['x']/zz.shape[1]) * (xmax - xmin) + xmin
             data['y'] = (data['y']/zz.shape[0]) * (ymax - ymin) + ymin
 
+        return data
+
+    def get_contours_gdf(self,levels=None,zmin=None,zmax=None,n=10, crs="EPSG:4326"):
+        
+        #define levels
+        if levels is not None:
+            assert isinstance(levels,(np.ndarray,list))
+            levels = np.atleast_1d(levels)
+            assert levels.ndim==1
+        else:
+            zmin = zmin if zmin is not None else np.nanmin(self.z)
+            zmax = zmax if zmax is not None else np.nanmax(self.z)
+
+            levels = np.linspace(zmin,zmax,n)
+
+        zz = self.z
+        xmax = np.nanmax(self.x)
+        ymax = np.nanmax(self.y)
+        xmin = np.nanmin(self.x)
+        ymin = np.nanmin(self.y)
+
+        #iterate over levels levels
+        data = gpd.GeoDataFrame()
+        i = 0
+        for level in levels:
+            poly_list =[]
+            contours = measure.find_contours(zz,level)
+
+            if contours == []:
+                continue
+            else:
+                for contour in contours:
+                    level_df = pd.DataFrame(contour, columns=['y','x'])
+
+                    #Re scale
+                    level_df['x'] = (level_df['x']/zz.shape[1]) * (xmax - xmin) + xmin
+                    level_df['y'] = (level_df['y']/zz.shape[0]) * (ymax - ymin) + ymin
+
+                    #List of tuples
+                    records = level_df[['x','y']].to_records(index=False)
+                    list_records = list(records)
+
+                    if len(list_records)<3:
+                        continue
+                    else:
+                        poly = Polygon(list(records))
+
+                    #Append to list of Polygon
+                    poly_list.append(poly)
+
+            # Make Multipolygon
+            multi_poly = MultiPolygon(poly_list)
+
+            #Make a Geo dataframe
+            level_gdf = gpd.GeoDataFrame({'level':[level],'geometry':[multi_poly]})
+
+            # Append data to general geodataframe
+            data = data.append(level_gdf,ignore_index=True)
+            i += 1
+        
+        #Add data crs
+        data.crs = self.crs 
+        
+        #Convert to defined crs
+        data = data.to_crs(crs)
         return data
 
     def get_contours_area(self,levels=None,n=10, group=True,c=2.4697887e-4):

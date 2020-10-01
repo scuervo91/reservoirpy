@@ -3,6 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from ...pvtpy.black_oil import pvt, gas, oil, water
 from scipy.optimize import root_scalar
+from .inflow import oil_inflow, gas_inflow
+from ...utils import intercept_curves
+
 
 ## Incompressible pressure drop
 def potential_energy_change(
@@ -1260,6 +1263,8 @@ def two_phase_outflow_curve(
     max_iter = 20,
     method = 'hagedorn_brown',
     use_gas = False,
+    operating_point = None,
+    op_n = 30
 ):
 
     # Assert the right types and shapes for input
@@ -1323,6 +1328,12 @@ def two_phase_outflow_curve(
 
     assert isinstance(temperature_gradient,(int,float,np.ndarray))
     temperature_gradient = np.atleast_1d(temperature_gradient)
+
+    if operating_point is not None:
+        if use_gas:
+            assert isinstance(operating_point,gas_inflow)
+        else:
+            assert isinstance(operating_point,oil_inflow)
 
     #Start
     if liquid_rate is None:
@@ -1397,7 +1408,7 @@ def two_phase_outflow_curve(
                         gas_[i] = g
                         liquid_arr[i] = l
                         thp_arr[i] = pi
-                        di_arr[i] = d
+                        di_arr[i] = di[:,d].mean()
                         i += 1
                         c += 1 
                         case_name = f"bsw_{b} liquid_{l} thp_{pi} di_{np.round(di[:,d].mean(),decimals=2)}"
@@ -1412,7 +1423,25 @@ def two_phase_outflow_curve(
         df = pd.DataFrame(arr,columns=['pwf','bsw','liquid','thp','di'],index=liquid_arr)
         df.index.name = 'liquid'
     df['case'] = name_list
-    return df  
+
+    op = pd.DataFrame()
+    if operating_point is not None:
+        inflow = operating_point.df
+
+        for case in df['case'].unique():
+            df_case = df[df['case']==case]
+
+            points, idx = intercept_curves(inflow['q'],inflow['p'],df_case.index,df_case['pwf'], n=op_n)
+
+            points_df = pd.DataFrame(points[[-1],:], columns=['q','p'])
+            points_df['case'] = case
+            points_df['idx'] = idx
+
+            op = op.append(points_df)
+        
+        op = op.merge(df.groupby('case').mean(), left_on='case', right_on='case')
+
+    return df, op
   
 
 
