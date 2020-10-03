@@ -106,6 +106,8 @@ class declination:
     self.ti = kwargs.pop('ti',None)
     self.start_date = kwargs.pop('start_date',None)
     self.end_date = kwargs.pop('end_date',None)
+    self.econ_limit = kwargs.pop('econ_limit', None)
+    self.np_limit = kwargs.pop('np_limit', None)
     self.anomaly_points = kwargs.pop('anomaly_points',None)
 
 
@@ -118,7 +120,8 @@ class declination:
 
   @qi.setter
   def qi(self,value):
-    assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+    if value is not None:
+      assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
     self._qi = value
 
   @property
@@ -127,7 +130,8 @@ class declination:
 
   @di.setter
   def di(self,value):
-    assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be number'
+    if value is not None:
+      assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
     self._di = value
 
   @property
@@ -151,7 +155,8 @@ class declination:
 
   @ti.setter
   def ti(self,value):
-    assert isinstance(value,(date,type(None))), f'{type(value)} not accepted. Name must be date'
+    if value is not None:
+      assert isinstance(value,date), f'{type(value)} not accepted. Name must be date'
     self._ti = value
 
   @property
@@ -170,7 +175,8 @@ class declination:
   
   @start_date.setter
   def start_date(self,value):
-    assert isinstance(value,(date,type(None))), f'{type(value)} not accepted. It must be date'
+    if value is not None:
+      assert isinstance(value,date), f'{type(value)} not accepted. It must be date'
     self._start_date = value
 
   @property
@@ -179,7 +185,8 @@ class declination:
 
   @end_date.setter
   def end_date(self,value):
-    assert isinstance(value,(date,type(None))), f'{type(value)} not accepted. It must be date'
+    if value is not None:
+      assert isinstance(value,date), f'{type(value)} not accepted. It must be date'
     self._end_date = value
 
   @property
@@ -188,16 +195,37 @@ class declination:
 
   @anomaly_points.setter
   def anomaly_points(self,value):
-    assert isinstance(value,(pd.DataFrame,type(None))), f'{type(value)} not accepted. It must be pd.DataFrame'
+    if value is not None:
+      assert isinstance(value,pd.DataFrame), f'{type(value)} not accepted. It must be pd.DataFrame'
     self._anomaly_points = value
   
+  @property
+  def econ_limit(self):
+    return self._econ_limit
+
+  @econ_limit.setter
+  def econ_limit(self,value):
+    if value is not None:
+      assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+    self._econ_limit = value
+
+  @property
+  def np_limit(self):
+    return self._np_limit
+
+  @np_limit.setter
+  def np_limit(self,value):
+    if value is not None:
+      assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+    self._np_limit = value
+
   def __str__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
   
   def __repr__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
 
-  def forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None,npi=0, **kwargs):
+  def forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None,np_limit=None,npi=0, **kwargs):
     """
     Forecast curve from the declination object. 
  
@@ -230,10 +258,21 @@ class declination:
         end_date = self.end_date
 
     if econ_limit is None:
+      econ_limit = self.econ_limit
+
+    if np_limit is None:
+      np_limit = self.np_limit
+
+    if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
       f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi)
     else:
       f, Np = forecast_econlimit(start_date,end_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,npi=npi)
+
+    if np_limit is not None:
+      if Np > np_limit:
+        f = f.loc[f['cum']<np_limit,:]
+        Np = f.iloc[-1,-1]
 
     return f, Np
 

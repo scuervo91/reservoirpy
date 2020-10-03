@@ -17,6 +17,7 @@ import pyvista as pv
 from ...welllogspy.log import log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import declination
+from ...volumetricspy import surface_group
 from sqlalchemy import create_engine
 from ...wellschematicspy import well_schema
 import pickle
@@ -914,6 +915,7 @@ class wells_group:
         
         self.wells = _well_list 
         self.crs = kwargs.pop('crs', None)
+        self.surfaces = kwargs.pop('surfaces', None)
 
     @property
     def wells(self):
@@ -944,6 +946,16 @@ class wells_group:
         elif isinstance(value,str):
             assert value.startswith('EPSG:'), 'if crs is string must starts with EPSG:. If integer must be the Coordinate system reference number EPSG http://epsg.io/'
         self._crs = value
+
+    @property
+    def surfaces(self):
+        return self._surfaces
+    
+    @surfaces.setter
+    def surfaces(self, value):
+        if value is not None:
+            assert isinstance(value, surface_group)
+        self._surfaces = value
 
     def add_well(self,*args):
         _add_well = []
