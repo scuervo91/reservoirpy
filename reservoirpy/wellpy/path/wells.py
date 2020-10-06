@@ -16,7 +16,7 @@ import seaborn as sns
 import pyvista as pv 
 from ...welllogspy.log import log
 from ...wellproductivitypy import pi
-from ...wellproductivitypy.decline import declination
+from ...wellproductivitypy.decline import declination, wor_declination
 from ...volumetricspy import surface_group
 from sqlalchemy import create_engine
 from ...wellschematicspy import well_schema
@@ -185,6 +185,7 @@ class well:
         self.constrains = kwargs.pop('constrains',None)
         self.als = kwargs.pop('als',None)
         self.schema = kwargs.pop('schema',None)
+        self.schedule = kwargs.pop('schedule',None)
 
 
 #####################################################
@@ -415,6 +416,21 @@ class well:
             for i in value:
                 assert isinstance(value[i],well_schema)       
         self._schema = value
+
+    @property
+    def schedule(self):
+        return self._schedule
+
+    @schedule.setter 
+    def schedule(self, value):
+        if value is not None:
+            assert isinstance(value,dict)
+            for i in value:
+                assert isinstance(value[i],dict)
+                assert isinstance(value[i]['declination'],(declination,wor_declination))
+                assert isinstance(value[i]['fix_start'],bool)
+                assert isinstance(value[i]['fix_end'],bool)        
+        self._schedule = value
 
 
 #####################################################
@@ -904,6 +920,12 @@ class well:
 
         if to_coord:
             self.to_coord(which=['perforations'])
+
+
+    #def schedule_forecast(self, start_date=None,end_date=None):
+
+
+
 
 class wells_group:
     def __init__(self,*args,**kwargs):
@@ -1760,24 +1782,37 @@ class wells_group:
         forecast_df = pd.DataFrame()
         for well in _well_list:
             _f, _ = self.wells[well].declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
-            _f.rename(columns={'rate': "rate_"+well, 'cum': 'cum_'+well}, inplace=True)
+            _f = _f.add_suffix('_'+well) 
             forecast_df = pd.concat([forecast_df,_f],axis=1, ignore_index=False)
         forecast_df = forecast_df.fillna(0)
 
         cols = forecast_df.columns.tolist()
 
-        rate_cols = []
+        qo_rate_cols = []
         for i in cols:
-            if i.startswith('rate') == True:
+            if i.startswith('qo') == True:
                 rate_cols.append(i)
 
-        cum_cols = []
+        np_cols = []
         for i in cols:
-            if i.startswith('cum') == True:
+            if i.startswith('np') == True:
+                cum_cols.append(i)
+
+        qw_rate_cols = []
+        for i in cols:
+            if i.startswith('qq') == True:
+                rate_cols.append(i)
+
+        wp_cols = []
+        for i in cols:
+            if i.startswith('wp') == True:
                 cum_cols.append(i)
         
-        forecast_df['total_rate'] = forecast_df[rate_cols].sum(axis=1)
-        forecast_df['total_cum'] = forecast_df[cum_cols].sum(axis=1)
+        forecast_df['total_qo'] = forecast_df[rate_cols].sum(axis=1)
+        forecast_df['total_np'] = forecast_df[cum_cols].sum(axis=1)
+
+        forecast_df['total_qw'] = forecast_df[rate_cols].sum(axis=1)
+        forecast_df['total_wp'] = forecast_df[cum_cols].sum(axis=1)
 
         return forecast_df
 

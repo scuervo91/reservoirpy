@@ -39,14 +39,14 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0):
   diff_q = diff_period * q 
   cum = diff_q.cumsum()
   cum = cum + npi
-  forecast = pd.DataFrame({'time':range_time,'rate':q, 'cum':cum})
+  forecast = pd.DataFrame({'time':range_time,'qo':q, 'np':cum})
   forecast = forecast.set_index('time')
   forecast = forecast.round(2)
   Np = forecast.iloc[-1,-1]
   
   return forecast, Np
 
-def forecast_econlimit(t,end_date,qt,qi,di,ti,b, fr, npi=0):
+def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0):
   """
   Estimate a Forecast curve until a given Economic limit rate and Decline curve parameters
 
@@ -71,8 +71,9 @@ def forecast_econlimit(t,end_date,qt,qi,di,ti,b, fr, npi=0):
   else:
     raise ValueError('b must be between 0 and 1')
 
-  if date_until > pd.Timestamp(end_date):
+  if end_date is not None and date_until > pd.Timestamp(end_date):
     date_until = end_date
+
   if date_until < t:
     f = pd.DataFrame({'time':[t],'rate':[0], 'cum':[npi]})
     f = f.set_index('time')
@@ -108,6 +109,7 @@ class declination:
     self.end_date = kwargs.pop('end_date',None)
     self.econ_limit = kwargs.pop('econ_limit', None)
     self.np_limit = kwargs.pop('np_limit', None)
+    self.fluid_rate = kwargs.pop('fluid_rate',None)
     self.anomaly_points = kwargs.pop('anomaly_points',None)
 
 
@@ -219,13 +221,33 @@ class declination:
       assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
     self._np_limit = value
 
+  @property
+  def fluid_rate(self):
+      return self._fluid_rate
+
+  @fluid_rate.setter
+  def fluid_rate(self,value):
+      if value is not None:
+          assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+      self._fluid_rate = value
+
   def __str__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
   
   def __repr__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
 
-  def forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None,np_limit=None,npi=0, **kwargs):
+  def forecast(self,
+    start_date:date=None, 
+    end_date:date=None, 
+    fq:str='M',
+    econ_limit:float=None,
+    np_limit:float=None,
+    npi:float=0, 
+    fluid_rate:float=None,
+    show_water:bool = False,
+    **kwargs
+    ):
     """
     Forecast curve from the declination object. 
  
@@ -241,38 +263,53 @@ class declination:
       np: Cummulative production
 
     """
-    assert isinstance(start_date,(date,type(None))), 'start_date must be date'
-    assert isinstance(end_date,(date,type(None))), 'send_date must be date'
-    assert isinstance(econ_limit,(int,float,np.ndarray,type(None))), 'econ_limit must be a number'
 
     if start_date is None: 
       if self.start_date is None:
         start_date = self.ti
       else:
         start_date = self.start_date
+    else:
+      assert isinstance(start_date,date), 'start_date must be date'
 
     if end_date is None: 
       if self.end_date is None:
-        end_date = self.ti + timedelta(days=365)
+        end_date = self.ti + timedelta(days=365) if econ_limit is None else None
       else:
         end_date = self.end_date
+    else:
+      assert isinstance(end_date,date), 'end_date must be date'
 
     if econ_limit is None:
       econ_limit = self.econ_limit
+    else:
+      assert isinstance(econ_limit,(int,float,np.ndarray)), 'econ_limit must be a number'
+
 
     if np_limit is None:
       np_limit = self.np_limit
+    else:
+      assert isinstance(np_limit,(int,float,np.ndarray)), 'econ_limit must be a number'
+
+    if fluid_rate is None:
+      fluid_rate = self.fluid_rate
 
     if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
       f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi)
     else:
-      f, Np = forecast_econlimit(start_date,end_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,npi=npi)
+      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi)
 
     if np_limit is not None:
       if Np > np_limit:
-        f = f.loc[f['cum']<np_limit,:]
+        f = f.loc[f['np']<np_limit,:]
         Np = f.iloc[-1,-1]
+
+    if show_water and fluid_rate is not None:
+      f['qw'] = fluid_rate  - f['qo']
+      f['bsw'] = f['qw'] / (f['qw'] + f['qo'])
+      f['wor'] = f['qw'] / f['qo']
+      f['wor_1'] = f['wor'] + 1
 
     return f, Np
 
@@ -462,15 +499,15 @@ class declination:
             ad_kw[k]=v
 
     #Plotting
-    dax.plot(f.index,f['rate'],**rate_kw)   
+    dax.plot(f.index,f['qo'],**rate_kw)   
 
     if cum:
       cumax=dax.twinx()
-      cumax.plot(f.index,f['cum'],**cum_kw)  
+      cumax.plot(f.index,f['np'],**cum_kw)  
 
     if anomaly and self.anomaly_points is not None:
       ad_df = self.anomaly_points
-      dax.scatter(ad_df['date'],ad_df['rate'],**ad_kw)
+      dax.scatter(ad_df['date'],ad_df['qo'],**ad_kw)
 
 #Hybrid declinations
 

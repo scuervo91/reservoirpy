@@ -18,7 +18,14 @@ def wor_to_bsw(wor):
     return bsw   
 
 
-def wor_forecast(range_time,fluid_rate, slope, wor_i):
+def wor_forecast(
+    range_time,
+    fluid_rate, 
+    slope, wor_i, 
+    econ_limit = None,
+    np_limit=None, 
+    wor_limit=None
+    ):
     """
     Estimate a Forecast curve given wor+1 parameters
 
@@ -52,7 +59,20 @@ def wor_forecast(range_time,fluid_rate, slope, wor_i):
         _df = pd.DataFrame({'qf':fluid_rate[i],'qo':qo,'qw':qw,'bsw':bsw,'wor_1':wor_1,'wor':wor,'np':cum})
         df = df.append(_df)
 
-    df.index = range_time
+        if econ_limit is not None:
+            if qo <= econ_limit:
+                break
+        
+        if np_limit is not None:
+            if cum >= np_limit:
+                break     
+
+        if wor_limit is not None:
+            if wor >= wor_limit:
+                break  
+
+    df.index = range_time[:df.shape[0]]
+    df.index.name = 'time'
 
     return df
 
@@ -60,6 +80,12 @@ class wor_declination:
     def __init__(self,**kwargs):
         self.slope = kwargs.pop('slope',0)
         self.bsw_i = kwargs.pop('bsw_i',0)
+        self.start_date = kwargs.pop('start_date',None)
+        self.end_date = kwargs.pop('end_date',None)
+        self.econ_limit = kwargs.pop('econ_limit', None)
+        self.wor_limit = kwargs.pop('wor_limit', None)
+        self.np_limit = kwargs.pop('np_limit', None)
+        self.fluid_rate = kwargs.pop('fluid_rate', None)
 
     ## Properties
     @property
@@ -86,7 +112,78 @@ class wor_declination:
     def wor_i(self):
         return self._wor_i
 
-    def forecast(self,time_range=None,start_date=None, end_date=None, fluid_rate=None, fq='M', **kwargs):
+    @property
+    def start_date(self):
+        return self._start_date
+    
+    @start_date.setter
+    def start_date(self,value):
+        if value is not None:
+            assert isinstance(value,date), f'{type(value)} not accepted. It must be date'
+        self._start_date = value
+
+    @property
+    def end_date(self):
+        return self._end_date
+
+    @end_date.setter
+    def end_date(self,value):
+        if value is not None:
+            assert isinstance(value,date), f'{type(value)} not accepted. It must be date'
+        self._end_date = value
+  
+    @property
+    def econ_limit(self):
+        return self._econ_limit
+
+    @econ_limit.setter
+    def econ_limit(self,value):
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        self._econ_limit = value
+
+    @property
+    def np_limit(self):
+        return self._np_limit
+
+    @np_limit.setter
+    def np_limit(self,value):
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        self._np_limit = value
+
+    @property
+    def wor_limit(self):
+        return self._wor_limit
+
+    @wor_limit.setter
+    def wor_limit(self,value):
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        self._wor_limit = value
+
+    @property
+    def fluid_rate(self):
+        return self._fluid_rate
+
+    @fluid_rate.setter
+    def fluid_rate(self,value):
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        self._fluid_rate = value
+
+
+    def forecast(self,
+        time_range:pd.Series=None,
+        start_date:date=None, 
+        end_date:date=None, 
+        fluid_rate:(pd.Series,np.ndarray,int,float)=None, 
+        fq:str='M', 
+        np_limit=None,
+        wor_limit=None,
+        econ_limit=None,
+        **kwargs
+    ):
         """
         Forecast curve from the declination object. 
     
@@ -95,23 +192,55 @@ class wor_declination:
         Return: 
 
         """
-        assert isinstance(time_range,(pd.Series,type(None))), 'start_date must be pd.Series with dates'
-        assert isinstance(start_date,(date,type(None))), 'start_date must be date'
-        assert isinstance(end_date,(date,type(None))), 'send_date must be date'
-        assert isinstance(fluid_rate,(pd.Series,np.ndarray,int,float))
-        fluid_rate = np.atleast_1d(fluid_rate)
+        if time_range is not None:
+            assert isinstance(time_range,(pd.Series)), 'start_date must be pd.Series with dates'
+        else:
+            if start_date is None: 
+                assert self.start_date is not None
+                start_date = self.start_date
+            else:
+                assert isinstance(start_date,date), 'start_date must be date'
 
-        # Create the time range
-        if time_range is None:
             if end_date is None: 
-                end_date = start_date + timedelta(days=365)
+                assert self.end_date is not None
+                end_date = self.end_date
+            else:
+                assert isinstance(end_date,date), 'send_date must be date'
+
             time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
 
-        if fluid_rate.shape==(1,):
-            fluid_rate = np.full(time_range.shape,fluid_rate)
+       
+        if fluid_rate is not None:
+            assert isinstance(fluid_rate,(pd.Series,np.ndarray,int,float))
+            fluid_rate = np.atleast_1d(fluid_rate)
+
+            if fluid_rate.shape==(1,):
+                fluid_rate = np.full(time_range.shape,fluid_rate)
+            else:
+                assert fluid_rate.shape == time_range.shape
         else:
-            assert fluid_rate.shape == time_range.shape
+            fluid_rate = np.full(time_range.shape,self.fluid_rate)
 
-        f = wor_forecast(time_range,fluid_rate, self.slope, self.wor_i)
 
-        return f 
+        if econ_limit is None:
+            econ_limit = self.econ_limit
+
+        if np_limit is None:
+            np_limit = self.np_limit
+
+        if wor_limit is None:
+            wor_limit = self.wor_limit
+
+        f = wor_forecast(
+            time_range,
+            fluid_rate, 
+            self.slope, 
+            self.wor_i, 
+            np_limit = np_limit, 
+            wor_limit = wor_limit, 
+            econ_limit = econ_limit
+            )
+        
+        Np = f['np'].iloc[-1]
+
+        return f, Np
