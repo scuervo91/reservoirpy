@@ -46,17 +46,20 @@ def wor_forecast(
 
     df = pd.DataFrame()
     
-    cum = 0
+    cum_np = 0
+    cum_wp = 0
     days_diff = np.diff(days_number,prepend=days_number[0]-1)
 
     for i in range(days_number.shape[0]):
-        wor_1 = np.exp(slope*cum)*wor_i1
+        wor_1 = np.exp(slope*cum_np)*wor_i1
         wor = wor_1 - 1
         bsw = wor_to_bsw(wor)
         qo = fluid_rate[i]*(1-bsw)
         qw = fluid_rate[i]*bsw
-        cum += qo*days_diff[i]
-        _df = pd.DataFrame({'qf':fluid_rate[i],'qo':qo,'qw':qw,'bsw':bsw,'wor_1':wor_1,'wor':wor,'np':cum})
+        cum_np += qo*days_diff[i]
+        cum_wp += qw*days_diff[i]
+
+        _df = pd.DataFrame({'qf':fluid_rate[i],'qo':qo,'qw':qw,'bsw':bsw,'wor_1':wor_1,'wor':wor,'np':cum_np,'wp':cum_wp})
         df = df.append(_df)
 
         if econ_limit is not None:
@@ -64,7 +67,7 @@ def wor_forecast(
                 break
         
         if np_limit is not None:
-            if cum >= np_limit:
+            if cum_np >= np_limit:
                 break     
 
         if wor_limit is not None:
@@ -182,6 +185,7 @@ class wor_declination:
         np_limit=None,
         wor_limit=None,
         econ_limit=None,
+        show_water=True,
         **kwargs
     ):
         """
@@ -242,5 +246,8 @@ class wor_declination:
             )
         
         Np = f['np'].iloc[-1]
+
+        if not show_water:
+            f = f[['qo','np']]
 
         return f, Np

@@ -21,6 +21,7 @@ from ...volumetricspy import surface_group
 from sqlalchemy import create_engine
 from ...wellschematicspy import well_schema
 import pickle
+from datetime import date, timedelta
 
 class perforations(gpd.GeoDataFrame):
 
@@ -427,9 +428,7 @@ class well:
             assert isinstance(value,dict)
             for i in value:
                 assert isinstance(value[i],dict)
-                assert isinstance(value[i]['declination'],(declination,wor_declination))
-                assert isinstance(value[i]['fix_start'],bool)
-                assert isinstance(value[i]['fix_end'],bool)        
+                assert isinstance(value[i]['declination'],(declination,wor_declination))     
         self._schedule = value
 
 
@@ -922,10 +921,101 @@ class well:
             self.to_coord(which=['perforations'])
 
 
-    #def schedule_forecast(self, start_date=None,end_date=None):
+    def schedule_forecast(self, start_date:date=None,end_date:date=None, show=['oil','water','total']):
 
+        assert self.schedule is not None
+        sched = self.schedule
 
+        _forecast_list = []
+        
+        for i,v in enumerate(sched):
+            show_water = sched[v].pop('show_water', False)
+            # Start of declination is the end of prevous
+            depend_start = sched[v].pop('depend_start', True) 
+            
+            #days delay
+            time_delay = sched[v].pop('time_delay', timedelta(days=30)) 
+            assert isinstance(time_delay,timedelta)
 
+            # for declination object change ti the depend start
+            change_ti = sched[v].pop('change_ti', True)
+
+            fix_end = sched[v].pop('fix_end', False)
+
+            if depend_start and i>0:
+                sched[v]['declination'].start_date = _forecast_list[i-1].index[-1] + time_delay
+
+                if change_ti and isinstance(sched[v]['declination'],declination):
+                    sched[v]['declination'].ti = _forecast_list[i-1].index[-1]
+
+            _f,_ = sched[v]['declination'].forecast(show_water=show_water)
+
+            _f = _f.add_suffix('_'+self.name + '_' + v) 
+
+            _forecast_list.append(_f)
+        
+        _forecast = pd.concat(_forecast_list,axis=1)
+
+        cols_show = []
+        #Totalize
+        qo_filter = [col for col in _forecast if col.startswith('qo')]
+        if len(qo_filter) > 0:
+            #Fill NAN values with 0
+            _forecast[qo_filter]=_forecast[qo_filter].fillna(0)
+
+            #Sum rates
+            _forecast['qo_total'] = _forecast[qo_filter].sum(axis=1)
+
+            #append cols to show
+            if 'oil' in show:
+                cols_show.extend(qo_filter)
+
+        qw_filter = [col for col in _forecast if col.startswith('qw')]
+        if len(qw_filter) > 0:
+            #Fill NAN values with 0
+            _forecast[qw_filter]=_forecast[qw_filter].fillna(0)
+
+            #Sum rates
+            _forecast['qw_total'] = _forecast[qw_filter].sum(axis=1)
+
+            #append cols to show
+            if 'water' in show:
+                cols_show.extend(qw_filter)
+
+        np_filter = [col for col in _forecast if col.startswith('np')]
+        if len(np_filter) > 0:
+            #Fill NAN values with las valid value
+            _forecast[np_filter]=_forecast[np_filter].fillna(method='ffill')
+
+            #Sum rates
+            _forecast['np_total'] = _forecast[np_filter].sum(axis=1)
+
+            #append cols to show
+            if 'oil' in show:
+                cols_show.extend(np_filter)
+
+        wp_filter = [col for col in _forecast if col.startswith('wp')]
+        if len(wp_filter) > 0:
+            #Fill NAN values with las valid value
+            _forecast[wp_filter]=_forecast[wp_filter].fillna(method='ffill')
+
+            #Sum rates
+            _forecast['wp_total'] = _forecast[wp_filter].sum(axis=1)
+
+            #append cols to show
+            if 'water' in show:
+                cols_show.extend(wp_filter)
+
+        # append total sum columns
+        if 'total' in show:
+            total_filter = [col for col in _forecast if col.endswith('total')]
+            cols_show.extend(total_filter)
+
+        #fill na values with zeros. np before starts declination
+        _forecast.fillna(0,inplace=True)
+
+        _forecast = _forecast[cols_show]
+        return _forecast
 
 class wells_group:
     def __init__(self,*args,**kwargs):

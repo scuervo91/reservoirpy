@@ -27,7 +27,7 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0):
   days_number = range_time.apply(lambda x: x.toordinal()) 
   ti_day = ti.toordinal()
 
-  #Estimate the difference in days between the dates to forecast and Initial Ti                                
+  #Estimate the difference in days between the dates to forecast and Initial Ti                         
   day_diff = days_number-ti_day                          
 
   if b == 0:
@@ -263,6 +263,11 @@ class declination:
       np: Cummulative production
 
     """
+    if econ_limit is None:
+      econ_limit = self.econ_limit
+    else:
+      assert isinstance(econ_limit,(int,float,np.ndarray)), 'econ_limit must be a number'
+
 
     if start_date is None: 
       if self.start_date is None:
@@ -279,12 +284,6 @@ class declination:
         end_date = self.end_date
     else:
       assert isinstance(end_date,date), 'end_date must be date'
-
-    if econ_limit is None:
-      econ_limit = self.econ_limit
-    else:
-      assert isinstance(econ_limit,(int,float,np.ndarray)), 'econ_limit must be a number'
-
 
     if np_limit is None:
       np_limit = self.np_limit
