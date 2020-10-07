@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
+import pandas as pd
 
 def intercept_curves(x1,y1,x2,y2, n=20):
     x1= np.atleast_1d(x1)
@@ -45,3 +46,29 @@ def intercept_curves(x1,y1,x2,y2, n=20):
         points[:,1] = curve_inter_1(points[:,0])
         idx = 1
     return points, idx
+
+def time_normalize(df):
+    assert isinstance(df, pd.DataFrame)
+    
+    df_norm_list = []
+    
+    for i in df.columns:
+        col = df[i].dropna().reset_index(drop=True)
+        df_norm_list.append(col)
+        
+    df_norm = pd.concat(df_norm_list, axis=1)
+    
+    return df_norm
+
+def time_normalize_pivot(df, **kwargs):
+    assert isinstance(df, pd.DataFrame)
+
+    separator = kwargs.pop('sep','_')
+
+    df_piv=df.pivot(**kwargs)
+    col=[separator.join(i) for i in df_piv.columns.to_list()]
+    df_piv.columns=col
+    
+    df_norm = time_normalize(df_piv)
+
+    return df_norm

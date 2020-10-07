@@ -16,7 +16,7 @@ import seaborn as sns
 import pyvista as pv 
 from ...welllogspy.log import log
 from ...wellproductivitypy import pi
-from ...wellproductivitypy.decline import declination, wor_declination
+from ...wellproductivitypy.decline import declination, wor_declination, bsw_to_wor
 from ...volumetricspy import surface_group
 from sqlalchemy import create_engine
 from ...wellschematicspy import well_schema
@@ -921,7 +921,7 @@ class well:
             self.to_coord(which=['perforations'])
 
 
-    def schedule_forecast(self, start_date:date=None,end_date:date=None, show=['oil','water','total']):
+    def schedule_forecast(self, start_date:date=None,end_date:date=None,spread=True, show=['oil','water','wc','total']):
 
         assert self.schedule is not None
         sched = self.schedule
@@ -929,7 +929,8 @@ class well:
         _forecast_list = []
         
         for i,v in enumerate(sched):
-            show_water = sched[v].pop('show_water', False)
+            #show water default True if wor_declination; if declination default is false
+            show_water = sched[v].pop('show_water', False if isinstance(sched[v]['declination'],declination) else True)
             # Start of declination is the end of prevous
             depend_start = sched[v].pop('depend_start', True) 
             
@@ -939,6 +940,9 @@ class well:
 
             # for declination object change ti the depend start
             change_ti = sched[v].pop('change_ti', True)
+
+            # for wor_declination 
+            depend_bsw = sched[v].pop('show_water', True)
 
             fix_end = sched[v].pop('fix_end', False)
 
@@ -950,71 +954,105 @@ class well:
 
             _f,_ = sched[v]['declination'].forecast(show_water=show_water)
 
-            _f = _f.add_suffix('_'+self.name + '_' + v) 
-
+            if spread:
+                _f = _f.add_suffix('_'+self.name + '_' + v) 
+            else:
+                _f['period'] = v
             _forecast_list.append(_f)
         
-        _forecast = pd.concat(_forecast_list,axis=1)
+        if spread:
+            _forecast = pd.concat(_forecast_list,axis=1)
 
-        cols_show = []
-        #Totalize
-        qo_filter = [col for col in _forecast if col.startswith('qo')]
-        if len(qo_filter) > 0:
-            #Fill NAN values with 0
-            _forecast[qo_filter]=_forecast[qo_filter].fillna(0)
+            cols_show = []
+            #Totalize
+            qo_filter = [col for col in _forecast.columns if col.startswith('qo')]
+            if len(qo_filter) > 0:
+                #Fill NAN values with 0
+                _forecast[qo_filter]=_forecast[qo_filter].fillna(0)
 
-            #Sum rates
-            _forecast['qo_total'] = _forecast[qo_filter].sum(axis=1)
+                #Sum rates
+                _forecast['qo_total'] = _forecast[qo_filter].sum(axis=1)
 
-            #append cols to show
-            if 'oil' in show:
-                cols_show.extend(qo_filter)
+                #append cols to show
+                if 'oil' in show:
+                    cols_show.extend(qo_filter)
 
-        qw_filter = [col for col in _forecast if col.startswith('qw')]
-        if len(qw_filter) > 0:
-            #Fill NAN values with 0
-            _forecast[qw_filter]=_forecast[qw_filter].fillna(0)
+            qw_filter = [col for col in _forecast.columns if col.startswith('qw')]
+            if len(qw_filter) > 0:
+                #Fill NAN values with 0
+                _forecast[qw_filter]=_forecast[qw_filter].fillna(0)
 
-            #Sum rates
-            _forecast['qw_total'] = _forecast[qw_filter].sum(axis=1)
+                #Sum rates
+                _forecast['qw_total'] = _forecast[qw_filter].sum(axis=1)
 
-            #append cols to show
-            if 'water' in show:
-                cols_show.extend(qw_filter)
+                #append cols to show
+                if 'water' in show:
+                    cols_show.extend(qw_filter)
+            
+            np_filter = [col for col in _forecast.columns if col.startswith('np')]
+            if len(np_filter) > 0:
+                #Fill NAN values with las valid value
+                _forecast[np_filter]=_forecast[np_filter].fillna(method='ffill')
 
-        np_filter = [col for col in _forecast if col.startswith('np')]
-        if len(np_filter) > 0:
-            #Fill NAN values with las valid value
-            _forecast[np_filter]=_forecast[np_filter].fillna(method='ffill')
+                #Sum rates
+                _forecast['np_total'] = _forecast[np_filter].sum(axis=1)
 
-            #Sum rates
-            _forecast['np_total'] = _forecast[np_filter].sum(axis=1)
+                #append cols to show
+                if 'oil' in show:
+                    cols_show.extend(np_filter)
 
-            #append cols to show
-            if 'oil' in show:
-                cols_show.extend(np_filter)
+            wp_filter = [col for col in _forecast.columns if col.startswith('wp')]
+            if len(wp_filter) > 0:
+                #Fill NAN values with las valid value
+                _forecast[wp_filter]=_forecast[wp_filter].fillna(method='ffill')
 
-        wp_filter = [col for col in _forecast if col.startswith('wp')]
-        if len(wp_filter) > 0:
-            #Fill NAN values with las valid value
-            _forecast[wp_filter]=_forecast[wp_filter].fillna(method='ffill')
+                #Sum rates
+                _forecast['wp_total'] = _forecast[wp_filter].sum(axis=1)
 
-            #Sum rates
-            _forecast['wp_total'] = _forecast[wp_filter].sum(axis=1)
+                #append cols to show
+                if 'water' in show:
+                    cols_show.extend(wp_filter)
 
-            #append cols to show
-            if 'water' in show:
-                cols_show.extend(wp_filter)
+            # append total sum columns
+            if 'wc' in show:
+                bsw_filter = [col for col in _forecast.columns if col.startswith('bsw')]
+                cols_show.extend(bsw_filter)
+                wor_filter = [col for col in _forecast.columns if col.startswith('wor')]
+                cols_show.extend(wor_filter)
 
-        # append total sum columns
-        if 'total' in show:
-            total_filter = [col for col in _forecast if col.endswith('total')]
-            cols_show.extend(total_filter)
+            if 'qw_total' in _forecast.columns and 'qo_total' in _forecast.columns:
+                _forecast['bsw_total'] = _forecast['qw_total'] / (_forecast['qw_total']+_forecast['qo_total'])
+                _forecast['wor_total'] = bsw_to_wor(_forecast['bsw_total'])
+                _forecast['wor_1_total'] = _forecast['wor_total'] +1
 
-        #fill na values with zeros. np before starts declination
-        _forecast.fillna(0,inplace=True)
+            if all(i in show for i in ['total','wc']):
+                total_bsw_filter = [col for col in _forecast.columns if (col.endswith('total'))&(col.startswith('bsw'))]
+                total_wor_filter = [col for col in _forecast.columns if (col.endswith('total'))&(col.startswith('wor'))]
 
-        _forecast = _forecast[cols_show]
+                cols_show.extend(total_wor_filter)
+                cols_show.extend(total_bsw_filter)
+
+            if all(i in show for i in ['total','oil']):
+                total_qo_filter = [col for col in _forecast.columns if (col.endswith('total'))&(col.startswith('qo'))]
+                total_np_filter = [col for col in _forecast.columns if (col.endswith('total'))&(col.startswith('np'))]
+                cols_show.extend(total_qo_filter)
+                cols_show.extend(total_np_filter)
+
+            if all(i in show for i in ['total','water']):
+                total_qw_filter = [col for col in _forecast.columns if (col.endswith('total'))&(col.startswith('qw'))]
+                total_wp_filter = [col for col in _forecast.columns if (col.endswith('total'))&(col.startswith('wp'))]
+                cols_show.extend(total_qw_filter)
+                cols_show.extend(total_wp_filter)
+
+
+            #fill na values with zeros. np before starts declination
+            _forecast.fillna(0,inplace=True)
+
+            _forecast = _forecast[cols_show]
+
+        else:
+            _forecast = pd.concat(_forecast_list,axis=0)
+
         return _forecast
 
 class wells_group:
@@ -1108,6 +1146,7 @@ class wells_group:
                 'openlog': [False if self.wells[well].openlog is None else True],
                 'masterlog': [False if self.wells[well].masterlog is None else True],
                 'caselog': [False if self.wells[well].caselog is None else True],
+                'schedule':[False if self.wells[well].schedule is None else True]
                 }
             _well_gpd = gpd.GeoDataFrame(dict_attr, index=[well])
             gdf = gdf.append(_well_gpd)
@@ -1903,6 +1942,25 @@ class wells_group:
 
         forecast_df['total_qw'] = forecast_df[rate_cols].sum(axis=1)
         forecast_df['total_wp'] = forecast_df[cum_cols].sum(axis=1)
+
+        return forecast_df
+
+    def schedule_forecast(self,wells:list=None,start_date=None, end_date=None,**kwargs):
+
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+
+        forecast_df = pd.DataFrame()
+        for well in _well_list:
+            if self.wells[well].schedule is None:
+                continue
+            _f= self.wells[well].schedule_forecast(start_date=start_date, end_date=end_date,spread=False, **kwargs)
+            _f['well'] = well 
+            forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False)
 
         return forecast_df
 

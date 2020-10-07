@@ -4,14 +4,14 @@ from datetime import date, timedelta
 
 
 def bsw_to_wor(bsw):
-    assert isinstance(bsw,(int,float,np.ndarray))
+    assert isinstance(bsw,(int,float,np.ndarray,pd.Series))
     bsw = np.atleast_1d(bsw)
     assert np.all((bsw>=0)&(bsw<=1))
     wor = bsw/(1-bsw)
     return wor 
 
 def wor_to_bsw(wor):
-    assert isinstance(wor,(int,float,np.ndarray))
+    assert isinstance(wor,(int,float,np.ndarray,pd.Series))
     wor = np.atleast_1d(wor)
     assert np.all(wor>=0)
     bsw = wor/(wor+1)
