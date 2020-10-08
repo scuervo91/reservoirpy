@@ -35,11 +35,12 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0):
   elif (b>0)&(b<=1):
     q = qi/np.power(1+b*(di/365)*day_diff,1/b)
 
-  diff_period = np.append(np.array([1]),np.diff(days_number))
+  #diff_period = np.append(np.array([0]),np.diff(days_number))
+  diff_period = np.diff(days_number,append=0)
   diff_q = diff_period * q 
   cum = diff_q.cumsum()
   cum = cum + npi
-  forecast = pd.DataFrame({'time':range_time,'qo':q, 'np':cum})
+  forecast = pd.DataFrame({'time':range_time,'qo':q, 'vo':diff_q,'np':cum})
   forecast = forecast.set_index('time')
   forecast = forecast.round(2)
   Np = forecast.iloc[-1,-1]

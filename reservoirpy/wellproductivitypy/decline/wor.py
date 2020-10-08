@@ -49,7 +49,7 @@ def wor_forecast(
     
     cum_np = npi
     cum_wp = 0
-    days_diff = np.diff(days_number,prepend=days_number[0]-1)
+    days_diff = np.diff(days_number,append=0)
 
     for i in range(days_number.shape[0]):
         wor_1 = np.exp(slope*cum_np)*wor_i1
@@ -60,7 +60,7 @@ def wor_forecast(
         cum_np += qo*days_diff[i]
         cum_wp += qw*days_diff[i]
 
-        _df = pd.DataFrame({'qf':fluid_rate[i],'qo':qo,'qw':qw,'bsw':bsw,'wor_1':wor_1,'wor':wor,'np':cum_np,'wp':cum_wp})
+        _df = pd.DataFrame({'qf':fluid_rate[i],'qo':qo,'vo':qo*days_diff[i],'vw':qw*days_diff[i],'qw':qw,'bsw':bsw,'wor_1':wor_1,'wor':wor,'np':cum_np,'wp':cum_wp})
         df = df.append(_df)
 
         if econ_limit is not None:
@@ -274,6 +274,6 @@ class wor_declination:
         Np = f['np'].iloc[-1]
 
         if not show_water:
-            f = f[['qo','np']]
+            f = f[['qo','vo','np']]
 
         return f, Np

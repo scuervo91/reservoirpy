@@ -18,6 +18,7 @@ from ...welllogspy.log import log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import declination, wor_declination, bsw_to_wor
 from ...volumetricspy import surface_group
+from ...cashflows.timeseries import cash
 from sqlalchemy import create_engine
 from ...wellschematicspy import well_schema
 import pickle
@@ -165,6 +166,12 @@ def vtk_survey(points):
     poly.lines = cells
     return poly
    
+freq_format={
+    'M':'%Y-%m',
+    'D':'%Y-%m-%d',
+    'A':'%Y'
+}
+
 class well:
     def __init__(self, **kwargs):
 
@@ -188,6 +195,7 @@ class well:
         self.schema = kwargs.pop('schema',None)
         self.schedule = kwargs.pop('schedule',None)
         self.fq  = kwargs.pop('fq','M')
+        self.cashflow = kwargs.pop('cashflow',None)
 
 
 #####################################################
@@ -430,6 +438,18 @@ class well:
         self._schema = value
 
     @property
+    def cashflow(self):
+        return self._cashflow
+
+    @cashflow.setter 
+    def cashflow(self, value):
+        if value is not None:
+            assert isinstance(value,dict)
+            for i in value:
+                assert isinstance(value[i],cash)       
+        self._cashflow = value
+
+    @property
     def schedule(self):
         return self._schedule
 
@@ -455,6 +475,16 @@ class well:
             self.schema = schema
         else:
             self._schema.update(schema)
+
+    def add_cashflow(self,cashflow):
+        assert isinstance(cashflow,dict)
+        for i in cashflow:
+            assert isinstance(cashflow[i],cash) 
+
+        if self.cashflow is None:
+            self.cashflow = cashflow
+        else:
+            self._cashflow.update(cashflow)
 
     def add_logs(self,logs_dict, which='openlog'):
 
@@ -932,12 +962,25 @@ class well:
             self.to_coord(which=['perforations'])
 
 
-    def schedule_forecast(self, start_date:date=None,end_date:date=None,spread=True, show=['oil','water','wc','total']):
+    def schedule_forecast(self, 
+        start_date:date=None,
+        end_date:date=None,
+        spread=True, 
+        show=['oil','water','wc','total'],
+        cash_name = {'capex':'capex','income':'income','var_opex':'var_opex'}
+        ):
 
         assert self.schedule is not None
         sched = self.schedule
 
+        if cash_name is not None:
+            assert isinstance(cash_name,dict)
+
         _forecast_list = []
+        capex_sched ={}
+        var_opex_list = []
+        fix_opex_list = []
+        income_list = []
         
         for i,v in enumerate(sched):
             #show water default True if wor_declination; if declination default is false
@@ -958,6 +1001,16 @@ class well:
 
             fix_end = sched[v].pop('fix_end', False)
 
+            #Capex 
+            capex = sched[v].pop('capex', None)
+
+            #Opex
+            var_opex = sched[v].pop('var_opex', None)
+            fix_opex = sched[v].pop('fix_opex', None)
+
+            #Oil Price
+            oil_price = sched[v].pop('oil_price', None)
+
             if depend_start and i>0:
                 sched[v]['declination'].start_date = _forecast_list[i-1].index[-1] + time_delay
 
@@ -969,12 +1022,29 @@ class well:
 
             _f,_ = sched[v]['declination'].forecast(show_water=show_water)
 
+            if var_opex is not None:
+                var_opex_s = _f['vo'] * var_opex
+                var_opex_list.append(var_opex_s)
+
+            if fix_opex is not None:
+                fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
+                fix_opex_list.append(fix_opex_s)
+
+            if oil_price is not None:
+                income_s = _f['vo'] * oil_price
+                income_list.append(income_s)
+
             if spread:
                 _f = _f.add_suffix('_'+self.name + '_' + v) 
             else:
                 _f['period'] = v
             _forecast_list.append(_f)
-        
+
+            if all([cash_name is not None,capex is not None]):
+                fmt = freq_format[self.fq]
+                capex_date = sched[v]['declination'].start_date.strftime(fmt)
+                capex_sched.update({capex_date:capex})
+
         if spread:
             _forecast = pd.concat(_forecast_list,axis=1)
 
@@ -992,6 +1062,18 @@ class well:
                 if 'oil' in show:
                     cols_show.extend(qo_filter)
 
+            vo_filter = [col for col in _forecast.columns if col.startswith('vo')]
+            if len(vo_filter) > 0:
+                #Fill NAN values with 0
+                _forecast[vo_filter]=_forecast[vo_filter].fillna(0)
+
+                #Sum rates
+                _forecast['vo_total'] = _forecast[vo_filter].sum(axis=1)
+
+                #append cols to show
+                if 'oil' in show:
+                    cols_show.extend(vo_filter)
+
             qw_filter = [col for col in _forecast.columns if col.startswith('qw')]
             if len(qw_filter) > 0:
                 #Fill NAN values with 0
@@ -1003,7 +1085,19 @@ class well:
                 #append cols to show
                 if 'water' in show:
                     cols_show.extend(qw_filter)
-            
+
+            vw_filter = [col for col in _forecast.columns if col.startswith('vw')]
+            if len(vw_filter) > 0:
+                #Fill NAN values with 0
+                _forecast[vw_filter]=_forecast[vw_filter].fillna(0)
+
+                #Sum rates
+                _forecast['vw_total'] = _forecast[vw_filter].sum(axis=1)
+
+                #append cols to show
+                if 'water' in show:
+                    cols_show.extend(vw_filter)
+
             np_filter = [col for col in _forecast.columns if col.startswith('np')]
             if len(np_filter) > 0:
                 #Fill NAN values with las valid value
@@ -1067,6 +1161,39 @@ class well:
 
         else:
             _forecast = pd.concat(_forecast_list,axis=0)
+
+        if bool(capex_sched):
+            cash_objt = cash(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
+                end=_forecast.index.max(), freq=self.fq, name=cash_name['capex'] +'_'+ self.name)
+            
+            self.add_cashflow({cash_name['capex']:cash_objt})
+
+        if len(income_list)>0:
+            income_df = pd.concat(income_list, axis=1)
+            income_df['total'] = income_df.sum(axis=1)
+            inc_cash_objt = cash(const_value=income_df['total'].to_list(),
+                start=income_df.index.min(),
+                freq=self.fq, name=cash_name['income'] +'_'+ self.name)
+            
+            self.add_cashflow({cash_name['income']:inc_cash_objt})
+
+        if len(var_opex_list)>0:
+            var_opex_df = pd.concat(var_opex_list, axis=1)
+            var_opex_df['total'] = var_opex_df.sum(axis=1)
+            varopex_cash_objt = cash(const_value=var_opex_df['total'].to_list(),
+                start=var_opex_df.index.min(),
+                freq=self.fq, name=cash_name['var_opex'] +'_'+ self.name)
+            
+            self.add_cashflow({cash_name['var_opex']:varopex_cash_objt})
+
+        if len(fix_opex_list)>0:
+            fix_opex_df = pd.concat(fix_opex_list, axis=1)
+            fix_opex_df['total'] = fix_opex_df.sum(axis=1)
+            fixopex_cash_objt = cash(const_value=fix_opex_df['total'].to_list(),
+                start=fix_opex_df.index.min(),
+                freq=self.fq, name=cash_name['fix_opex'] +'_'+ self.name)
+            
+            self.add_cashflow({cash_name['fix_opex']:fixopex})
 
         return _forecast
 
@@ -1960,7 +2087,12 @@ class wells_group:
 
         return forecast_df
 
-    def schedule_forecast(self,wells:list=None,start_date=None, end_date=None,**kwargs):
+    def schedule_forecast(self,
+        wells:list=None,
+        start_date=None, 
+        end_date=None,
+        cash_name = {'capex':'capex','income':'income','var_opex':'var_opex'},
+        **kwargs):
 
         if wells is None:
             _well_list = []
@@ -1973,12 +2105,42 @@ class wells_group:
         for well in _well_list:
             if self.wells[well].schedule is None:
                 continue
-            _f= self.wells[well].schedule_forecast(start_date=start_date, end_date=end_date,spread=False, **kwargs)
+            _f= self.wells[well].schedule_forecast(start_date=start_date, end_date=end_date,spread=False,cash_name=cash_name, **kwargs)
             _f['well'] = well 
             forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False)
 
         return forecast_df
 
+    def get_cashflow(self, wells:list=None, cash_name:str=None):
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+
+        cashflow_list = []
+        for well in _well_list:
+            if self.wells[well].cashflow is None:
+                continue
+            
+            try:
+                csh = self.wells[well].cashflow[cash_name].cashflow()
+                cashflow_list.append(csh)
+            except KeyError:
+                print(f'No cashflow called {cash_name} in {well}')
+            except:
+                print(f'Error {cash_name} in {well}')
+                continue
+
+        if len(cashflow_list)>0:
+            cashflow_df = pd.concat(cashflow_list, axis=1)
+            cashflow_df.fillna(0, inplace=True)
+            return cashflow_df
+        else:
+            raise Exception("Sorry, no numbers below zero")
+        
+            
     def save(self,file):
         with open(file, 'wb') as f:
             pickle.dump(self, f)
