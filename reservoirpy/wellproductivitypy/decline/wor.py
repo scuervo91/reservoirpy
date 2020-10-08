@@ -24,7 +24,8 @@ def wor_forecast(
     slope, wor_i, 
     econ_limit = None,
     np_limit=None, 
-    wor_limit=None
+    wor_limit=None,
+    npi=0
     ):
     """
     Estimate a Forecast curve given wor+1 parameters
@@ -46,7 +47,7 @@ def wor_forecast(
 
     df = pd.DataFrame()
     
-    cum_np = 0
+    cum_np = npi
     cum_wp = 0
     days_diff = np.diff(days_number,prepend=days_number[0]-1)
 
@@ -89,6 +90,8 @@ class wor_declination:
         self.wor_limit = kwargs.pop('wor_limit', None)
         self.np_limit = kwargs.pop('np_limit', None)
         self.fluid_rate = kwargs.pop('fluid_rate', None)
+        self.npi = kwargs.pop('npi', 0)
+        self.fq = kwargs.pop('fq', 'M')
 
     ## Properties
     @property
@@ -175,13 +178,33 @@ class wor_declination:
             assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
         self._fluid_rate = value
 
+    @property
+    def npi(self):
+        return self._npi
+
+    @npi.setter
+    def npi(self,value):
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
+        self._npi = value
+
+    @property
+    def fq(self):
+        return self._fq
+
+    @fq.setter
+    def fq(self,value):
+        if value is not None:
+            assert isinstance(value,str), f'{type(value)} not accepted. Name must be fq for pandas time range'
+        self._fq = value
+
 
     def forecast(self,
         time_range:pd.Series=None,
         start_date:date=None, 
         end_date:date=None, 
         fluid_rate:(pd.Series,np.ndarray,int,float)=None, 
-        fq:str='M', 
+        fq:str=None, 
         np_limit=None,
         wor_limit=None,
         econ_limit=None,
@@ -211,6 +234,8 @@ class wor_declination:
             else:
                 assert isinstance(end_date,date), 'send_date must be date'
 
+            if fq is None:
+                fq=self.fq
             time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
 
        
@@ -242,7 +267,8 @@ class wor_declination:
             self.wor_i, 
             np_limit = np_limit, 
             wor_limit = wor_limit, 
-            econ_limit = econ_limit
+            econ_limit = econ_limit,
+            npi=self.npi
             )
         
         Np = f['np'].iloc[-1]

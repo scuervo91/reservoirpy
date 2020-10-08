@@ -187,6 +187,7 @@ class well:
         self.als = kwargs.pop('als',None)
         self.schema = kwargs.pop('schema',None)
         self.schedule = kwargs.pop('schedule',None)
+        self.fq  = kwargs.pop('fq','M')
 
 
 #####################################################
@@ -240,6 +241,16 @@ class well:
         elif isinstance(value,str):
             assert value.startswith('EPSG:'), 'if crs is string must starts with EPSG:. If integer must be the Coordinate system reference number EPSG http://epsg.io/'
         self._crs = value
+
+    @property
+    def fq(self):
+        return self._fq
+
+    @fq.setter
+    def fq(self,value):
+        assert isinstance(value,str), f"{type(value)} not accepted. Name must be str"
+        assert value in ['A', 'BA', 'Q', 'BQ', 'M', 'BM', 'CBM', 'SM', '6M', '6BM', '6CMB']      
+        self._fq = value
 
     @property
     def perforations(self):
@@ -942,7 +953,8 @@ class well:
             change_ti = sched[v].pop('change_ti', True)
 
             # for wor_declination 
-            depend_bsw = sched[v].pop('show_water', True)
+            depend_bsw = sched[v].pop('depend_bsw', True)
+            discount_bsw = sched[v].pop('discount_bsw', 0.7)
 
             fix_end = sched[v].pop('fix_end', False)
 
@@ -951,6 +963,9 @@ class well:
 
                 if change_ti and isinstance(sched[v]['declination'],declination):
                     sched[v]['declination'].ti = _forecast_list[i-1].index[-1]
+                
+                if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
+                    sched[v]['declination'].bsw_i = _forecast_list[i-1]['bsw'].iloc[-1] * discount_bsw
 
             _f,_ = sched[v]['declination'].forecast(show_water=show_water)
 
