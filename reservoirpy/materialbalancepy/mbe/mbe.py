@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from ...pvtpy.black_oil import oil, water, gas 
-from ...krpy import kr
+from ...krpy import water_oil_kr, gas_oil_kr
 from ...wellproductivitypy.decline import bsw_to_wor
 from .aquifer import pot_aquifer
 import matplotlib.pyplot as plt
@@ -255,7 +255,7 @@ class oil_reservoir:
 
     @kr_wo.setter 
     def kr_wo(self,value):
-        assert isinstance(value,(kr,type(None)))
+        assert isinstance(value,(water_oil_kr,type(None)))
         self._kr_wo = value
 
     # Properties
@@ -265,7 +265,7 @@ class oil_reservoir:
 
     @kr_go.setter 
     def kr_go(self,value):
-        assert isinstance(value,(kr,type(None)))
+        assert isinstance(value,(gas_oil_kr,type(None)))
         self._kr_go = value
 
     @property
