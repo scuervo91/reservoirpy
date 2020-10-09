@@ -6,6 +6,7 @@ from skimage import measure
 from scipy.integrate import simps
 import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon
+from zmapio import ZMAPGrid
 
 def poly_area(x,y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
@@ -203,7 +204,8 @@ class surface:
         contours = self.get_contours(levels=levels,n=n)
 
         if contours.empty:
-            raise ValueError('None contours found')
+            print('None contours found')
+            return pd.Series(np.zeros(levels.shape[0]), index=levels, name='area')
         #dataframe
         data = pd.DataFrame()
 
@@ -235,6 +237,21 @@ class surface:
 
         return rv, area
 
+    def from_z_map(self,value, factor_z = -1, crs=4326):
+
+        z_file = ZMAPGrid(value)
+        z_df = z_file.to_dataframe().dropna()
+        z_df['Z'] *= factor_z
+        p = z_df.pivot(index='Y',columns='X',values='Z')
+        p.sort_index(axis=0, inplace=True)
+        p.sort_index(axis=1, inplace=True)
+        xx,yy = np.meshgrid(p.columns,p.index)
+
+        self.x = xx
+        self.y = yy
+        self.z = p.values
+        self.crs=crs
+
 class surface_group:
     def __init__(self,**kwargs):
        
@@ -262,9 +279,26 @@ class surface_group:
         _surface_dict.update(surf)
         self._surfaces = _surface_dict
 
-    def get_volume(self, top_surface=None, bottom_surface=None, levels=None, n=10,c=2.4697887e-4):
+    def get_volume(self, 
+        top_surface=None, 
+        bottom_surface=None, 
+        levels=None, 
+        zmin=None,
+        zmax=None,
+        n=20,c=2.4697887e-4):
 
         assert all([top_surface is not None,bottom_surface is not None])
+
+        #define levels
+        if levels is not None:
+            assert isinstance(levels,(np.ndarray,list))
+            levels = np.atleast_1d(levels)
+            assert levels.ndim==1
+        else:
+            zmin = zmin if zmin is not None else np.nanmin(self.surfaces[bottom_surface].z)
+            zmax = zmax if zmax is not None else np.nanmax(self.surfaces[top_surface].z)
+
+            levels = np.linspace(zmin,zmax,n)
 
         top_area = self.surfaces[top_surface].get_contours_area(levels=levels,n=n,c=c,group=True)
         bottom_area = self.surfaces[bottom_surface].get_contours_area(levels=levels,n=n,c=c,group=True)
@@ -272,12 +306,29 @@ class surface_group:
         #Merge two contours ara for top and bottom indexed by depth
         area=top_area.merge(bottom_area,how='outer',left_index=True,right_index=True,suffixes=['_top','_bottom']).fillna(0)
         area['dif']= area['area_top'] - area['area_bottom']
-
+        area['thick'] = area.index-area.index.min()
         #Integrate
-        rv=simps(area['dif'],np.abs(area.index))
+        rv=simps(area['dif'],area['thick'])
 
         return rv, area
 
+    def structured_surface_vtk(self, surfaces:list=None):
+        
+        if surfaces is None:
+            _surface_list = []
+            for key in self.surfaces:
+                _surface_list.append(key)
+        else:
+            _surface_list = surfaces
+
+        data={}
+        for s in _surface_list:
+        #Get a Pyvista Object StructedGrid
+            data[s] = self.surfaces[s].structured_surface_vtk()
+
+        grid_blocks = pv.MultiBlock(data)
+
+        return grid_blocks
 
 
 

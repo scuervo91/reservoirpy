@@ -103,7 +103,7 @@ def restrack(df: pd.DataFrame,
     #Set the gridding and ticks
     rax.set_xscale("log")
     rax.set_xlim(res_range)
-    ticks=np.round(np.power(10,np.linspace(np.log10(res_range[0]),np.log10(res_range[1]),int(np.log10(res_range[1]/res_range[0])+1))),decimals=1)
+    ticks=np.round(np.power(10,np.linspace(np.log10(res_range[0]),np.log10(res_range[1]),int(np.log10(res_range[1]/res_range[0])+1))),decimals=0)
     rax.set_xticks(ticks)
     rax.set_xticklabels(ticks)
     rax.set_xlabel("Resistivity [Ohm m]")
@@ -123,16 +123,17 @@ def restrack(df: pd.DataFrame,
     #Add Correlation Line
     if correlation is not None:
         cor_ann = corr_kw.pop('ann',False)
+        cor_ann_fontsize = corr_kw.pop('fontsize',8)
         for i in correlation.iterrows():
             rax.hlines(i[1]['depth'],res_range[0],res_range[1], **corr_kw)
             if cor_ann:
                 try:
                     rax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(res_range[1]-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'},fontsize = cor_ann_fontsize)
                 except:
                     rax.annotate(f"{i[1]['depth']}",xy=(res_range[1]-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',
-                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'},fontsize = cor_ann_fontsize)
  
     if legend:
         rax.legend()

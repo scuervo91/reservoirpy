@@ -355,6 +355,7 @@ def grtrack(df: pd.DataFrame,
     #Add Correlation Line
     if correlation is not None:
         cor_ann = corr_kw.pop('ann',False)
+        cor_ann_fontsize = corr_kw.pop('fontsize',8)
         for i in correlation.iterrows():
             if depth_ref == 'tvdss':
                 if i[1]['depth'] >= lims[0] or i[1]['depth'] <= lims[1]:
@@ -366,11 +367,13 @@ def grtrack(df: pd.DataFrame,
             if cor_ann:
                 try:
                     grax.annotate(f"{i[1]['depth']} - {i[1]['comment']} ",xy=(gr_max-3,i[1]['depth']-1),
-                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
+                                 xycoords='data',horizontalalignment='right',bbox={'boxstyle':'roundtooth', 'fc':'0.8'},
+                                 fontsize = cor_ann_fontsize)
                 except:
                     grax.annotate(f"{i[1]['depth']}",xy=(gr_max-3,i[1]['depth']-1),
                                  xycoords='data',horizontalalignment='right',
-                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'})
+                                 bbox={'boxstyle':'roundtooth', 'fc':'0.8'},
+                                 fontsize = cor_ann_fontsize)
                 
     
     if legend:
