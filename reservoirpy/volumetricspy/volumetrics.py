@@ -305,10 +305,14 @@ class surface_group:
 
         #Merge two contours ara for top and bottom indexed by depth
         area=top_area.merge(bottom_area,how='outer',left_index=True,right_index=True,suffixes=['_top','_bottom']).fillna(0)
-        area['dif']= area['area_top'] - area['area_bottom']
-        area['thick'] = area.index-area.index.min()
+        area['dif_area']= area['area_top'] - area['area_bottom']
+        area['height'] = area.index-area.index.min()
+        area['tick']=np.diff(area['height'], prepend=0)
+        area['vol'] = area['dif_area'] * area['tick']
+        area['vol'].sum()
         #Integrate
-        rv=simps(area['dif'],area['thick'])
+        #rv=simps(area['dif'],area['thick'])
+        rv=area['vol'].sum()
 
         return rv, area
 
