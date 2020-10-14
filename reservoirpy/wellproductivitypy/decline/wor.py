@@ -51,7 +51,7 @@ def wor_forecast(
     cum_wp = 0
     days_diff = np.diff(days_number,append=0)
 
-    for i in range(days_number.shape[0]):
+    for i in range(days_number.shape[0]-1):
         wor_1 = np.exp(slope*cum_np)*wor_i1
         wor = wor_1 - 1
         bsw = wor_to_bsw(wor)
