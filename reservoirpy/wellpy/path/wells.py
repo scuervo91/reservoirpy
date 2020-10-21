@@ -178,7 +178,7 @@ class well:
     def __init__(self, **kwargs):
 
         self.name = kwargs.pop('name', None)
-        self.rte = kwargs.pop('rte', None)
+        self.rte = kwargs.pop('rte', 0)
         self.surf_coord = kwargs.pop('surf_coord', None)
         self.crs = kwargs.pop('crs', None)
         self.perforations = kwargs.pop('perforations', None)
@@ -218,7 +218,7 @@ class well:
 
     @rte.setter
     def rte(self,value):
-        assert isinstance(value,(int,float,type(None))), f'{type(value)} not accepted. Name must be number'
+        assert isinstance(value,(int,float)), f'{type(value)} not accepted. Name must be number'
         self._rte = value
 
     @property
@@ -985,12 +985,18 @@ class well:
         income_list = []
         depreciation_list = []
         
+        #dictionary to store the numerated keys. It is used to get get dependent start forecast
+        num_dict = {} 
         for i,v in enumerate(sched):
+            
+            #Update dictionary to enumerate the key to find the forecast dependant start
+            num_dict[v]=i
+
             #show water default True if wor_declination; if declination default is false
             show_water = sched[v].get('show_water', False if isinstance(sched[v]['declination'],declination) else True)
             # Start of declination is the end of prevous
-            depend_start = sched[v].get('depend_start', True) 
-            
+            depend_start = sched[v].get('depend_start', None) 
+
             #days delay
             time_delay = sched[v].get('time_delay', timedelta(days=30)) 
             assert isinstance(time_delay,timedelta)
@@ -1015,19 +1021,21 @@ class well:
             fix_opex = sched[v].get('fix_opex', None)
 
             #Oil Price
-            oil_price = sched[v].get('oil_price', None)
+            price = sched[v].get('price', None)
 
             #royalty
             royalty = sched[v].get('royalty',0.08)
   
-            if depend_start and i>0:
-                sched[v]['declination'].start_date = _forecast_list[i-1].index[-1] + time_delay
+            if depend_start in list(num_dict.keys()) and i>0:
+                
+                depend_number = num_dict[depend_start]
+                sched[v]['declination'].start_date = _forecast_list[depend_number].index[-1] + time_delay
 
                 if change_ti and isinstance(sched[v]['declination'],declination):
-                    sched[v]['declination'].ti = _forecast_list[i-1].index[-1].date()
+                    sched[v]['declination'].ti = _forecast_list[depend_number].index[-1].date()
                 
                 if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
-                    sched[v]['declination'].bsw_i = _forecast_list[i-1]['bsw'].iloc[-1] * discount_bsw
+                    sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
 
             _f,_ = sched[v]['declination'].forecast(show_water=show_water)
 
@@ -1045,8 +1053,8 @@ class well:
                 fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
                 fix_opex_list.append(fix_opex_s)
 
-            if oil_price is not None:
-                income_s = _f['vo'] * oil_price * (1-royalty)
+            if price is not None:
+                income_s = _f['vo'] * price * (1-royalty)
                 income_list.append(income_s)
 
             if abandonment is not None:
