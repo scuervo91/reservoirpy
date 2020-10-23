@@ -2085,6 +2085,7 @@ class wells_group:
             from list.surveys s
             join list.wells w on s.well_id = w.id
             join list.fields f on w.field_id = f.id
+            order by s.md
         """
 
         well_perforations_query= """

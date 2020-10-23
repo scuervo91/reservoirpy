@@ -511,14 +511,14 @@ def gas_outflow_curve(
                 gas_arr[i] = q
                 thp_arr[i] = p
                 di_arr[i] = d
-                i += 1
                 case_name = f'thp-{p}_di-{d}'
                 name_list.append(case_name)
                 i += 1
 
-    df = pd.DataFrame(pwf,columns=name_list,index=rate)
+    #df = pd.DataFrame(pwf,columns=name_list,index=rate)
     arr=np.column_stack((pwf,thp_arr,di_arr))
     df = pd.DataFrame(arr,columns=['pwf','thp','di'],index=gas_arr)
+    df['case'] = name_list
     df.index.name = 'gas'
 
     return df
