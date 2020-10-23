@@ -1,5 +1,5 @@
 
-# Source Code taken from:
+# Source Code taken and modified from:
 #https://github.com/kinverarity1/well-schematics
 import matplotlib.pyplot as plt
 from matplotlib import patches as mpatches

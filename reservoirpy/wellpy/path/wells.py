@@ -1003,6 +1003,7 @@ class well:
 
             # for declination object change ti the depend start
             change_ti = sched[v].get('change_ti', True)
+            change_flow = sched[v].get('change_flow', False)
 
             # for wor_declination 
             depend_bsw = sched[v].get('depend_bsw', True)
@@ -1017,14 +1018,17 @@ class well:
             depreciation_type = sched[v].get('depreciation_type', 'prod')
 
             #Opex
-            var_opex = sched[v].get('var_opex', None)
+            var_oil_opex = sched[v].get('var_oil_opex', None)
+            var_gas_opex = sched[v].get('var_gas_opex', None)
             fix_opex = sched[v].get('fix_opex', None)
 
-            #Oil Price
-            price = sched[v].get('price', None)
+            #Price
+            oil_price = sched[v].get('oil_price', None)
+            gas_price = sched[v].get('gas_price', None)
 
             #royalty
-            royalty = sched[v].get('royalty',0.08)
+            oil_royalty = sched[v].get('oil_royalty',0.08)
+            gas_royalty = sched[v].get('gas_royalty',0.064)
   
             if depend_start in list(num_dict.keys()) and i>0:
                 
@@ -1033,6 +1037,12 @@ class well:
 
                 if change_ti and isinstance(sched[v]['declination'],declination):
                     sched[v]['declination'].ti = _forecast_list[depend_number].index[-1].date()
+
+                if change_flow and isinstance(sched[v]['declination'],declination):
+                    if sched[v]['declination'].gas:
+                        sched[v]['declination'].qi = _forecast_list[depend_number]['qg'].iloc[-1]
+                    else:
+                        sched[v]['declination'].qi = _forecast_list[depend_number]['qo'].iloc[-1]                        
                 
                 if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
                     sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
@@ -1045,17 +1055,25 @@ class well:
             if end_date is not None:
                 _f = _f[_f.index<=pd.Timestamp(end_date)]
 
-            if var_opex is not None:
-                var_opex_s = _f['vo'] * var_opex
-                var_opex_list.append(var_opex_s)
+            if var_oil_opex is not None:
+                var_opex_o = _f['vo'] * var_oil_opex
+                var_opex_list.append(var_opex_o)
+
+            if var_gas_opex is not None:
+                var_opex_g = _f['vg'] * var_gas_opex
+                var_opex_list.append(var_opex_g)
 
             if fix_opex is not None:
                 fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
                 fix_opex_list.append(fix_opex_s)
 
-            if price is not None:
-                income_s = _f['vo'] * price * (1-royalty)
-                income_list.append(income_s)
+            if oil_price is not None:
+                income_o = _f['vo'] * oil_price * (1-oil_royalty)
+                income_list.append(income_o)
+
+            if gas_price is not None:
+                income_g = _f['vg'] * gas_price * (1-gas_royalty)
+                income_list.append(income_g)
 
             if abandonment is not None:
                 fmt = freq_format[self.fq]
@@ -1069,8 +1087,12 @@ class well:
 
                 if depreciation:
                     if depreciation_type == 'prod':
-                        depreciation_array = _f['vo']*capex / _f['vo'].sum()
-                        depreciation_list.append(depreciation_array)
+                        if sched[v]['declination'].gas:
+                            depreciation_array = _f['vg']*capex / _f['vg'].sum()
+                            depreciation_list.append(depreciation_array)
+                        else:
+                            depreciation_array = _f['vo']*capex / _f['vo'].sum()
+                            depreciation_list.append(depreciation_array)
 
             if spread:
                 _f = _f.add_suffix('_'+self.name + '_' + v) 
@@ -1321,7 +1343,7 @@ class well:
 
         # Estimate financial data
         if len(spreadsheet_list)>0:
-            spreadsheet = pd.concat(spreadsheet_list, axis=1)
+            spreadsheet = pd.concat(spreadsheet_list, axis=1).fillna(0)
 
             col_list = ['total_income','total_opex','total_capex','total_depreciation']
 
@@ -2258,7 +2280,7 @@ class wells_group:
                 continue
             _f= self.wells[well].schedule_forecast(start_date=start_date, end_date=end_date,spread=False,cash_name=cash_name, **kwargs)
             _f['well'] = well 
-            forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False)
+            forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False).fillna(0)
 
         return forecast_df
 

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 ############################################################################################
 # Forecast Function
-def forecast_curve(range_time,qi,di,ti,b,npi=0):
+def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False):
   """
   Estimate a Forecast curve given Decline curve parameters
 
@@ -40,14 +40,17 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0):
   diff_q = diff_period * q 
   cum = diff_q.cumsum()
   cum = cum + npi
-  forecast = pd.DataFrame({'time':range_time[:-1],'qo':q[:-1], 'vo':diff_q[:-1],'np':cum[:-1]})
+  if gas:
+    forecast = pd.DataFrame({'time':range_time[:-1],'qg':q[:-1], 'vg':diff_q[:-1],'gp':cum[:-1]}) 
+  else:
+    forecast = pd.DataFrame({'time':range_time[:-1],'qo':q[:-1], 'vo':diff_q[:-1],'np':cum[:-1]})
   forecast = forecast.set_index('time')
   forecast = forecast.round(2)
-  Np = forecast.iloc[-1,-1]
+  total_cum = forecast.iloc[-1,-1]
   
-  return forecast, Np
+  return forecast, total_cum
 
-def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0):
+def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False):
   """
   Estimate a Forecast curve until a given Economic limit rate and Decline curve parameters
 
@@ -83,7 +86,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0):
   else:
     TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
 
-    f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=npi)
+    f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=npi, gas=gas)
 
   return f, Np
 
@@ -112,6 +115,8 @@ class declination:
     self.np_limit = kwargs.pop('np_limit', None)
     self.fluid_rate = kwargs.pop('fluid_rate',None)
     self.anomaly_points = kwargs.pop('anomaly_points',None)
+    self.fq = kwargs.pop('fq','M')
+    self.gas = kwargs.pop('gas',False)
 
 
 #####################################################
@@ -232,6 +237,24 @@ class declination:
           assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be number'
       self._fluid_rate = value
 
+  @property
+  def fq(self):
+      return self._fq
+
+  @fq.setter
+  def fq(self,value):
+      assert isinstance(value,str), f"{type(value)} not accepted. Name must be str"     
+      self._fq = value
+
+  @property
+  def gas(self):
+    return self._gas
+
+  @gas.setter
+  def gas(self,value):
+    assert isinstance(value,bool), f'{type(value)} not accepted.  must be bool'
+    self._gas = value
+
   def __str__(self):
     return '{self.kind} Declination \n Ti: {self.ti} \n Qi: {self.qi} bbl/d \n Rate: {self.di} Annually \n b: {self.b}'.format(self=self)
   
@@ -241,7 +264,7 @@ class declination:
   def forecast(self,
     start_date:date=None, 
     end_date:date=None, 
-    fq:str='M',
+    fq:str=None,
     econ_limit:float=None,
     np_limit:float=None,
     npi:float=0, 
@@ -269,6 +292,10 @@ class declination:
     else:
       assert isinstance(econ_limit,(int,float,np.ndarray)), 'econ_limit must be a number'
 
+    if fq is None:
+      fq = self.fq
+    else:
+      assert isinstance(fq,str), 'fq must be str'
 
     if start_date is None: 
       if self.start_date is None:
@@ -296,9 +323,9 @@ class declination:
 
     if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
-      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi)
+      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi, gas=self.gas)
     else:
-      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi)
+      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi,gas=self.gas)
 
     if np_limit is not None:
       if Np > np_limit:
@@ -406,8 +433,8 @@ class declination:
       self.di = popt[1]
       self.ti = range_time.iloc[-1] if adjust_last_prod else range_time.iloc[0]
       self.b = popt[2]
-      self.start_date = range_time.iloc[0]
-      self.end_date = range_time.iloc[-1]
+      self.start_date = range_time.iloc[-1] if adjust_last_prod else range_time.iloc[0]
+      self.end_date = range_time.iloc[-1] + timedelta(days=365) if adjust_last_prod else range_time.iloc[-1]
       self.anomaly_points = r
 
     elif (b >= 0) & (b <= 1):
