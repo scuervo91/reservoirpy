@@ -5,11 +5,11 @@ from ...pvtpy.black_oil import pvt, gas, oil, water
 from scipy.optimize import root_scalar
 from .inflow import oil_inflow, gas_inflow
 from ...utils import intercept_curves
-
+from typing import Union
 
 ## Incompressible pressure drop
 def potential_energy_change(
-    z1=None, 
+    z1:Union[int,float]=None, 
     z2=None, 
     delta_z=None,
     length=None, 
@@ -17,14 +17,37 @@ def potential_energy_change(
     angle=None, 
     inc=None,
     p1=0):
-    """
-    Δp PE accounts for the pressure change due to the weight of the column of fluid (the hydrostatic head); it
+    """potential_energy_change [    Δp PE accounts for the pressure change due to the weight of the column of fluid (the hydrostatic head); it
     will be zero for flow in a horizontal pipe.
 
     In this equation, Δz is the difference in elevation between positions 1 and 2, with z increasing upward. θ
     is defined as the angle between horizontal and the direction of flow. Thus, θ is +90° for upward, vertical
     flow, 0° for horizontal flow, and –90° for downward flow in a vertical well (Figure 7-4). For flow in a
-    straight pipe of length L with flow direction θ,
+    straight pipe of length L with flow direction θ,]
+
+    Parameters
+    ----------
+    z1 : [type], optional
+        [description], by default None
+    z2 : [type], optional
+        [description], by default None
+    delta_z : [type], optional
+        [description], by default None
+    length : [type], optional
+        [description], by default None
+    ge : int, optional
+        [description], by default 1
+    angle : [type], optional
+        [description], by default None
+    inc : [type], optional
+        [description], by default None
+    p1 : int, optional
+        [description], by default 0
+
+    Returns
+    -------
+    [type]
+        [description]
     """
 
     # Assert height difference types
@@ -457,7 +480,9 @@ def gas_outflow_curve(
     temp_grad=1,
     epsilon = 0.0006, 
     tol = 0.05, 
-    max_iter=20
+    max_iter=20,
+    operating_point = None,
+    op_n = 30
     ):
 
     # Assert the right types and shapes for input
@@ -521,7 +546,24 @@ def gas_outflow_curve(
     df['case'] = name_list
     df.index.name = 'gas'
 
-    return df
+    op = pd.DataFrame()
+    if operating_point is not None:
+        inflow = operating_point.df
+
+        for case in df['case'].unique():
+            df_case = df[df['case']==case]
+
+            points, idx = intercept_curves(inflow['q'],inflow['p'],df_case.index,df_case['pwf'], n=op_n)
+
+            points_df = pd.DataFrame(points[[-1],:], columns=['q','p'])
+            points_df['case'] = case
+            points_df['idx'] = idx
+
+            op = op.append(points_df)
+        
+        op = op.merge(df.groupby('case').mean(), left_on='case', right_on='case')
+
+    return df, op
 
 ### Multiphase Pressure Gradients
 
