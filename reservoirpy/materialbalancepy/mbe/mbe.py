@@ -498,7 +498,7 @@ class oil_reservoir:
             #Estimate Linear Form MBE material balance Parameters
             _eo = eo(bo_p,bo_p_minus_1,rs_p,rs_p_minus_1,bg_p)
             _eg = eg(bo_p,bg_p,bg_p_minus_1)
-            _efw = efw(self.m,bo_p_minus_1,cw_p,_sw[i],self.cf,dp)
+            _efw = efw(bo_p_minus_1,cw_p,_sw[i],self.cf,dp)
 
             #If aquifer model exist call the method we with parameter dp
             we = 0 if self.aquifer is None else self.aquifer.we(dp)
