@@ -8,7 +8,7 @@ class kr_df(pd.DataFrame):
     def __init__(self, *args, **kwargs):
         wet_col = kwargs.pop("index", 'sw')
         wet = kwargs.pop('wet',None)
-        assert wet_col in ['sw','sl']
+        assert wet_col in ['sw','sl','so']
         assert isinstance(wet,(list,np.ndarray,type(None)))
         super().__init__(*args, **kwargs)
                 

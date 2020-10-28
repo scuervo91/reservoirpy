@@ -9,6 +9,7 @@ import statsmodels.formula.api as smf
 import statsmodels.api as sm
 import json
 import os
+from scipy.optimize import curve_fit, root
 
 def production_mechanisms_plot(ax=None):
     #Create the Axex
@@ -51,12 +52,15 @@ def eo(bo,boi,rs,rsi,bg):
 def eg(boi,bg,bgi):
     return boi*((bg/bgi)-1)
 
-def efw(m,boi,cw,swi,cf,dp):
-    return (1+m)*boi*((cw*swi+cf)/(1-swi))*dp
+def efw(boi,cw,swi,cf,dp):
+    return boi*((cw*swi+cf)/(1-swi))*dp
 
 class production_history(pd.DataFrame):
     def __init__(self, *args, **kwargs):
-        
+
+        #Indicate pressure column name
+        pressure = kwargs.pop('pressure','pressure')
+
         #Init the pd.Dataframe
         super().__init__(*args, **kwargs)
 
@@ -64,177 +68,18 @@ class production_history(pd.DataFrame):
         #assert all([i in self.columns for i in ['np','wp','gp']])
 
         #Make pressure index
-        if 'pressure' in self.columns:
+        if pressure in self.columns:
             self.set_index('pressure',inplace=True)
         
-        _metadata = ['oil','gas','m', 'pi', 'water']
-
-    def calculate_mbe_parameters(self,**kwargs):
-        #Set the PVTS
-        _oil = kwargs.pop('oil', None)
-        _gas = kwargs.pop('gas', None)
-        _water = kwargs.pop('water', None)
-        _pi = kwargs.pop('pi',None)
-        _m = kwargs.pop('m',0)
-        _sw = kwargs.pop('sw',0)
-        _cf = kwargs.pop('cf',1e-6)
-
-        #Assert type pvt
-        assert all([
-            isinstance(_oil,oil),
-            isinstance(_gas,gas),
-            isinstance(_water,water)
-        ])
-
-        assert isinstance(_pi,(int,float))
-
-        #Make PVT interpolations
-        oil_pvt = _oil.pvt.interpolate(self.index.values)
-        gas_pvt = _gas.pvt.interpolate(self.index.values)
-        water_pvt = _water.pvt.interpolate(self.index.values)
-
-        pvt = pd.concat([oil_pvt,gas_pvt,water_pvt],axis=1,ignore_index=False)
-
-        self[pvt.columns] = pvt
-
-        if 'we' not in self.columns:
-            self['we'] = 0
-
-        #Calculate rp
-        self['rp'] = self['gp']*1000/self['np']
-
-        #Calculate MBE parameters
-        self['delta_p'] = _pi - self.index
-
-        oil_initial_conditions = _oil.pvt.interpolate(_pi)
-        gas_initial_conditions = _gas.pvt.interpolate(_pi)
-
-        self['F'] = self.apply(
-            lambda x: f(
-                x['np'],
-                x['bo'],
-                x['rp'],
-                x['rs'],
-                x['bg'],
-                x['wp'],
-                x['bw']
-            ),
-            axis=1
-        )
-        self['Eo'] = self.apply(
-            lambda x: eo(
-                x['bo'],
-                oil_initial_conditions['bo'].iloc[0],
-                x['rs'],
-                oil_initial_conditions['rs'].iloc[0],
-                x['bg']
-            ), axis=1
-        )
-        self['Eg'] = self.apply(
-            lambda x: eg(
-                oil_initial_conditions['bo'].iloc[0],
-                x['bg'],
-                gas_initial_conditions['bg'].iloc[0],
-            ),axis=1
-        )
-        self['Efw'] = self.apply(
-            lambda x: efw(
-                _m,
-                oil_initial_conditions['bo'].iloc[0],
-                x['cw'],
-                _sw,
-                _cf,
-                x['delta_p']
-            ),axis=1
-        )
-
-        self['F_div_Eo'] = self['F']/self['Eo']
-        self['Eg_div_Eo'] = self['Eg']/self['Eo']
-        self['mEg'] = _m*self['Eg']
-        self['Eo_mEg_Efw'] = self['Eo'] + self['mEg'] + self['Efw']
-
-        #terms Havlena & Odeh 
-        # #http://www.fekete.com/SAN/WebHelp/FeketeHarmony/Harmony_WebHelp/Content/HTML_Files/Reference_Material/Analysis_Method_Theory/Material_Balance_Theory.htm
-        self['ho_y'] = (self['F'] - self['we']*self['bo'])/(self['Eo'] + oil_initial_conditions['bo'].iloc[0]*self['Efw'])
-        self['ho_x'] = (self['Eg'] + gas_initial_conditions['bg'].iloc[0]*self['Efw'])/(self['Eo'] + oil_initial_conditions['bo'].iloc[0]*self['Efw'])
-
-
-        self.oil = _oil
-        self.gas = _gas
-        self.water = _water
-        self.m = _m
-        self.pi = _pi
-    
-    def gas_cap_mn_unknowns_plot(self,ax=None,**kwargs):
-        gax = ax or plt.gca()
-
-        def_kw = {
-        'color': 'black',
-        'marker':'o',
-        's': 100
-        }    
-        for (k,v) in def_kw.items():
-            if k not in kwargs:
-                kwargs[k]=v
-
-        gax.scatter(self['Eg_div_Eo'],self['F_div_Eo'],**kwargs)
-        gax.set_ylabel('F/Eo')
-        gax.set_xlabel('Eg/Eo')
-        gax.set_title('m&n Unkowns')
-
-    def gas_cap_mn_unknowns(self):
-
-        _df = self
-        mod = smf.ols(formula='F_div_Eo ~ Eg_div_Eo', data=_df).fit()
-
-        return mod
-
-    def ho_mbe(self):
-        mod = smf.ols(formula='F ~ Eo_mEg_Efw', data=self).fit()
-        oil_pvti=self.oil.pvt.interpolate(self.pi)
-        gas_pvti=self.gas.pvt.interpolate(self.pi)
-        OOIP = round(mod.params['Eo_mEg_Efw']/1e6,2)
-        OGIP = round((self.m*OOIP*1e6*oil_pvti['bo'].iloc[0]/gas_pvti['bg'].iloc[0])/1e9,2)
-        print(f"Original Oil In Place {OOIP} MMbbl")
-        print(f"Original Gas In Place {OGIP} Bscf")
-
-        res = oil_reservoir(
-            n = OOIP*1e6,
-            g = OGIP*1e9,
-            m = self.m,
-            oil = self.oil,
-            gas = self.gas,
-            water = self.water,
-            pi = self.pi
-        )
-        return res, mod
-
-    def ho_mbe_2(self):
-        mod = smf.ols(formula='ho_y ~ ho_x', data=self).fit()
-        OOIP = round(mod.params['Intercept']/1e6,2)
-        OGIP = round(mod.params['ho_x']/1e9,2)
-        print(f"Original Oil In Place {OOIP} MMbbl")
-        print(f"Original Gas In Place {OGIP} Bscf")
-        res = oil_reservoir(    
-            n = OOIP*1e6,
-            g = OGIP*1e9,
-            m = self.m,
-            oil = self.oil,
-            gas = self.gas,
-            water = self.water,
-            pi = self.pi
-        )
-        return res, mod
-
     @property   
     def _constructor(self):
         return production_history
 
 class oil_reservoir:
     def __init__(self,**kwargs):
-        self.n = kwargs.pop('n',0)  #Original Oil in Place in bbl (barrels)
-        self.g = kwargs.pop('g',0) #Original Gas in Place in  scf (Standard Cubic Feet)
-        self.m = kwargs.pop('m',0) # Gas cap ratio
+        self.n = kwargs.pop('n',None)  #Original Oil in Place in bbl (barrels)
+        self.g = kwargs.pop('g',None) #Original Gas in Place in  scf (Standard Cubic Feet)
+        self.m = kwargs.pop('m',None) # Gas cap ratio
         self.aquifer = kwargs.pop('aquifer',None) # aquifer model
         self.oil = kwargs.pop('oil',None)
         self.water = kwargs.pop('water',None)
@@ -246,6 +91,7 @@ class oil_reservoir:
         self.kr_go = kwargs.pop('kr_go',None)
         self.k = kwargs.pop('k',0)
         self.phi = kwargs.pop('phi',0)
+        self.production_history = kwargs.pop('production_history',None)
 
 
     # Properties
@@ -257,6 +103,17 @@ class oil_reservoir:
     def kr_wo(self,value):
         assert isinstance(value,(water_oil_kr,type(None)))
         self._kr_wo = value
+
+    # Properties
+    @property
+    def production_history(self):
+        return self._production_history
+
+    @production_history.setter 
+    def production_history(self,value):
+        if value is not None:
+            assert isinstance(value,production_history)
+        self._production_history = value
 
     # Properties
     @property
@@ -305,8 +162,9 @@ class oil_reservoir:
 
     @n.setter 
     def n(self,value):
-        assert isinstance(value,(int,float)), "N must be numeric"
-        assert value >= 0, "N must be equal o greater than 0"
+        if value is not None:
+            assert isinstance(value,(int,float)), "N must be numeric"
+            assert value >= 0, "N must be equal o greater than 0"
         self._n = value
 
     @property
@@ -315,8 +173,9 @@ class oil_reservoir:
 
     @g.setter 
     def g(self,value):
-        assert isinstance(value,(int,float)), "G must be numeric"
-        assert value >= 0, "G must be equal o greater than 0"
+        if value is not None:
+            assert isinstance(value,(int,float)), "G must be numeric"
+            assert value >= 0, "G must be equal o greater than 0"
         self._g = value
 
     @property
@@ -325,8 +184,9 @@ class oil_reservoir:
 
     @m.setter 
     def m(self,value):
-        assert isinstance(value,(int,float)), "m must be numeric"
-        assert value >= 0, "m must be equal o greater than 0"
+        if value is not None:
+            assert isinstance(value,(int,float)), "m must be numeric"
+            assert value >= 0, "m must be equal o greater than 0"
         self._m = value
 
     @property
@@ -384,6 +244,193 @@ class oil_reservoir:
     def water(self,value):
         assert isinstance(value,(water,type(None))), "water must be pvtpy.black_oil.water"
         self._water = value
+
+    def calculate_mbe_parameters(self,**kwargs):
+
+        #Make PVT interpolations
+        oil_pvt = self.oil.pvt.interpolate(self.production_history.index.values)
+        gas_pvt = self.gas.pvt.interpolate(self.production_history.index.values)
+        water_pvt = self.water.pvt.interpolate(self.production_history.index.values)
+
+        pvt = pd.concat([oil_pvt,gas_pvt,water_pvt],axis=1,ignore_index=False)
+
+        self.production_history[pvt.columns] = pvt
+
+        if 'we' not in self.production_history.columns:
+            self.production_history['we'] = 0
+
+        #Calculate rp
+        self.production_history['rp'] = self.production_history['gp']*1000/self.production_history['np']
+
+        #Calculate MBE parameters
+        self.production_history['delta_p'] = self.pi - self.production_history.index
+
+        oil_initial_conditions = self.oil.pvt.interpolate(self.pi)
+        gas_initial_conditions = self.gas.pvt.interpolate(self.pi)
+
+        self.production_history['F'] = self.production_history.apply(
+            lambda x: f(
+                x['np'],
+                x['bo'],
+                x['rp'],
+                x['rs'],
+                x['bg'],
+                x['wp'],
+                x['bw']
+            ),
+            axis=1
+        )
+        self.production_history['Eo'] = self.production_history.apply(
+            lambda x: eo(
+                x['bo'],
+                oil_initial_conditions['bo'].iloc[0],
+                x['rs'],
+                oil_initial_conditions['rs'].iloc[0],
+                x['bg']
+            ), axis=1
+        )
+        self.production_history['Eg'] = self.production_history.apply(
+            lambda x: eg(
+                oil_initial_conditions['bo'].iloc[0],
+                x['bg'],
+                gas_initial_conditions['bg'].iloc[0],
+            ),axis=1
+        )
+        self.production_history['Efw'] = self.production_history.apply(
+            lambda x: efw(
+                oil_initial_conditions['bo'].iloc[0],
+                x['cw'],
+                self.swi,
+                self.cf,
+                x['delta_p']
+            ),axis=1
+        )
+
+    def ho_params(self):
+        oil_initial_conditions = self.oil.pvt.interpolate(self.pi)
+        gas_initial_conditions = self.gas.pvt.interpolate(self.pi)
+        self.production_history['F_div_Eo'] = self.production_history['F']/self.production_history['Eo']
+        self.production_history['Eg_div_Eo'] = self.production_history['Eg']/self.production_history['Eo']
+        self.production_history['mEg'] = self.m*self.production_history['Eg']
+        self.production_history['Eo_mEg_Efw'] = self.production_history['Eo'] + self.production_history['mEg'] + self.production_history['Efw']
+
+        #terms Havlena & Odeh 
+        # #http://www.fekete.com/SAN/WebHelp/FeketeHarmony/Harmony_WebHelp/Content/HTML_Files/Reference_Material/Analysis_Method_Theory/Material_Balance_Theory.htm
+        self.production_history['ho_y'] = (self.production_history['F'] - self.production_history['we']*self.production_history['bo'])/(self.production_history['Eo'] + oil_initial_conditions['bo'].iloc[0]*self.production_history['Efw'])
+        self.production_history['ho_x'] = (self.production_history['Eg'] + gas_initial_conditions['bg'].iloc[0]*self.production_history['Efw'])/(self.production_history['Eo'] + oil_initial_conditions['bo'].iloc[0]*self.production_history['Efw'])
+
+
+    def fit(self, fit_m=False, m=None, factor=1,**kwargs):
+        assert self.production_history is not None
+        oil_initial_conditions = self.oil.pvt.interpolate(self.pi)
+        gas_initial_conditions = self.gas.pvt.interpolate(self.pi)
+        if fit_m:
+            if m is None:
+                def mbe(mbe_parameters,n,m):
+                    f = n*(mbe_parameters['Eo'] + m*mbe_parameters['Eg'] + (1+m)*mbe_parameters['Efw']) + mbe_parameters['we']
+
+                    return f.values
+
+                popt, pcov = curve_fit(mbe, self.production_history[['Eo','Eg','Efw','we']], self.production_history['F']*factor, bounds=(0, [np.inf, np.inf]),**kwargs)
+                self.n = popt[0]/factor
+                self.m = popt[1]
+                self.g = self.m * self.n * oil_initial_conditions['bo'].iloc[0] / gas_initial_conditions['bg'].iloc[0]
+
+                return pcov
+            else:
+                def mbe(mbe_parameters,n):
+                    f = n*(mbe_parameters['Eo'] + m*mbe_parameters['Eg'] + (1+m)*mbe_parameters['Efw']) + mbe_parameters['we']
+
+                    return f.values
+
+                popt, pcov = curve_fit(mbe, self.production_history[['Eo','Eg','Efw','we']], self.production_history['F']*factor, bounds=(0, np.inf),**kwargs)
+                self.n = popt[0]/factor
+                self.m = m
+                self.g = self.m * self.n * oil_initial_conditions['bo'].iloc[0] / gas_initial_conditions['bg'].iloc[0]
+
+                return pcov
+
+
+        else:
+            def mbe(mbe_parameters,n):
+                f = n*(mbe_parameters['Eo'] + mbe_parameters['Efw']) + mbe_parameters['we']
+
+                return f.values
+
+            popt, pcov = curve_fit(mbe, self.production_history[['Eo','Efw','we']], self.production_history['F']*factor, bounds=(0, np.inf), **kwargs)
+            self.n = popt[0]/factor
+            self.m = 0
+            self.g = 0
+            return pcov
+
+    def drive_index(self):
+
+        assert self.production_history is not None
+
+        oil_initial_conditions = self.oil.pvt.interpolate(self.pi)
+        gas_initial_conditions = self.gas.pvt.interpolate(self.pi)
+
+        self.production_history['A'] = self.production_history.apply(
+            lambda x: x['np']*(x['bo'] + (x['rp'] - oil_initial_conditions['rs'].iloc[0]) * x['bg']),
+            axis=1
+        )   
+        
+        #Depletion Drive
+        self.production_history['DDI'] = (self.n * self.production_history['Eo']) / self.production_history['F'] 
+        
+        #Segregation Drive
+        self.production_history['SDI'] = (self.n * self.m * self.production_history['Eo'])/self.production_history['F']
+
+        #Water Drive
+        self.production_history['WDI'] = self.production_history['we']/self.production_history['F'] 
+
+        #Expantion Drive
+        self.production_history['EDI'] = (self.n * self.production_history['Efw'])/self.production_history['F']
+
+
+    def gas_cap_mn_unknowns_plot(self,ax=None,**kwargs):
+        gax = ax or plt.gca()
+
+        def_kw = {
+        'color': 'black',
+        'marker':'o',
+        's': 100
+        }    
+        for (k,v) in def_kw.items():
+            if k not in kwargs:
+                kwargs[k]=v
+
+        gax.scatter(self.production_history['Eg_div_Eo'],self.production_history['F_div_Eo'],**kwargs)
+        gax.set_ylabel('F/Eo')
+        gax.set_xlabel('Eg/Eo')
+        gax.set_title('m&n Unkowns')
+
+    def gas_cap_mn_unknowns(self):
+
+        mod = smf.ols(formula='F_div_Eo ~ Eg_div_Eo', data=self.production_history).fit()
+
+        return mod
+
+    def ho_mbe(self):
+        mod = smf.ols(formula='F ~ Eo_mEg_Efw', data=self.production_history).fit()
+        oil_pvti=self.oil.pvt.interpolate(self.pi)
+        gas_pvti=self.gas.pvt.interpolate(self.pi)
+        OOIP = round(mod.params['Eo_mEg_Efw']/1e6,2)
+        OGIP = round((self.m*OOIP*1e6*oil_pvti['bo'].iloc[0]/gas_pvti['bg'].iloc[0])/1e9,2)
+        print(f"Original Oil In Place {OOIP} MMbbl")
+        print(f"Original Gas In Place {OGIP} Bscf")
+
+        self.n = OOIP*1e6
+        self.g = OGIP*1e9
+
+    def ho_mbe_2(self):
+        mod = smf.ols(formula='ho_y ~ ho_x', data=self.production_history).fit()
+        OOIP = round(mod.params['Intercept']/1e6,2)
+        OGIP = round(mod.params['ho_x']/1e9,2)
+        print(f"Original Oil In Place {OOIP} MMbbl")
+        print(f"Original Gas In Place {OGIP} Bscf")
+        self.n = OOIP.item()*1e6,
+        self.g = OGIP.item()*1e9,
 
     def forecast_np(self,pressure, wp=False, winj=0, swi=None, np_max_iter=20,
         er_np=0.05,start_initial_conditions=True,np_guesses=[1e-4,2e-4,3e-4]):
@@ -579,7 +626,7 @@ class gas_reservoir:
     @kr_gw.setter 
     def kr_gw(self,value):
         if value is not None:
-            assert isinstance(value,kr)
+            assert isinstance(value,gas_oil_kr)
         self._kr_gw = value
 
     @property
