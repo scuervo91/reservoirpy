@@ -127,7 +127,8 @@ class well_schema:
         dtick=True,
         xtick = True,
         lims=None,
-        fontsize=8
+        fontsize=8,
+        which:list=['open_hole','casing','completion']
     ):
         if ax is None:
             fig = plt.figure(figsize=(4, 9))
@@ -139,7 +140,7 @@ class well_schema:
         di_factor = self.max_diameter()
 
         #Open Hole
-        if self.open_hole is not None:
+        if self.open_hole is not None and 'open_hole' in which:
             for o in self.open_hole:
                 top = self.open_hole[o]['top']
                 bottom = self.open_hole[o]['bottom']
@@ -157,7 +158,7 @@ class well_schema:
                 )
                 patches.append(oh_patch)
 
-        if self.casing is not None:
+        if self.casing is not None and 'casing' in which:
             for c in self.casing:
                 ctype = self.casing[c]['type']
                 top = self.casing[c]['top']
@@ -257,7 +258,7 @@ class well_schema:
                             )
                             patches.extend([lp,rp])
 
-        if self.completion is not None:
+        if self.completion is not None and 'completion' in which:
             for c in self.completion:
                 ctype = self.completion[c]['type']
                 top = self.completion[c]['top']
