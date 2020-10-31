@@ -1,0 +1,14 @@
+python
+numpy
+pandas
+matplotlib
+seaborn
+scipy
+geopandas
+pyvista
+folium
+sqlalchemy
+lasio
+psycopg2
+scikit-image
+zmapio
