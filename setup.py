@@ -28,7 +28,9 @@ setuptools.setup(
         'pyvista',
         'shapely',
         'folium',
-        'skimage'
+        'scikit-image',
+        'zmapio',
+        'lasio'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
