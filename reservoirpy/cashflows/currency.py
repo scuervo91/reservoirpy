@@ -20,9 +20,9 @@ Functions in this module
 import pandas
 
 # cashflows.
-from cashflows.timeseries import *
-from cashflows.common import _vars2list
-from cashflows.rate import to_discount_factor, to_compound_factor
+from .timeseries import *
+from .common import _vars2list
+from .rate import to_discount_factor, to_compound_factor
 
 
 def currency_conversion(cflo, exchange_rate=1, devaluation=None, base_date=0):

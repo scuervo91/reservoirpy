@@ -24,7 +24,7 @@ Functions in this module
 
 import pandas as pd
 
-from cashflows.timeseries import *
+from .timeseries import *
 
 
 def depreciation_sl(costs, life, salvalue=None):
