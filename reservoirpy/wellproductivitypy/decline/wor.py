@@ -92,6 +92,7 @@ class wor_declination:
         self.fluid_rate = kwargs.pop('fluid_rate', None)
         self.npi = kwargs.pop('npi', 0)
         self.fq = kwargs.pop('fq', 'M')
+        self.gas = kwargs.pop('gas', False)
 
     ## Properties
     @property
