@@ -125,7 +125,7 @@ class well_schema:
         ax=None,
         tight_layout=True,
         dtick=True,
-        xtick = True,
+        xtick = False,
         lims=None,
         fontsize=8,
         which:list=['open_hole','casing','completion']
