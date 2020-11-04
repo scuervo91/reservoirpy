@@ -98,6 +98,8 @@ def grtrack(df: pd.DataFrame,
         [description], by default 'autumn'
     sp_colormap : str, optional
         [description], by default 'gray'
+    fm_colormao : str, optional
+        [description], by default 'jet'
     sp_norm : bool, optional
         [description], by default False
     sp_baseline : float, optional
@@ -135,7 +137,10 @@ def grtrack(df: pd.DataFrame,
     def_fm_kw = {
     'color': 'black',
     'linestyle':'-',
-    'linewidth': 2
+    'linewidth': 2,
+    'fill':False,
+    'cmap':'jet',
+    'alpha':0.15
     }    
     for (k,v) in def_fm_kw.items():
         if k not in fm_kw:
@@ -276,7 +281,23 @@ def grtrack(df: pd.DataFrame,
     if fm is not None:
         fm_ann = fm_kw.pop('ann',False)
         fm_ann_fontsize = fm_kw.pop('fontsize',8)
+        fm_fill = fm_kw.pop('fill',False)
+        fm_cmap = fm_kw.pop('cmap','jet')
+        fm_alpha = fm_kw.pop('alpha',0.2)
+        c = 0
         for i in fm.iterrows():
+
+            # Fill with color between the top and bottom of each formation
+            if fm_fill:
+                if depth_ref == 'tvdss':
+                    fill_top = lims[0] if i[1][f'{depth_ref}_top'] >= lims[0] else i[1][f'{depth_ref}_top']
+                    fill_bottom = lims[1] if i[1][f'{depth_ref}_bottom'] <= lims[1] else i[1][f'{depth_ref}_bottom']
+                else:
+                    fill_top = lims[0] if i[1][f'{depth_ref}_top'] <= lims[0] else i[1][f'{depth_ref}_top']
+                    fill_bottom = lims[1] if i[1][f'{depth_ref}_bottom'] >= lims[1] else i[1][f'{depth_ref}_bottom']
+                
+                grax.fill_between([0,gr_max],fill_top,fill_bottom,color=mpl.cm.get_cmap(fm_cmap,fm.shape[0])(c)[:3]+(fm_alpha,))
+
             if depth_ref == 'tvdss':
                 if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
                     continue
@@ -288,6 +309,7 @@ def grtrack(df: pd.DataFrame,
                 grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
                                 xycoords='data',horizontalalignment='right', fontsize=fm_ann_fontsize,
                                 bbox={'boxstyle':'round', 'fc':'0.8'})
+            c += 1
 
     #Add units tops
     if units is not None:
