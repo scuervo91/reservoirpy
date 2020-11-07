@@ -171,7 +171,8 @@ def vtk_survey(points):
 freq_format={
     'M':'%Y-%m',
     'D':'%Y-%m-%d',
-    'A':'%Y'
+    'A':'%Y',
+    'Q':'%YQ%q'
 }
 
 class well:
@@ -237,6 +238,8 @@ class well:
                     self._surf_coord = Point(value[0],value[1],value[2])
                 elif len(value)==2:
                     self._surf_coord = Point(value[0],value[1])
+        else:
+            self._surf_coord = value
 
 
     @property
@@ -341,20 +344,21 @@ class well:
 
     @survey.setter
     def survey(self,value):
-        if isinstance(value,survey):
-            self._survey = value
-        elif isinstance(value,pd.DataFrame):
-            assert all(i in value.columns for i in ['md','inc','azi'])
-            _survey = min_curve_method(
-                value['md'],
-                value['inc'],
-                value['azi'],
-                surface_easting=self._surf_coord.x, 
-                surface_northing=self._surf_coord.y, 
-                kbe=self._rte,
-                crs=self._crs)
-            self._survey = _survey
-        elif isinstance(value,type(None)):
+        if value is not None:
+            if isinstance(value,survey):
+                self._survey = value
+            elif isinstance(value,pd.DataFrame):
+                assert all(i in value.columns for i in ['md','inc','azi'])
+                _survey = min_curve_method(
+                    value['md'],
+                    value['inc'],
+                    value['azi'],
+                    surface_easting=self._surf_coord.x, 
+                    surface_northing=self._surf_coord.y, 
+                    kbe=self._rte,
+                    crs=self._crs)
+                self._survey = _survey
+        elif self.td is not None:
             _survey = min_curve_method(
                 np.array([0,self.td]),
                 np.zeros(2),
@@ -364,6 +368,8 @@ class well:
                 kbe=self._rte,
                 crs=self._crs)
             self._survey = _survey
+        else:
+            self._survey = value
 
     @property
     def td(self):
@@ -372,7 +378,7 @@ class well:
     @td.setter
     def td(self,value):
         if value is None:
-            self._td = 10000
+            self._td = value
         else:
             assert isinstance(value,(int,float))
             self._td = value
@@ -485,6 +491,16 @@ class well:
             self.schema = schema
         else:
             self._schema.update(schema)
+
+    def add_schedule(self,schedule):
+        assert isinstance(schedule,dict)
+        for i in schedule:
+            assert isinstance(schedule[i],dict) 
+
+        if self.schedule is None:
+            self.schedule = schedule
+        else:
+            self._schedule.update(schedule)
 
     def add_cashflow(self,cashflows,case=None):
         assert isinstance(cashflows,dict)
@@ -976,191 +992,215 @@ class well:
 
 
     def schedule_forecast(self,
-        case:str = None,
+        cases:str = None,
         start_date:date=None,
         end_date:date=None,
         show=['oil','water','wc','total'],
         cash_name = {'capex':'capex','income':'income','var_opex':'var_opex','fix_opex':'fix_opex','depreciation':'depreciation'},
         ):
 
-        assert self.schedule is not None
-        assert case in self.schedule.keys()
-        sched = self.schedule[case]
+        _case_list = []
+        if cases is None:
 
-        if cash_name is not None:
-            assert isinstance(cash_name,dict)
+            for key in self.schedule.keys():
+                _case_list.append(key)
+        elif isinstance(cases,str):
+            _case_list.append(cases)
+        elif isinstance(cases,list):
+            _case_list.extend([cases])          
+ 
+        cases_forecast_list = []
 
-        _forecast_list = []
-        capex_sched ={}
-        var_opex_list = []
-        fix_opex_list = []
-        income_list = []
-        depreciation_list = []
-        
-        #dictionary to store the numerated keys. It is used to get get dependent start forecast
-        num_dict = {} 
-        for i,v in enumerate(sched):
+        # Iterate over all cases
+        for case in _case_list:
+
+            assert self.schedule is not None
+            assert case in self.schedule.keys()
+            sched = self.schedule[case]
+
+            if cash_name is not None:
+                assert isinstance(cash_name,dict)
+
+            _forecast_list = []
+            capex_sched ={}
+            var_opex_list = []
+            fix_opex_list = []
+            income_list = []
+            depreciation_list = []
             
-            #Update dictionary to enumerate the key to find the forecast dependant start
-            num_dict[v]=i
+            #dictionary to store the numerated keys. It is used to get get dependent start forecast
+            num_dict = {} 
 
-            #show water default True if wor_declination; if declination default is false
-            show_water = sched[v].get('show_water', False if isinstance(sched[v]['declination'],declination) else True)
-            # Start of declination is the end of prevous
-            depend_start = sched[v].get('depend_start', None) 
-
-            #days delay
-            time_delay = sched[v].get('time_delay', timedelta(days=30)) 
-            assert isinstance(time_delay,timedelta)
-
-            # for declination object change ti the depend start
-            change_ti = sched[v].get('change_ti', True)
-            change_flow = sched[v].get('change_flow', False)
-
-            # for wor_declination 
-            depend_bsw = sched[v].get('depend_bsw', True)
-            discount_bsw = sched[v].get('discount_bsw', 0.95)
-
-            fix_end = sched[v].get('fix_end', False)
-
-            #Capex 
-            capex = sched[v].get('capex', None)
-            abandonment = sched[v].get('abandonment', None)
-            depreciation = sched[v].get('depreciation', True)
-            depreciation_type = sched[v].get('depreciation_type', 'prod')
-
-            #Opex
-            var_oil_opex = sched[v].get('var_oil_opex', None)
-            var_gas_opex = sched[v].get('var_gas_opex', None)
-            fix_opex = sched[v].get('fix_opex', None)
-
-            #Price
-            oil_price = sched[v].get('oil_price', None)
-            gas_price = sched[v].get('gas_price', None)
-
-            #royalty
-            oil_royalty = sched[v].get('oil_royalty',0.08)
-            gas_royalty = sched[v].get('gas_royalty',0.064)
-  
-            if depend_start in list(num_dict.keys()) and i>0:
+            #Iterate over the periods
+            for i,v in enumerate(sched):
                 
-                depend_number = num_dict[depend_start]
-                sched[v]['declination'].start_date = _forecast_list[depend_number].index[-1] + time_delay
+                #Update dictionary to enumerate the key to find the forecast dependant start
+                num_dict[v]=i
 
-                if change_ti and isinstance(sched[v]['declination'],declination):
-                    sched[v]['declination'].ti = _forecast_list[depend_number].index[-1].date()
+                #show water default True if wor_declination; if declination default is false
+                show_water = sched[v].get('show_water', False if isinstance(sched[v]['declination'],declination) else True)
+                # Start of declination is the end of prevous
+                depend_start = sched[v].get('depend_start', None) 
 
-                if change_flow and isinstance(sched[v]['declination'],declination):
-                    if sched[v]['declination'].gas:
-                        sched[v]['declination'].qi = _forecast_list[depend_number]['qg'].iloc[-1]
-                    else:
-                        sched[v]['declination'].qi = _forecast_list[depend_number]['qo'].iloc[-1]                        
-                
-                if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
-                    sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
+                #days delay
+                time_delay = sched[v].get('time_delay', timedelta(days=30)) 
+                assert isinstance(time_delay,timedelta)
 
-            _f,_ = sched[v]['declination'].forecast(show_water=show_water)
+                # for declination object change ti the depend start
+                change_ti = sched[v].get('change_ti', True)
+                change_flow = sched[v].get('change_flow', False)
+
+                # for wor_declination 
+                depend_bsw = sched[v].get('depend_bsw', True)
+                discount_bsw = sched[v].get('discount_bsw', 0.95)
+
+                fix_end = sched[v].get('fix_end', False)
+
+                #Capex 
+                capex = sched[v].get('capex', None)
+                abandonment = sched[v].get('abandonment', None)
+                depreciation = sched[v].get('depreciation', True)
+                depreciation_type = sched[v].get('depreciation_type', 'prod')
+
+                #Opex
+                var_oil_opex = sched[v].get('var_oil_opex', None)
+                var_gas_opex = sched[v].get('var_gas_opex', None)
+                fix_opex = sched[v].get('fix_opex', None)
+
+                #Price
+                oil_price = sched[v].get('oil_price', None)
+                gas_price = sched[v].get('gas_price', None)
+
+                #royalty
+                oil_royalty = sched[v].get('oil_royalty',0.08)
+                gas_royalty = sched[v].get('gas_royalty',0.064)
+    
+                if depend_start in list(num_dict.keys()) and i>0:
+                    
+                    depend_number = num_dict[depend_start]
+                    sched[v]['declination'].start_date = _forecast_list[depend_number].index[-1] + time_delay
+
+                    if change_ti and isinstance(sched[v]['declination'],declination):
+                        sched[v]['declination'].ti = _forecast_list[depend_number].index[-1].date()
+
+                    if change_flow and isinstance(sched[v]['declination'],declination):
+                        if sched[v]['declination'].gas:
+                            sched[v]['declination'].qi = _forecast_list[depend_number]['qg'].iloc[-1]
+                        else:
+                            sched[v]['declination'].qi = _forecast_list[depend_number]['qo'].iloc[-1]                        
+                    
+                    if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
+                        sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
+
+                _f,_ = sched[v]['declination'].forecast(show_water=show_water)
+
+                if start_date is not None:
+                    _f = _f[_f.index>=pd.Timestamp(start_date)]
+
+                if end_date is not None:
+                    _f = _f[_f.index<=pd.Timestamp(end_date)]
+
+                if var_oil_opex is not None:
+                    var_opex_o = _f['vo'] * var_oil_opex
+                    var_opex_list.append(var_opex_o)
+
+                if var_gas_opex is not None:
+                    var_opex_g = _f['vg'] * var_gas_opex
+                    var_opex_list.append(var_opex_g)
+
+                if fix_opex is not None:
+                    fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
+                    fix_opex_list.append(fix_opex_s)
+
+                if oil_price is not None:
+                    income_o = _f['vo'] * oil_price * (1-oil_royalty)
+                    income_list.append(income_o)
+
+                if gas_price is not None:
+                    income_g = _f['vg'] * gas_price * (1-gas_royalty)
+                    income_list.append(income_g)
+
+                if abandonment is not None:
+                    fmt = freq_format[self.fq]
+                    abandonment_date = _f.index[-1].strftime(fmt)
+                    capex_sched.update({abandonment_date:abandonment})
+
+                if all([cash_name is not None,capex is not None]):
+                    fmt = freq_format[self.fq]
+                    capex_date = sched[v]['declination'].start_date.strftime(fmt)
+                    capex_sched.update({capex_date:capex})
+
+                    if depreciation:
+                        if depreciation_type == 'prod':
+                            if sched[v]['declination'].gas:
+                                depreciation_array = _f['vg']*capex / _f['vg'].sum()
+                                depreciation_list.append(depreciation_array)
+                            else:
+                                depreciation_array = _f['vo']*capex / _f['vo'].sum()
+                                depreciation_list.append(depreciation_array)
+
+                _f['period'] = v
+                _forecast_list.append(_f)
+
+            # Add to case forecast list
+            _forecast = pd.concat(_forecast_list,axis=0)
+            _forecast['case'] = case
+            
+            #Add to general forecast
+            cases_forecast_list.append(_forecast)
 
             if start_date is not None:
-                _f = _f[_f.index>=pd.Timestamp(start_date)]
+                _forecast = _forecast[_forecast.index>=pd.Timestamp(start_date)]
 
             if end_date is not None:
-                _f = _f[_f.index<=pd.Timestamp(end_date)]
+                _forecast = _forecast[_forecast.index<=pd.Timestamp(end_date)]
 
-            if var_oil_opex is not None:
-                var_opex_o = _f['vo'] * var_oil_opex
-                var_opex_list.append(var_opex_o)
+            if bool(capex_sched):
+                cash_objt = cash(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
+                    end=_forecast.index.max(), freq=self.fq, name=cash_name['capex'] +'_'+ self.name)
+                
+                self.add_cashflow({cash_name['capex']:cash_objt},case=case)
 
-            if var_gas_opex is not None:
-                var_opex_g = _f['vg'] * var_gas_opex
-                var_opex_list.append(var_opex_g)
+            if len(income_list)>0:
+                income_df = pd.concat(income_list, axis=1)
+                income_df['total'] = income_df.sum(axis=1)
+                inc_cash_objt = cash(const_value=income_df['total'].to_list(),
+                    start=income_df.index.min(),
+                    freq=self.fq, name=cash_name['income'] +'_'+ self.name)
+                
+                self.add_cashflow({cash_name['income']:inc_cash_objt},case=case)
 
-            if fix_opex is not None:
-                fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
-                fix_opex_list.append(fix_opex_s)
+            if len(var_opex_list)>0:
+                var_opex_df = pd.concat(var_opex_list, axis=1)
+                var_opex_df['total'] = var_opex_df.sum(axis=1)
+                varopex_cash_objt = cash(const_value=var_opex_df['total'].to_list(),
+                    start=var_opex_df.index.min(),
+                    freq=self.fq, name=cash_name['var_opex'] +'_'+ self.name)
+                
+                self.add_cashflow({cash_name['var_opex']:varopex_cash_objt},case=case)
 
-            if oil_price is not None:
-                income_o = _f['vo'] * oil_price * (1-oil_royalty)
-                income_list.append(income_o)
+            if len(fix_opex_list)>0:
+                fix_opex_df = pd.concat(fix_opex_list, axis=1)
+                fix_opex_df['total'] = fix_opex_df.sum(axis=1)
+                fixopex_cash_objt = cash(const_value=fix_opex_df['total'].to_list(),
+                    start=fix_opex_df.index.min(),
+                    freq=self.fq, name=cash_name['fix_opex'] +'_'+ self.name)
+                
+                self.add_cashflow({cash_name['fix_opex']:fixopex_cash_objt},case=case)
 
-            if gas_price is not None:
-                income_g = _f['vg'] * gas_price * (1-gas_royalty)
-                income_list.append(income_g)
+            if len(depreciation_list)>0:
+                depreciation_df = pd.concat(depreciation_list, axis=1)
+                depreciation_df['total'] = depreciation_df.sum(axis=1)
+                depreciation_cash_objt = cash(const_value=depreciation_df['total'].to_list(),
+                    start=depreciation_df.index.min(),
+                    freq=self.fq, name=cash_name['depreciation'] +'_'+ self.name)
+                
+                self.add_cashflow({cash_name['depreciation']:depreciation_cash_objt},case=case)
 
-            if abandonment is not None:
-                fmt = freq_format[self.fq]
-                abandonment_date = _f.index[-1].strftime(fmt)
-                capex_sched.update({abandonment_date:abandonment})
+            # Add to case forecast list
+        _cases_forecast = pd.concat(cases_forecast_list,axis=0)       
 
-            if all([cash_name is not None,capex is not None]):
-                fmt = freq_format[self.fq]
-                capex_date = sched[v]['declination'].start_date.strftime(fmt)
-                capex_sched.update({capex_date:capex})
-
-                if depreciation:
-                    if depreciation_type == 'prod':
-                        if sched[v]['declination'].gas:
-                            depreciation_array = _f['vg']*capex / _f['vg'].sum()
-                            depreciation_list.append(depreciation_array)
-                        else:
-                            depreciation_array = _f['vo']*capex / _f['vo'].sum()
-                            depreciation_list.append(depreciation_array)
-
-            _f['period'] = v
-            _forecast_list.append(_f)
-
-
-        _forecast = pd.concat(_forecast_list,axis=0)
-
-        if start_date is not None:
-            _forecast = _forecast[_forecast.index>=pd.Timestamp(start_date)]
-
-        if end_date is not None:
-            _forecast = _forecast[_forecast.index<=pd.Timestamp(end_date)]
-
-        if bool(capex_sched):
-            cash_objt = cash(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
-                end=_forecast.index.max(), freq=self.fq, name=cash_name['capex'] +'_'+ self.name)
-            
-            self.add_cashflow({cash_name['capex']:cash_objt},case=case)
-
-        if len(income_list)>0:
-            income_df = pd.concat(income_list, axis=1)
-            income_df['total'] = income_df.sum(axis=1)
-            inc_cash_objt = cash(const_value=income_df['total'].to_list(),
-                start=income_df.index.min(),
-                freq=self.fq, name=cash_name['income'] +'_'+ self.name)
-            
-            self.add_cashflow({cash_name['income']:inc_cash_objt},case=case)
-
-        if len(var_opex_list)>0:
-            var_opex_df = pd.concat(var_opex_list, axis=1)
-            var_opex_df['total'] = var_opex_df.sum(axis=1)
-            varopex_cash_objt = cash(const_value=var_opex_df['total'].to_list(),
-                start=var_opex_df.index.min(),
-                freq=self.fq, name=cash_name['var_opex'] +'_'+ self.name)
-            
-            self.add_cashflow({cash_name['var_opex']:varopex_cash_objt},case=case)
-
-        if len(fix_opex_list)>0:
-            fix_opex_df = pd.concat(fix_opex_list, axis=1)
-            fix_opex_df['total'] = fix_opex_df.sum(axis=1)
-            fixopex_cash_objt = cash(const_value=fix_opex_df['total'].to_list(),
-                start=fix_opex_df.index.min(),
-                freq=self.fq, name=cash_name['fix_opex'] +'_'+ self.name)
-            
-            self.add_cashflow({cash_name['fix_opex']:fixopex_cash_objt},case=case)
-
-        if len(depreciation_list)>0:
-            depreciation_df = pd.concat(depreciation_list, axis=1)
-            depreciation_df['total'] = depreciation_df.sum(axis=1)
-            depreciation_cash_objt = cash(const_value=depreciation_df['total'].to_list(),
-                start=depreciation_df.index.min(),
-                freq=self.fq, name=cash_name['depreciation'] +'_'+ self.name)
-            
-            self.add_cashflow({cash_name['depreciation']:depreciation_cash_objt},case=case)
-
-        return _forecast
+        return _cases_forecast
 
     def get_fcf(
         self,
