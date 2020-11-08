@@ -2157,53 +2157,8 @@ class wells_group:
 
             self.add_well(_well)
 
-    def declination_forecast(self,wells:list=None,start_date=None, end_date=None, fq='M',econ_limit=None, npi=0, **kwargs):
-
-        if wells is None:
-            _well_list = []
-            for key in self.wells:
-                _well_list.append(key)
-        else:
-            _well_list = wells
-
-        forecast_df = pd.DataFrame()
-        for well in _well_list:
-            _f, _ = self.wells[well].declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
-            _f = _f.add_suffix('_'+well) 
-            forecast_df = pd.concat([forecast_df,_f],axis=1, ignore_index=False)
-        forecast_df = forecast_df.fillna(0)
-
-        cols = forecast_df.columns.tolist()
-
-        qo_rate_cols = []
-        for i in cols:
-            if i.startswith('qo') == True:
-                rate_cols.append(i)
-
-        np_cols = []
-        for i in cols:
-            if i.startswith('np') == True:
-                cum_cols.append(i)
-
-        qw_rate_cols = []
-        for i in cols:
-            if i.startswith('qq') == True:
-                rate_cols.append(i)
-
-        wp_cols = []
-        for i in cols:
-            if i.startswith('wp') == True:
-                cum_cols.append(i)
-        
-        forecast_df['total_qo'] = forecast_df[rate_cols].sum(axis=1)
-        forecast_df['total_np'] = forecast_df[cum_cols].sum(axis=1)
-
-        forecast_df['total_qw'] = forecast_df[rate_cols].sum(axis=1)
-        forecast_df['total_wp'] = forecast_df[cum_cols].sum(axis=1)
-
-        return forecast_df
-
     def schedule_forecast(self,
+        cases=None,
         wells:list=None,
         start_date=None, 
         end_date=None,
@@ -2221,7 +2176,13 @@ class wells_group:
         for well in _well_list:
             if self.wells[well].schedule is None:
                 continue
-            _f= self.wells[well].schedule_forecast(start_date=start_date, end_date=end_date,spread=False,cash_name=cash_name, **kwargs)
+            _f= self.wells[well].schedule_forecast(
+                cases=cases,
+                start_date=start_date, 
+                end_date=end_date,
+                cash_name=cash_name, 
+                **kwargs
+            )
             _f['well'] = well 
             forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False).fillna(0)
 
