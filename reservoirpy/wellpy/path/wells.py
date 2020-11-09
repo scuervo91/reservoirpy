@@ -2027,7 +2027,6 @@ class wells_group:
             from list.surveys s
             join list.wells w on s.well_id = w.id
             join list.fields f on w.field_id = f.id
-            order by s.md
         """
 
         well_perforations_query= """
@@ -2130,7 +2129,8 @@ class wells_group:
             _s = df_dict['well_surveys']
 
             try:
-                _survey = _s.loc[_s['well']==i,['md','inc','azi']]
+                _survey = _s.loc[_s['well']==i,['md','inc','azi']].sort_values(by='md', ascending=True)
+
                 if _survey.empty:
                     _survey = None
             except:
