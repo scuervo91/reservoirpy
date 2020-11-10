@@ -1092,7 +1092,7 @@ class well:
                     if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
                         sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
 
-                _f,_ = sched[v]['declination'].forecast(show_water=show_water)
+                _f,_ = sched[v]['declination'].forecast(show_water=show_water, fq=self.fq)
 
                 if start_date is not None:
                     _f = _f[_f.index>=pd.Timestamp(start_date)]
@@ -1101,23 +1101,43 @@ class well:
                     _f = _f[_f.index<=pd.Timestamp(end_date)]
 
                 if var_oil_opex is not None:
-                    var_opex_o = _f['vo'] * var_oil_opex
-                    var_opex_list.append(var_opex_o)
+                    if isinstance(var_oil_opex, (int,float,list,np.ndarray)):
+                        var_oil_opex = np.atleast_1d(var_oil_opex)
+                        assert var_oil_opex.ndim==1
+                    var_opex_o = _f['vo'].to_period(self.fq) * var_oil_opex
+                    var_opex_list.append(var_opex_o.fillna(0))
 
                 if var_gas_opex is not None:
-                    var_opex_g = _f['vg'] * var_gas_opex
-                    var_opex_list.append(var_opex_g)
+                    if isinstance(var_gas_opex, (int,float,list,np.ndarray)):
+                        var_gas_opex = np.atleast_1d(var_gas_opex)
+                        assert var_gas_opex.ndim==1
+                    var_opex_g = _f['vg'].to_period(self.fq) * var_gas_opex
+                    var_opex_list.append(var_opex_g.fillna(0))
 
                 if fix_opex is not None:
-                    fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
-                    fix_opex_list.append(fix_opex_s)
+                    if isinstance(fix_opex,(int,float,list)):
+                        fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
+                    elif isinstance(fix_opex,pd.Series):
+                        fix_opex_list.append(fix_opex)
 
                 if oil_price is not None:
-                    income_o = _f['vo'] * oil_price * (1-oil_royalty)
-                    income_list.append(income_o)
+                    if isinstance(oil_price, (int,float,list,np.ndarray)):
+                        oil_price = np.atleast_1d(oil_price)
+                        assert oil_price.ndim==1
+                    if isinstance(oil_royalty, (int,float,list,np.ndarray)):
+                        oil_royalty = np.atleast_1d(oil_royalty)
+                        assert oil_royalty.ndim==1
+                    income_o = _f['vo'].to_period(self.fq) * oil_price * (1-oil_royalty)
+                    income_list.append(income_o.fillna(0))
 
                 if gas_price is not None:
-                    income_g = _f['vg'] * gas_price * (1-gas_royalty)
+                    if isinstance(gas_price, (int,float,list,np.ndarray)):
+                        gas_price = np.atleast_1d(gas_price)
+                        assert gas_price.ndim==1
+                    if isinstance(gas_royalty, (int,float,list,np.ndarray)):
+                        gas_royalty = np.atleast_1d(gas_royalty)
+                        assert gas_royalty.ndim==1
+                    income_g = _f['vg'].to_period(self.fq) * gas_price * (1-gas_royalty)
                     income_list.append(income_g)
 
                 if abandonment is not None:
@@ -1133,10 +1153,10 @@ class well:
                     if depreciation:
                         if depreciation_type == 'prod':
                             if sched[v]['declination'].gas:
-                                depreciation_array = _f['vg']*capex / _f['vg'].sum()
+                                depreciation_array = _f['vg'].to_period(self.fq)*capex / _f['vg'].sum()
                                 depreciation_list.append(depreciation_array)
                             else:
-                                depreciation_array = _f['vo']*capex / _f['vo'].sum()
+                                depreciation_array = _f['vo'].to_period(self.fq)*capex / _f['vo'].sum()
                                 depreciation_list.append(depreciation_array)
 
                 _f['period'] = v
@@ -1165,7 +1185,7 @@ class well:
                 income_df = pd.concat(income_list, axis=1)
                 income_df['total'] = income_df.sum(axis=1)
                 inc_cash_objt = cash(const_value=income_df['total'].to_list(),
-                    start=income_df.index.min(),
+                    start=income_df.index.min().to_timestamp(),
                     freq=self.fq, name=cash_name['income'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['income']:inc_cash_objt},case=case)
@@ -1174,7 +1194,7 @@ class well:
                 var_opex_df = pd.concat(var_opex_list, axis=1)
                 var_opex_df['total'] = var_opex_df.sum(axis=1)
                 varopex_cash_objt = cash(const_value=var_opex_df['total'].to_list(),
-                    start=var_opex_df.index.min(),
+                    start=var_opex_df.index.min().to_timestamp(),
                     freq=self.fq, name=cash_name['var_opex'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['var_opex']:varopex_cash_objt},case=case)
@@ -1183,7 +1203,7 @@ class well:
                 fix_opex_df = pd.concat(fix_opex_list, axis=1)
                 fix_opex_df['total'] = fix_opex_df.sum(axis=1)
                 fixopex_cash_objt = cash(const_value=fix_opex_df['total'].to_list(),
-                    start=fix_opex_df.index.min(),
+                    start=fix_opex_df.index.min().to_timestamp(),
                     freq=self.fq, name=cash_name['fix_opex'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['fix_opex']:fixopex_cash_objt},case=case)
@@ -1192,7 +1212,7 @@ class well:
                 depreciation_df = pd.concat(depreciation_list, axis=1)
                 depreciation_df['total'] = depreciation_df.sum(axis=1)
                 depreciation_cash_objt = cash(const_value=depreciation_df['total'].to_list(),
-                    start=depreciation_df.index.min(),
+                    start=depreciation_df.index.min().to_timestamp(),
                     freq=self.fq, name=cash_name['depreciation'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['depreciation']:depreciation_cash_objt},case=case)

@@ -195,7 +195,7 @@ class cash:
     @start.setter
     def start(self,value):
         if value is not None:
-            assert isinstance(value,(date,str))
+            assert isinstance(value,(date,str)), f'{type(value)} not accepted'
         self._start = value 
 
     @property
