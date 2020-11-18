@@ -2115,7 +2115,6 @@ class wells_group:
 
         #Create wells object
         for i in wells_list:
-
             #Perforations
             _p = df_dict['well_perforations']
             try:
@@ -2157,6 +2156,7 @@ class wells_group:
                 _survey = None
             
             _wh = df_dict['well_heads']
+
             _well = well(
                 name = i,
                 rte = _wh.loc[_wh['well']==i,'kbe'].iloc[0],
