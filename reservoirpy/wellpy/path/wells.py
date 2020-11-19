@@ -172,8 +172,7 @@ def vtk_survey(points):
 freq_format={
     'M':'%Y-%m',
     'D':'%Y-%m-%d',
-    'A':'%Y',
-    'Q':'%YQ%q'
+    'A':'%Y'
 }
 
 class well:
@@ -998,8 +997,12 @@ class well:
         end_date:date=None,
         show=['oil','water','wc','total'],
         cash_name = {'capex':'capex','income':'income','var_opex':'var_opex','fix_opex':'fix_opex'},
-        ):
-
+        fq_estimate = 'D',
+        fq_output = None
+    ):
+        if fq_output is None:
+            fq_output = self.fq
+        
         _case_list = []
         if cases is None:
 
@@ -1076,8 +1079,8 @@ class well:
                 gas_price = sched[v].get('gas_price', None)
 
                 #royalty
-                oil_royalty = sched[v].get('oil_royalty',0.08)
-                gas_royalty = sched[v].get('gas_royalty',0.064)
+                oil_royalty = sched[v].get('oil_royalty',0)
+                gas_royalty = sched[v].get('gas_royalty',0)
     
                 if depend_start in list(num_dict.keys()) and i>0:
                     
@@ -1096,7 +1099,7 @@ class well:
                     if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
                         sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
 
-                _f,_ = sched[v]['declination'].forecast(show_water=show_water, fq=self.fq, start_date=start_date_case,end_date=end_date_case)
+                _f,_ = sched[v]['declination'].forecast(show_water=show_water, fq=fq_estimate, start_date=start_date_case,end_date=end_date_case)
 
                 if start_date is not None:
                     _f = _f[_f.index>=pd.Timestamp(start_date)]
@@ -1108,14 +1111,14 @@ class well:
                     if isinstance(var_oil_opex, (int,float,list,np.ndarray)):
                         var_oil_opex = np.atleast_1d(var_oil_opex)
                         assert var_oil_opex.ndim==1
-                    var_opex_o = _f['vo'].to_period(self.fq) * var_oil_opex
+                    var_opex_o = _f[['vo']].to_period(fq_output).reset_index().groupby('time').sum().multiply(var_oil_opex)
                     var_opex_list.append(var_opex_o.fillna(0))
 
                 if var_gas_opex is not None:
                     if isinstance(var_gas_opex, (int,float,list,np.ndarray)):
                         var_gas_opex = np.atleast_1d(var_gas_opex)
                         assert var_gas_opex.ndim==1
-                    var_opex_g = _f['vg'].to_period(self.fq) * var_gas_opex
+                    var_opex_g = _f[['vg']].to_period(fq_output).reset_index().groupby('time').sum().multiply(var_gas_opex,axis='index')
                     var_opex_list.append(var_opex_g.fillna(0))
 
                 if fix_opex is not None:
@@ -1126,28 +1129,30 @@ class well:
 
                 if oil_price is not None:
                     # Oil price must be a scalar or a pd Series indexed by Period
-                    income_o = _f['vo'].to_period(self.fq).multiply(oil_price).multiply((1-oil_royalty)).dropna()
-                    income_list.append(income_o.fillna(0))
+                    income_o = _f['vo'].to_period(fq_output).reset_index().groupby('time').sum().multiply(oil_price,axis='index').multiply((1-oil_royalty),axis='index').dropna()
+                    income_list.append(income_o)
 
                 if gas_price is not None:
-                    if isinstance(gas_price, (int,float,list,np.ndarray)):
-                        gas_price = np.atleast_1d(gas_price)
-                        assert gas_price.ndim==1
-                    if isinstance(gas_royalty, (int,float,list,np.ndarray)):
-                        gas_royalty = np.atleast_1d(gas_royalty)
-                        assert gas_royalty.ndim==1
-                    income_g = _f['vg'].to_period(self.fq) * gas_price * (1-gas_royalty)
-                    income_list.append(income_g)
+                    # Oil price must be a scalar or a pd Series indexed by Period
+                    income_g = _f['vg'].to_period(fq_output).reset_index().groupby('time').sum().multiply(oil_price,axis='index').multiply((1-oil_royalty),axis='index').dropna()
+                    income_list.append(income_g)                    
+                    
 
                 if abandonment is not None:
-                    fmt = freq_format[self.fq]
-                    abandonment_date = _f.index[-1].strftime(fmt)
-                    capex_sched.update({abandonment_date:abandonment})
+                    if isinstance(abandonment,dict):
+                        capex_sched.update(abandonment)
+                    else:
+                        fmt = freq_format[fq_output]
+                        abandonment_date = _f.index[-1].strftime(fmt)
+                        capex_sched.update({abandonment_date:abandonment})
 
                 if all([cash_name is not None,capex is not None]):
-                    fmt = freq_format[self.fq]
-                    capex_date = start_date_case.strftime(fmt)
-                    capex_sched.update({capex_date:capex})
+                    if isinstance(capex,dict):
+                        capex_sched.update(capex)
+                    else:
+                        fmt = freq_format[fq_output]
+                        capex_date = start_date_case.strftime(fmt)
+                        capex_sched.update({capex_date:capex})
 
                 _f['period'] = v
                 _forecast_list.append(_f)
@@ -1166,10 +1171,8 @@ class well:
                 _forecast = _forecast[_forecast.index<=pd.Timestamp(end_date)]
 
             if bool(capex_sched):
-                print(_forecast.index.min())
-                print(capex_sched)
                 cash_objt = cash(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
-                    end=_forecast.index.max(), freq=self.fq, name=cash_name['capex'] +'_'+ self.name)
+                    end=_forecast.index.max(), freq=fq_output, name=cash_name['capex'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['capex']:cash_objt},case=case)
 
@@ -1178,7 +1181,7 @@ class well:
                 income_df['total'] = income_df.sum(axis=1)
                 inc_cash_objt = cash(const_value=income_df['total'].to_list(),
                     start=income_df.index.min().to_timestamp(),
-                    freq=self.fq, name=cash_name['income'] +'_'+ self.name)
+                    freq=fq_output, name=cash_name['income'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['income']:inc_cash_objt},case=case)
 
@@ -1187,7 +1190,7 @@ class well:
                 var_opex_df['total'] = var_opex_df.sum(axis=1)
                 varopex_cash_objt = cash(const_value=var_opex_df['total'].to_list(),
                     start=var_opex_df.index.min().to_timestamp(),
-                    freq=self.fq, name=cash_name['var_opex'] +'_'+ self.name)
+                    freq=fq_output, name=cash_name['var_opex'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['var_opex']:varopex_cash_objt},case=case)
 
@@ -1196,114 +1199,134 @@ class well:
                 fix_opex_df['total'] = fix_opex_df.sum(axis=1)
                 fixopex_cash_objt = cash(const_value=fix_opex_df['total'].to_list(),
                     start=fix_opex_df.index.min().to_timestamp(),
-                    freq=self.fq, name=cash_name['fix_opex'] +'_'+ self.name)
+                    freq=fq_output, name=cash_name['fix_opex'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['fix_opex']:fixopex_cash_objt},case=case)
 
             # Add to case forecast list
         _cases_forecast = pd.concat(cases_forecast_list,axis=0)       
 
-        return _cases_forecast
+        #Aggregation dict for output dataframe
+        output_agg = {
+            'qo':'mean',
+            'vo':'sum',
+            'np':'max',
+        }
+        
+        
+        output_forecast = _cases_forecast.to_period(fq_output).reset_index().groupby(['case','period','time']).agg(output_agg).reset_index()
+        output_forecast['datetime'] = output_forecast['time'].apply(lambda x: x.to_timestamp())
+        return output_forecast
 
     def get_fcf(
         self,
-        case:str=None,
+        cases:str=None,
         income:list=['income'],
         opex:list=['var_opex','fix_opex'],
         capex:list=['capex'],
         prate=0,
         pyr=12
     ):
-        assert case is not None
-        spreadsheet_list = []
+        _case_list = []
+        if cases is None:
 
-        if income is None:
-            income_df = pd.Series(name='total_income')
-        else:
-            income_list = []
-            for i in income:
-                try:
-                    income_list.append(self.cashflow[case][i].cashflow())
-                except KeyError:
-                    pass
-
-            if len(income_list)>0:
-                income_df = pd.concat(income_list, axis=1)
-                income_df['total_income'] = income_df.sum(axis=1)
-                spreadsheet_list.append(income_df['total_income'])
-            else:
-                income_df = pd.Series(name='total_income')
-
-        if opex is None:
-            opex_df = pd.Series(name='total_opex')
-        else:
-            opex_list = []
-            for i in opex:
-                try:
-                    opex_list.append(self.cashflow[case][i].cashflow())
-                except KeyError:
-                    pass
-
-            if len(opex_list)>0:
-                opex_df = pd.concat(opex_list, axis=1)
-                opex_df['total_opex'] = opex_df.sum(axis=1)
-                spreadsheet_list.append(opex_df['total_opex'])
-            else:
-                opex_df = pd.Series(name='total_opex')
-
-        if capex is None:
-            capex_df = pd.Series(name='total_capex')
-        else:
-            capex_list = []
-            for i in capex:
-                try:
-                    capex_list.append(self.cashflow[case][i].cashflow())
-                except KeyError:
-                    pass
-
-            if len(capex_list)>0:
-                capex_df = pd.concat(capex_list, axis=1)
-                capex_df['total_capex'] = capex_df.sum(axis=1)
-                spreadsheet_list.append(capex_df['total_capex'])
-            else:
-                capex_df = pd.Series(name='total_capex')
-
-        # Estimate financial data
-        if len(spreadsheet_list)>0:
-            spreadsheet = pd.concat(spreadsheet_list, axis=1).fillna(0)
-
-            col_list = ['total_income','total_opex','total_capex']
-
-            for c in col_list:
-                if c not in spreadsheet.columns:
-                    spreadsheet[c] = np.zeros(spreadsheet.shape[0])        
-
-            #EBIT
-            spreadsheet['net_income'] = spreadsheet['total_income'] + spreadsheet['total_opex']
-
-            #Tax
-            #tax_rate = pd.Series(np.full(spreadsheet.shape[0],tax*100), index=spreadsheet.index)
-            #spreadsheet['tax'] = after_tax_cashflow(cflo=spreadsheet['ebit'], tax_rate=tax_rate) 
-
-            #Net Income
-            #spreadsheet['net_income'] = spreadsheet['ebit'] - spreadsheet['tax']
-            
-            #Freecashflow
-            spreadsheet['free_cash_flow'] = spreadsheet['net_income'] + spreadsheet['total_capex']
-            spreadsheet['cum_free_cash_flow'] = spreadsheet['free_cash_flow'].cumsum()
-            
-            #NPV         
-            prate = np.atleast_1d(prate)
-            
-            npv = {}
-            for pr in prate:
-                prn = perrate(pr,pyr=pyr)
+            for key in self.cashflow.keys():
+                _case_list.append(key)
                 
-                prate_series = pd.Series(np.full(spreadsheet.shape[0],prn), index=spreadsheet.index)
-                _npv = timevalue(spreadsheet['free_cash_flow'], prate_series)
-                npv.update({pr:_npv})
+        elif isinstance(cases,str):
+            _case_list.append(cases)
+            
+        elif isinstance(cases,list):
+            _case_list.extend([cases])       
+        
+        spreadsheet_cases = []
+        npv_cases = {}
+        for case in _case_list:
+            
+            spreadsheet_list = []
+            
+            if income is not None:
+                income_list = []
+                for i in income:
+                    try:
+                        income_list.append(self.cashflow[case][i].cashflow())
+                    except KeyError:
+                        pass
 
-            return spreadsheet, npv
+                if len(income_list)>0:
+                    income_df = pd.concat(income_list, axis=1)
+                    income_df['total_income'] = income_df.sum(axis=1)
+                    spreadsheet_list.append(income_df['total_income'])
+
+            if opex is not None:
+                opex_list = []
+                for i in opex:
+                    try:
+                        opex_list.append(self.cashflow[case][i].cashflow())
+                    except KeyError:
+                        pass
+
+                if len(opex_list)>0:
+                    opex_df = pd.concat(opex_list, axis=1)
+                    opex_df['total_opex'] = opex_df.sum(axis=1)
+                    spreadsheet_list.append(opex_df['total_opex'])
+
+            if capex is not None:
+                capex_list = []
+                for i in capex:
+                    try:
+                        capex_list.append(self.cashflow[case][i].cashflow())
+                    except KeyError:
+                        pass
+
+                if len(capex_list)>0:
+                    capex_df = pd.concat(capex_list, axis=1)
+                    capex_df['total_capex'] = capex_df.sum(axis=1)
+                    spreadsheet_list.append(capex_df['total_capex'])
+
+            # Estimate financial data
+            if len(spreadsheet_list)>0:
+                spreadsheet = pd.concat(spreadsheet_list, axis=1).fillna(0)
+
+                col_list = ['total_income','total_opex','total_capex']
+
+                for c in col_list:
+                    if c not in spreadsheet.columns:
+                        spreadsheet[c] = np.zeros(spreadsheet.shape[0])        
+
+                #EBIT
+                spreadsheet['net_income'] = spreadsheet['total_income'] + spreadsheet['total_opex']
+
+                #Tax
+                #tax_rate = pd.Series(np.full(spreadsheet.shape[0],tax*100), index=spreadsheet.index)
+                #spreadsheet['tax'] = after_tax_cashflow(cflo=spreadsheet['ebit'], tax_rate=tax_rate) 
+
+                #Net Income
+                #spreadsheet['net_income'] = spreadsheet['ebit'] - spreadsheet['tax']
+                
+                #Freecashflow
+                spreadsheet['free_cash_flow'] = spreadsheet['net_income'] + spreadsheet['total_capex']
+                spreadsheet['cum_free_cash_flow'] = spreadsheet['free_cash_flow'].cumsum()
+                spreadsheet['case'] = case
+                spreadsheet['well'] = self.name
+                #NPV         
+                prate = np.atleast_1d(prate)
+                
+                npv = {}
+                for pr in prate:
+                    prn = perrate(pr,pyr=pyr)
+                    
+                    prate_series = pd.Series(np.full(spreadsheet.shape[0],prn), index=spreadsheet.index)
+                    _npv = timevalue(spreadsheet['free_cash_flow'], prate_series)
+                    npv.update({pr:_npv})
+
+                #Append to general spreadsheet
+                spreadsheet_cases.append(spreadsheet)
+                
+                #Append to dict of general npv
+                npv_cases.update({case:npv})
+                
+        return spreadsheet_cases, npv_cases
 
 class wells_group:
     def __init__(self,*args,**kwargs):
