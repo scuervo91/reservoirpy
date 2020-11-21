@@ -202,10 +202,19 @@ def one_phase_pressure_profile(
 
     assert isinstance(md,(int,float,list,np.ndarray))
     md = np.atleast_1d(md)
-    assert isinstance(tvd,(int,float,list,np.ndarray))
-    tvd = np.atleast_1d(tvd)
+    
+    if tvd is None:
+        tvd = md
+    else:
+        assert isinstance(tvd,(int,float,list,np.ndarray))
+        tvd = np.atleast_1d(tvd)
+    
     assert isinstance(d,(int,float,list,np.ndarray))
-    d = np.atleast_1d(d)
+    if isinstance(d,(int,float)):
+        d = np.full(md.shape,d)
+    else:
+        d = np.atleast_1d(d)
+    
     assert isinstance(rate,(int,float, np.ndarray))
     rate = np.atleast_1d(rate)
     assert isinstance(mu,(int,float, np.ndarray))
@@ -273,7 +282,7 @@ def one_phase_pressure_profile(
         'pf' : pf,
         'delta_p': delta_p,
         'gradient': gradient
-    })
+    }).set_index('md')
     
     p2 = pressure[-1]
 
