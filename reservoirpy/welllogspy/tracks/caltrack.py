@@ -141,8 +141,8 @@ def caltrack(df: pd.DataFrame,
         cal.set_yticklabels([])
         
     if fill==True:
-        cal.fill_betweenx(depth,df[cali],df[bit],where=(cali > bit),color="orange")
-        cal.fill_betweenx(depth,df[cali],df[bit],where=(cali < bit),color="gray")
+        cal.fill_betweenx(depth,df[cali],df[bit],where=(df[cali] > df[bit]),color="orange")
+        cal.fill_betweenx(depth,df[cali],df[bit],where=(df[cali]< df[bit]),color="gray")
         
     #Add Correlation Line
     if correlation is not None:
