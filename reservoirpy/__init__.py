@@ -9,3 +9,4 @@ from . import wellschematicspy
 from . import volumetricspy
 from . import utils
 from . import cashflows
+from . import welltestpy
