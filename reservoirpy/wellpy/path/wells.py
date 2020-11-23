@@ -26,6 +26,7 @@ from sqlalchemy import create_engine
 from ...wellschematicspy import well_schema
 import pickle
 from datetime import date, timedelta
+import pyDOE2 as ed
 
 class perforations(gpd.GeoDataFrame):
 
@@ -1013,7 +1014,7 @@ class well:
             _case_list.append(cases)
             
         elif isinstance(cases,list):
-            _case_list.extend([cases])          
+            _case_list.extend(cases)          
  
         cases_forecast_list = []
 
@@ -1216,6 +1217,7 @@ class well:
         
         output_forecast = _cases_forecast.to_period(fq_output).reset_index().groupby(['case','period','time']).agg(output_agg).reset_index()
         output_forecast['datetime'] = output_forecast['time'].apply(lambda x: x.to_timestamp())
+        output_forecast['well'] = self.name
         return output_forecast
 
     def get_fcf(
@@ -1229,7 +1231,6 @@ class well:
     ):
         _case_list = []
         if cases is None:
-
             for key in self.cashflow.keys():
                 _case_list.append(key)
                 
@@ -1237,8 +1238,8 @@ class well:
             _case_list.append(cases)
             
         elif isinstance(cases,list):
-            _case_list.extend([cases])       
-        
+            _case_list.extend(cases)       
+            
         spreadsheet_cases = []
         npv_cases = {}
         for case in _case_list:
@@ -1326,7 +1327,7 @@ class well:
                 #Append to dict of general npv
                 npv_cases.update({case:npv})
                 
-        return spreadsheet_cases, npv_cases
+        return pd.concat(spreadsheet_cases,axis=0), npv_cases
 
 class wells_group:
     def __init__(self,*args,**kwargs):
@@ -2179,6 +2180,8 @@ class wells_group:
         start_date=None, 
         end_date=None,
         cash_name = {'capex':'capex','income':'income','var_opex':'var_opex','fix_opex':'fix_opex'},
+        fq_estimate = 'D',
+        fq_output = None,
         **kwargs):
 
         if wells is None:
@@ -2187,22 +2190,120 @@ class wells_group:
                 _well_list.append(key)
         else:
             _well_list = wells
+            
+        
 
         forecast_df = pd.DataFrame()
         for well in _well_list:
             if self.wells[well].schedule is None:
                 continue
+            if isinstance(cases,(str,list)):
+                well_cases = cases
+            elif isinstance(cases,dict):
+                try:
+                    assert isinstance(cases[well],(str,list))
+                    well_cases = cases[well]
+                except KeyError:
+                    print(f'{well} was not found in dict cases')
+                    continue
+                except Exception as e:
+                    print(f'None value passed to well case. Error found {e}')
+                    continue
+            else:
+                well_cases=None
+                    
             _f= self.wells[well].schedule_forecast(
-                cases=cases,
+                cases=well_cases,
                 start_date=start_date, 
                 end_date=end_date,
                 cash_name=cash_name, 
+                fq_estimate = fq_estimate,
+                fq_output = fq_output,
                 **kwargs
             )
-            _f['well'] = well 
             forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False).fillna(0)
 
         return forecast_df
+
+    def scenarios_maker(self,cases=None, wells=None, reduce=1):
+        
+        assert isinstance(reduce,int) and reduce >= 1
+        
+        if wells is None:
+            _well_list = []
+            for key in self.wells:
+                _well_list.append(key)
+        else:
+            _well_list = wells
+                   
+        _cases_list = []
+        
+        levels = []
+        
+        for well in _well_list:
+            _well_cases = []
+            if self.wells[well].schedule is None:
+                continue
+            
+            if cases is None:
+                _well_cases = list(self.wells[well].schedule.keys())
+            elif isinstance(cases,str):
+                _well_cases.append(cases)
+            elif isinstance(cases,list):
+                _well_cases.extend(cases)
+            elif isinstance(cases,dict):
+                assert isinstance(cases[well],(str,list))
+                if isinstance(cases,str):
+                    _well_cases.append(cases)
+                elif isinstance(cases,list):
+                    _well_cases.extend(cases)
+            
+            _well_cases = [i for i in _well_cases if i in self.wells[well].schedule.keys()]
+            _cases_list.append(_well_cases)
+            levels.append(len(_well_cases))
+        
+        # Escenarios Array
+        escenarios_array = ed.fullfact(levels) if reduce==1 else ed.gsd(levels,reduce)
+
+        scenarios_list = []
+        for escenario in escenarios_array:
+            esc = {_well_list[i]:_cases_list[i][int(v)] for i,v in enumerate(escenario)}
+
+            scenarios_list.append(esc)
+        
+        return scenarios_list
+    
+    def scenarios_forecast(
+        self,
+        scenarios=None,
+        wells:list=None,
+        start_date=None, 
+        end_date=None,
+        cash_name = {'capex':'capex','income':'income','var_opex':'var_opex','fix_opex':'fix_opex'},
+        fq_estimate = 'D',
+        fq_output = None,
+        **kwargs
+        ):
+        assert isinstance(scenarios,list)
+        
+        scenarios_list = []
+        for i,scenario in enumerate(scenarios):
+            scenario_df = self.schedule_forecast(
+                cases = scenario,
+                wells = wells,
+                start_date = start_date,
+                end_date = end_date,
+                cash_name = cash_name,
+                fq_estimate = fq_estimate,
+                fq_output = fq_output
+            )
+            scenario_df['scenario'] = i 
+            scenarios_list.append(scenario_df)
+        
+        return pd.concat(scenarios_list,axis=0)
+            
+            
+                
 
     def get_cashflow(self, wells:list=None, case:str=None, cash_name:str=None):
         if wells is None:

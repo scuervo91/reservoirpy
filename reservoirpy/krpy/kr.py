@@ -314,6 +314,15 @@ class water_oil_kr:
         else:
             raise ValueError('kr is not defiend')
 
+    def SWOF(self):
+        
+        assert self.kr is not None
+        string = "SWOF\n"
+        
+        string += self.kr.to_string(header=False, index=False)
+        
+        return string
+
 class gas_oil_kr:
 
     def __init__(self, **kwargs):
