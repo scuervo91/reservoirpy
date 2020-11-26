@@ -309,7 +309,6 @@ class surface_group:
         area['height'] = area.index-area.index.min()
         area['tick']=np.diff(area['height'], prepend=0)
         area['vol'] = area['dif_area'] * area['tick']
-        area['vol'].sum()
         #Integrate
         #rv=simps(area['dif'],area['thick'])
         rv=area['vol'].sum()

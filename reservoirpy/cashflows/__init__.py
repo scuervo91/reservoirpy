@@ -1,3 +1,4 @@
+## Code taken from https://github.com/jdvelasq/cashflows
 from .analysis import *
 from .tvmm import *
 from .bond import *

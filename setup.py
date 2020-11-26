@@ -30,7 +30,7 @@ setuptools.setup(
         'folium',
         'scikit-image',
         'zmapio',
-        'lasio'
+        'statsmodels'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
