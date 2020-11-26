@@ -7,21 +7,29 @@ import matplotlib.pyplot as plt
 ############################################################################################
 # Forecast Function
 def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False):
-  """
-  Estimate a Forecast curve given Decline curve parameters
+  """forecast_curve [Estimate a Forecast curve given Decline curve parameters]
 
-  Attributes:
-    range_time: Range of dates to estimate the Forecast Curve-> Timestamp Series
-    qi:        Initial flow rate -> Number
-    di:        Decline rate in fraction and positive-> Number
-    ti:        Date of the initial flow Rate-> Timestamp
-    b:         Arp's Coefficient. 0<=b<=1  -> Number 
+  Parameters
+  ----------
+  range_time : [type]
+      [Time range ]
+  qi : [type]
+      [Initial flow]
+  di : [type]
+      [Anual declination rate]
+  ti : [type]
+      [Date of the initial flow]
+  b : [type]
+      [Arp's parameter]
+  npi : int, optional
+      [Initial cumulative production], by default 0
+  gas : bool, optional
+      [If True the colunm names change], by default False
 
-    Return -> Three-Column DataFrame: 
-              -Column 'time' Timestamp Series 
-              -Column 'curve' Forecast values Series
-              -Column 'cum' cummulative flow rate
-
+  Returns
+  -------
+  [type]
+      [description]
   """
   ##Convert dates to number for apply regression methods
   days_number = range_time.apply(lambda x: x.toordinal()) 
