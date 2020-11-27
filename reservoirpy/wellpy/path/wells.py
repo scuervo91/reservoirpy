@@ -220,7 +220,8 @@ class well:
 
     @rte.setter
     def rte(self,value):
-        assert isinstance(value,(int,float)), f'{type(value)} not accepted. Name must be number'
+        if value is not None:
+            assert isinstance(value,(int,float)), f'{type(value)} not accepted. Name must be number'
         self._rte = value
 
     @property
@@ -249,12 +250,14 @@ class well:
 
     @crs.setter
     def crs(self,value):
-        assert isinstance(value,(int,str,type(None))), f"{type(value)} not accepted. Name must be str. Example 'EPSG:3117'"
-        
-        if isinstance(value,int):
-            value = f'EPSG:{value}'
-        elif isinstance(value,str):
-            assert value.startswith('EPSG:'), 'if crs is string must starts with EPSG:. If integer must be the Coordinate system reference number EPSG http://epsg.io/'
+        if value is not None:
+            if isinstance(value,str):
+                assert value.startswith('EPSG:'), 'if crs is string must starts with EPSG:. If integer must be the Coordinate system reference number EPSG http://epsg.io/'
+            else:
+                try:
+                    value = f'EPSG:{int(value)}'
+                except:
+                    value = None
         self._crs = value
 
     @property
@@ -2153,12 +2156,16 @@ class wells_group:
                 _survey = None
             
             _wh = df_dict['well_heads']
-
+            _rte = _wh.loc[_wh['well']==i,'kbe'].iloc[0]
+            _crs = _wh.loc[_wh['well']==i,'epsg'].iloc[0]
+            _surf_coord = _wh.loc[_wh['well']==i,['surface_x','surface_y']].squeeze().tolist()
+            
+            _surf_coord =  None if any([i is None for i in _surf_coord]) else _surf_coord
             _well = well(
                 name = i,
-                rte = _wh.loc[_wh['well']==i,'kbe'].iloc[0],
-                crs = _wh.loc[_wh['well']==i,'epsg'].iloc[0].item(),
-                surf_coord = _wh.loc[_wh['well']==i,['surface_x','surface_y']].squeeze().tolist(), 
+                rte = _rte,
+                crs = _crs,
+                surf_coord = _surf_coord, 
                 survey = _survey,
                 perforations = _perf,
                 tops = _tops,
