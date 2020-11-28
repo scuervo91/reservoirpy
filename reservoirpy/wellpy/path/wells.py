@@ -27,6 +27,7 @@ from ...wellschematicspy import well_schema
 import pickle
 from datetime import date, timedelta
 import pyDOE2 as ed
+from lasio import LASFile
 
 class perforations(gpd.GeoDataFrame):
 
@@ -315,7 +316,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],log)         
+                assert isinstance(value[i],(log,LASFile))         
         self._openlog = value
 
     @property
@@ -327,7 +328,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],log)         
+                assert isinstance(value[i],(log,LASFile))         
         self._masterlog = value
 
     @property
@@ -339,7 +340,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],log)       
+                assert isinstance(value[i],(log,LASFile))       
         self._caselog = value
 
     @property
@@ -905,13 +906,9 @@ class well:
 
         return map_folium
 
-    def declination_forecast(self,start_date=None, end_date=None, fq='M',econ_limit=None, nkh=0, **kwargs):
-        
-        f,n = self.declination.forecast(start_date=start_date, end_date=end_date, fq=fq ,econ_limit=econ_limit,npi=npi, **kwargs)
-
-        return f, n
 
     def get_kh_from_perforations(self,is_open=False, inplace=True):
+    # ! Do not use.. Not fully implemented
         """
         Estimate the Productivity Index by formation with the self.perforations attribute.
         The self.perforations attribute must have a column 'kh' with the Productivity Index for 
@@ -943,6 +940,7 @@ class well:
         return _kh_dict
 
     def get_productivity_index_from_perforations(self,is_open=False, inplace=True):
+        # ! Do not use.. Not fully implemented
         """
         Estimate the Productivity Index by formation with the self.perforations attribute.
         The self.perforations attribute must have a column 'productivity_index' with the Productivity Index for 
