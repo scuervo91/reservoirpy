@@ -463,7 +463,6 @@ class well:
             assert isinstance(value,dict)
             for i in value:
                 assert isinstance(value[i],dict)   
-
                 for j in value[i]:
                     assert isinstance(value[i][j],cash)       
         self._cashflow = value
