@@ -2338,15 +2338,15 @@ class wells_group:
             return cashflow_df
         
     def get_fcf(self, 
-        case:str=None,
+        cases:str=None,
         wells:list=None, 
-        income:list=None, 
-        opex:list=None, 
-        capex:list=None, 
+        income:list=['income'],
+        opex:list=['var_opex','fix_opex'],
+        capex:list=['capex'],
         prate=0,
         pyr=12
     ):
-        assert case is not None
+        assert cases is not None
 
         if wells is None:
             _well_list = []
@@ -2358,10 +2358,10 @@ class wells_group:
         fcf_list =[]
 
         for w in _well_list:
-            if self.wells[w].cashflow is None or case not in self.wells[w].cashflow.keys():
+            if self.wells[w].cashflow is None or cases not in self.wells[w].cashflow.keys():
                 continue
             fcf,_ = self.wells[w].get_fcf(
-                case=case,
+                cases=cases,
                 income=income, 
                 opex=opex,
                 capex=capex, 
@@ -2382,8 +2382,8 @@ class wells_group:
             spreadsheet['free_cash_flow'] = spreadsheet['net_income'] + spreadsheet['total_capex']
             spreadsheet['cum_free_cash_flow'] = spreadsheet['free_cash_flow'].cumsum()
             
-            #NPV
-            
+            #NPV         
+            prate = np.atleast_1d(prate)
             npv = {}
             for pr in prate:
                 prn = perrate(pr,pyr=pyr)
