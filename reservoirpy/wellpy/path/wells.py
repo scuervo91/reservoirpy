@@ -28,6 +28,18 @@ import pickle
 from datetime import date, timedelta
 import pyDOE2 as ed
 from lasio import LASFile
+import time
+
+def input_to_list(input):
+    assert isinstance(input,(str,list)), f'input must be either string or list'
+    
+    input_list = []
+    if isinstance(input,str):
+        input_list.append(input)
+    else:
+        input_list.extend(input)
+    return input_list
+
 
 class perforations(gpd.GeoDataFrame):
 
@@ -1022,7 +1034,8 @@ class well:
         for case in _case_list:
 
             assert self.schedule is not None
-            assert case in self.schedule.keys()
+            if case not in self.schedule.keys():
+                continue
             sched = self.schedule[case]
 
             if cash_name is not None:
@@ -1082,7 +1095,17 @@ class well:
                 #royalty
                 oil_royalty = sched[v].get('oil_royalty',0)
                 gas_royalty = sched[v].get('gas_royalty',0)
-    
+                
+                #limit
+                econ_limit = sched[v].get('econ_limit',None)
+                np_limit = sched[v].get('np_limit',None)
+                
+                #Initial npi
+                npi = sched[v].get('npi',0)
+                
+                #Move Ti
+                move_ti = sched[v].get('move_ti',None)
+                    
                 if depend_start in list(num_dict.keys()) and i>0:
                     
                     depend_number = num_dict[depend_start]
@@ -1100,7 +1123,19 @@ class well:
                     if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
                         sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
 
-                _f,_ = sched[v]['declination'].forecast(show_water=show_water, fq=fq_estimate, start_date=start_date_case,end_date=end_date_case)
+                if move_ti is not None:
+                    assert isinstance(move_ti,date), f'move_ti must be date'
+                    sched[v]['declination'].ti = move_ti
+                
+                _f,_ = sched[v]['declination'].forecast(
+                    show_water=show_water, 
+                    fq=fq_estimate, 
+                    start_date=start_date_case,
+                    end_date=end_date_case,
+                    econ_limit = econ_limit,
+                    np_limit = np_limit,
+                    npi = npi
+                )
 
                 if start_date is not None:
                     _f = _f[_f.index>=pd.Timestamp(start_date)]
@@ -1162,15 +1197,16 @@ class well:
             _forecast = pd.concat(_forecast_list,axis=0)
             _forecast['case'] = case
             
-            #Add to general forecast
-            cases_forecast_list.append(_forecast)
-
             if start_date is not None:
                 _forecast = _forecast[_forecast.index>=pd.Timestamp(start_date)]
 
             if end_date is not None:
                 _forecast = _forecast[_forecast.index<=pd.Timestamp(end_date)]
 
+            #Add to general forecast
+            cases_forecast_list.append(_forecast)
+            
+            #Cash flow generate
             if bool(capex_sched):
                 cash_objt = cash(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
                     end=_forecast.index.max(), freq=fq_output, name=cash_name['capex'] +'_'+ self.name)
@@ -1205,20 +1241,30 @@ class well:
                 self.add_cashflow({cash_name['fix_opex']:fixopex_cash_objt},case=case)
 
             # Add to case forecast list
-        _cases_forecast = pd.concat(cases_forecast_list,axis=0)       
+        if len(cases_forecast_list)>0:
+            _cases_forecast = pd.concat(cases_forecast_list,axis=0)       
 
-        #Aggregation dict for output dataframe
-        output_agg = {
-            'qo':'mean',
-            'vo':'sum',
-            'np':'max',
-        }
-        
-        
-        output_forecast = _cases_forecast.to_period(fq_output).reset_index().groupby(['case','period','time']).agg(output_agg).reset_index()
-        output_forecast['datetime'] = output_forecast['time'].apply(lambda x: x.to_timestamp())
-        output_forecast['well'] = self.name
-        return output_forecast
+            #Aggregation dict for output dataframe
+            output_agg = {
+                'qo':'mean',
+                'vo':'sum',
+                'np':'max',
+            }
+            
+            if 'qw' in _cases_forecast.columns:
+                output_agg.update({
+                    'qw':'mean',
+                    'vw':'sum',
+                    'wp':'max',
+                })
+            
+            
+            output_forecast = _cases_forecast.to_period(fq_output).reset_index().groupby(['case','period','time']).agg(output_agg).reset_index()
+            output_forecast['datetime'] = output_forecast['time'].apply(lambda x: x.to_timestamp())
+            output_forecast['well'] = self.name
+            return output_forecast
+        else:
+            return None
 
     def get_fcf(
         self,
@@ -2215,7 +2261,6 @@ class wells_group:
                     continue
             else:
                 well_cases=None
-                    
             _f= self.wells[well].schedule_forecast(
                 cases=well_cases,
                 start_date=start_date, 
@@ -2225,7 +2270,8 @@ class wells_group:
                 fq_output = fq_output,
                 **kwargs
             )
-            forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False).fillna(0)
+            if _f is not None:
+                forecast_df = pd.concat([forecast_df,_f],axis=0, ignore_index=False).fillna(0)
 
         return forecast_df
 
@@ -2307,34 +2353,77 @@ class wells_group:
         return pd.concat(scenarios_list,axis=0)
             
             
-                
-
-    def get_cashflow(self, wells:list=None, case:str=None, cash_name:str=None):
+    def get_cashflow(self, wells:list=None, cases:str=None, cash_name:str=None):
         if wells is None:
             _well_list = []
             for key in self.wells:
                 _well_list.append(key)
         else:
             _well_list = wells
-
+        
+        _cases_list = []
+        _cash_name_list = []
         cashflow_list = []
+        
+        #Iterate over wells
         for well in _well_list:
-            if self.wells[well].cashflow is None or case not in self.wells[well].cashflow.keys():
+            
+            if self.wells[well].cashflow is None:
+                continue
+            if isinstance(cases,(str,list)):
+                _cases_list.extend(input_to_list(cases))
+            elif isinstance(cases,dict):
+                try:
+                    assert isinstance(cases[well],(str,list))
+                    _cases_list.extend(input_to_list(cases[well]))
+                except KeyError:
+                    print(f'{well} was not found in dict cases')
+                    continue
+                except Exception as e:
+                    print(f'None value passed to well case. Error found {e}')
+                    continue
+            else:
+                _cases_list.extend(list(self.wells[well].cashflow.keys()))
+
+            _cases_list = [i for i in _cases_list if i in self.wells[well].cashflow.keys()]
+            
+            if len(_cases_list) == 0:
+                print(f'No cases found in {well}')
                 continue
             
-            try:
-                csh = self.wells[well].cashflow[case][cash_name].cashflow()
-                cashflow_list.append(csh)
-            except KeyError:
-                print(f'No cashflow called {cash_name} in {well}')
-            except:
-                print(f'Error {cash_name} in {well}')
-                continue
+            #Iterate over cases
+            for case in _cases_list:
+                if isinstance(cash_name,(str,list)):
+                    _cash_name_list.extend(input_to_list(cash_name))
+                elif isinstance(cash_name,dict):
+                    try:
+                        assert isinstance(cash_name[well],(str,list))
+                        _cash_name_list.extend(input_to_list(cash_name[well]))
+                    except KeyError:
+                        print(f'{well} was not found in dict cash name')
+                        continue
+                    except Exception as e:
+                        print(f'None value passed to well case. Error found {e}')
+                        continue
+                else:
+                    _cash_name_list.extend(list(self.wells[well].cashflow[case].keys()))
+                                           
+                _cash_name_list = [i for i in _cash_name_list if i in self.wells[well].cashflow[case].keys()]
+
+                if len(_cash_name_list) == 0:
+                    print(f'No cash name found in case {case} on well {well}')
+                    continue
+                
+                for cash_name in _cash_name_list:
+                    cash_series = self.wells[well].cashflow[case][cash_name].cashflow()
+                    cash_df = pd.DataFrame(cash_series.values, columns=['cashflow'], index=cash_series.index)
+                    cash_df['well'] = well 
+                    cash_df['case'] = case 
+                    cash_df['cash_name'] = cash_name
+                    cashflow_list.append(cash_df)
 
         if len(cashflow_list)>0:
-            cashflow_df = pd.concat(cashflow_list, axis=1)
-            cashflow_df['total'] = cashflow_df.sum(axis=1)
-            cashflow_df.fillna(0, inplace=True)
+            cashflow_df = pd.concat(cashflow_list, axis=0)
             return cashflow_df
         
     def get_fcf(self, 

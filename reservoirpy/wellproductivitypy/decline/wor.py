@@ -210,6 +210,7 @@ class wor_declination:
         wor_limit=None,
         econ_limit=None,
         show_water=True,
+        npi = None,
         **kwargs
     ):
         """
@@ -260,6 +261,9 @@ class wor_declination:
 
         if wor_limit is None:
             wor_limit = self.wor_limit
+            
+        if npi is None:
+            npi = self.npi
 
         f = wor_forecast(
             time_range,
@@ -269,7 +273,7 @@ class wor_declination:
             np_limit = np_limit, 
             wor_limit = wor_limit, 
             econ_limit = econ_limit,
-            npi=self.npi
+            npi=npi
             )
         
         Np = f['np'].iloc[-1]
