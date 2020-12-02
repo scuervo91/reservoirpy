@@ -1577,6 +1577,34 @@ class wells_group:
             r=_wells_survey
 
         return r
+    
+    def wells_surveys_ascii(self, 
+        wells:list=None, 
+        factor=None, 
+        cols=['easting','northing','tvdss','md'],
+        float_format='{:.2f}'.format
+        ):
+        
+        assert isinstance(wells,(list,type(None)))
+        
+        wells_surveys_df = self.wells_surveys(wells=wells)
+             
+        string = ""
+
+        if factor is None:
+            factor = np.ones(len(cols))
+        else:
+            factor = np.atleast_1d(factor)
+            assert (factor.ndim==1) & (factor.shape[0]==len(cols))
+        
+        for w in wells_surveys_df['well'].unique():
+
+            _df = wells_surveys_df.loc[wells_surveys_df['well']==w,cols] * factor
+            string += f"WELLNAME: {w}\n"
+            string += _df.to_string(header=False,index=False,float_format=float_format) + '\n'
+            string += '-999'
+        return string
+        
 
     def wells_perforations(self, wells:list=None):
         """
