@@ -10,6 +10,7 @@ import vtk
 from shapely.geometry import Point
 import math
 import os
+import pandas as pd 
 
 petrophysical_properties = ['PORO','PERMX','PERMY','PERMZ','SW','RT']
 
@@ -22,18 +23,21 @@ SupportKeyWords=[
     'PERMX' , 'PERMXY', 'PERMXZ', 
     'PERMYX', 'PERMY' , 'PERMYZ', 
     'PERMZX', 'PERMZY', 'PERMZ',
-    'SW_NPSL'
+    'ACTNUM',
+    'INCLUDE',
+    
 ]
 
 KeyWordsDatatypes=[#Corrsponding data types
     int,
-    float,
+    int,
     int,int,int,int,
     float,float,
     float,
     float,float,float,
     float,float,float,
-    float,float,float
+    float,float,float,
+    int
 ]
 
 def parseDataArray(DataArray):
@@ -216,8 +220,7 @@ class grid():
         self.zcorn = kwargs.pop('zcorn',None)
 
         #Petrophysical properties
-        self._petrophysics = {}
-        self.petrophysics = kwargs.pop('petrophysics',None)
+        self.spatial_data = kwargs.pop('spatial_data',None)
         
         self.skiped_keywords = 0
 
@@ -535,11 +538,11 @@ class grid():
         else:
             self._zcorn = value
     @property 
-    def petrophysics(self):
-        return self._petrophysics 
+    def spatial_data(self):
+        return self._spatial_data 
 
-    @petrophysics.setter 
-    def petrophysics(self,value):
+    @spatial_data.setter 
+    def spatial_data(self,value):
         if value is not None:
             assert isinstance(value,dict)
 
@@ -549,25 +552,37 @@ class grid():
                     assert isinstance(value[i],(int,float,list,np.ndarray))     
 
                     if isinstance(value[i],(int,float)):
-                        self._petrophysics[i] = np.full(self.n,value[i])
+                        self._spatial_data[i] = np.full(self.n,value[i])
                     elif isinstance(value[i],list):
                         _prop = np.array(value[i]).flatten(order='F')
                         assert len(_prop) == self.n, f'{i} list must be of length {self.n}'
                         assert np.issubdtype(_prop.dtype, np.number), f'{i} List must contain only numbers'
                         assert all(_prop>=0), f'{i} must be greater than 0'
-                        self._petrophysics[i] = _prop
+                        self._spatial_data[i] = _prop
                     elif isinstance(value[i],np.ndarray):
                         _prop = value[i].flatten(order='F')
                         assert len(_prop) == self.n, f'{i} list must be of length {self.n}'
                         assert np.issubdtype(_prop.dtype, np.number), f'{i} List must contain only numbers'
                         assert all(_prop>=0), f'{i} must be greater than 0'
-                        self._petrophysics[i] = _prop
+                        self._spatial_data[i] = _prop
         else:
-            self._petrophysics = value
+            self._spatial_data = {}
 
 
 #####################################################
 ############## Methods ###########################
+
+    def add_spatial_data(self,key,array):
+        array = np.atleast_1d(array).flatten(order='F')
+        assert self.n == array.shape[0]
+        try:
+            self._spatial_data.update({key:array})
+        except Exception as e:
+            print(e)
+            raise Exception
+        else:
+            print(f'Added {key}')
+
     def read_IncludeFile(self,filename_include,NumData):
         """Read Include data file
         this data file just a series of values
@@ -596,7 +611,7 @@ class grid():
             assert len(DataArray)==DataSize,'\n     [Error-%s] Incompatible data size! %d-%d' %(Keyword,len(DataArray),DataSize)
             KeywordID=SupportKeyWords.index(Keyword)
             print('     [%s] '%(Keyword),end='')
-            self.petrophysics[Keyword]=np.array(DataArray,dtype=KeyWordsDatatypes[KeywordID])
+            self._spatial_data[Keyword]=np.array(DataArray,dtype=KeyWordsDatatypes[KeywordID])
         else:
             print('     [Warnning] Unsupport keywords[%s]' % (Keyword))
             self.skiped_keywords+=1
@@ -640,6 +655,7 @@ class grid():
                     Keyword,DataArray=blockData_raw[0],blockData_raw[1:]
 
             #Read Grid Dimension [SPECGRID] or [DIMENS] 
+            print(Keyword)
             if(Keyword=='DIMENS'):
                 DataArray=np.array(DataArray[:3],dtype=int)
                 self.grid_type='cartesian'
@@ -667,42 +683,46 @@ class grid():
                 continue
 
             if(Keyword in SupportKeyWords): #We need parse the special format in 
-                if(len(DataArray)==1 and '.' in DataArray[0]):
+                if Keyword == 'INCLUDE':
+                #if(len(DataArray)==1 and '.' in DataArray[0]):
                     folder_name=os.path.dirname(file)
-                    DataArray=self.read_IncludeFile(os.path.join(folder_name,DataArray[0]),self.n)
-                #print(Keyword,DataArray)
+                    self.read_GRDECL(os.path.join(folder_name,DataArray[0].replace("'","")))
+                    continue
+                    #DataArray=self.read_IncludeFile(os.path.join(folder_name,DataArray[0]),self.n)
+                print(f'------{Keyword}------')
+
                 DataArray=parseDataArray(DataArray)
             
 
-            #Read Grid spatial information, x,y,z ordering
-            #Corner point cell
-            if(Keyword=='COORD'):# Pillar coords
-                assert len(DataArray)==6*(self.nx+1)*(self.ny+1),'[Error] Incompatible COORD data size!'
-                self.coord=np.array(DataArray,dtype=float)       
-            elif(Keyword=='ZCORN'):# Depth coords
-                assert len(DataArray)==8*self.n, '[Error] Incompatible ZCORN data size!'
-                self.zcorn=np.array(DataArray,dtype=float)
-            
-            #Cartesian cell
-            elif(Keyword=='DX'):# Grid size in X dir
-                assert len(DataArray)==self.n, '[Error] Incompatible DX data size!'
-                self.dx=np.array(DataArray,dtype=float)
-            elif(Keyword=='DY'):# Grid size in Y dir
-                assert len(DataArray)==self.n, '[Error] Incompatible DY data size!'
-                self.dy=np.array(DataArray,dtype=float)
-            elif(Keyword=='DZ'):# Grid size in Z dir
-                assert len(DataArray)==self.n, '[Error] Incompatible DZ data size!'
-                self.dz=np.array(DataArray,dtype=float)
-            elif(Keyword=='TOPS'):# TOP position
-                assert len(DataArray)==self.n, '[Error] Incompatible TOPS data size!'
-                self.tops=np.array(DataArray,dtype=float)
+                #Read Grid spatial information, x,y,z ordering
+                #Corner point cell
+                if(Keyword=='COORD'):# Pillar coords
+                    assert len(DataArray)==6*(self.nx+1)*(self.ny+1),'[Error] Incompatible COORD data size!'
+                    self.coord=np.array(DataArray,dtype=float)       
+                elif(Keyword=='ZCORN'):# Depth coords
+                    assert len(DataArray)==8*self.n, '[Error] Incompatible ZCORN data size!'
+                    self.zcorn=np.array(DataArray,dtype=float)
+                
+                #Cartesian cell
+                elif(Keyword=='DX'):# Grid size in X dir
+                    assert len(DataArray)==self.n, '[Error] Incompatible DX data size!'
+                    self.dx=np.array(DataArray,dtype=float)
+                elif(Keyword=='DY'):# Grid size in Y dir
+                    assert len(DataArray)==self.n, '[Error] Incompatible DY data size!'
+                    self.dy=np.array(DataArray,dtype=float)
+                elif(Keyword=='DZ'):# Grid size in Z dir
+                    assert len(DataArray)==self.n, '[Error] Incompatible DZ data size!'
+                    self.dz=np.array(DataArray,dtype=float)
+                elif(Keyword=='TOPS'):# TOP position
+                    assert len(DataArray)==self.n, '[Error] Incompatible TOPS data size!'
+                    self.tops=np.array(DataArray,dtype=float)
 
-            #Read Grid Properties information
-            else:
-                self.LoadVar(Keyword,DataArray,DataSize=self.n)
+                #Read Grid Properties information
+                else:
+                    self.LoadVar(Keyword,DataArray,DataSize=self.n)
 
         f.close()
-        assert GoodFlag==1,'Can not find grid dimension info, [SPECGRID] or [DIMENS]!'
+        #assert GoodFlag==1,'Can not find grid dimension info, [SPECGRID] or [DIMENS]!'
         print('.....Done!')
 
 
@@ -717,6 +737,52 @@ class grid():
                         self.tops[ijk_next] = self.tops[ijk] + self.dz[ijk]
 
 
+    def to_ecl(self, filename=None):
+        string = "-- Data Exported from reservoirpy Python Package\n"
+        if self.grid_type == 'cartesian':
+            
+            string += 'TOPS\n'
+            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.tops)]) + '/\n'
+            
+            string += 'DX\n'
+            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.dx)]) + '/\n'
+
+            string += 'DY\n'
+            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.dy)]) + '/\n'
+        
+            string += 'DZ\n'
+            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.dz)]) + '/\n'
+        
+        # elif corner_point
+        else:
+            
+            string += 'SPECGRID\n'
+            string += f' {self.nx} {self.ny} {self.nz} 1 F\n'                               
+
+            print('COORD')
+            string += 'COORD\n'
+            #string += ' ' + pd.DataFrame(self.coord.reshape(-1,6)).to_string(index=False,header=False) + '\n'
+            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(self.coord)]) + '/\n'
+            print('ZCOORN')
+            string += 'ZCORN\n'
+            #string += ' ' + pd.DataFrame(self.zcorn.reshape(-1,8)).to_string(index=False,header=False) + '\n'
+            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(self.zcorn)]) + '/\n'
+        if bool(self.spatial_data):
+            for key in self.spatial_data.keys():
+                print(key)
+                string += key + '\n'
+                string += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(self.spatial_data[key])])  + '/\n'
+ 
+        if filename is not None:
+            try:
+                with open(filename,'w') as text_file:
+                    text_file.write(string)
+            except Exception as e:
+                print(e)
+                pass
+        return string
+            
+    
     def get_cell_id(self,i,j,k):
         """
         Get the cell Id given i,j,k indexes. 
@@ -1045,8 +1111,8 @@ class grid():
 
         grid = pv.UnstructuredGrid(offset, cells, cell_type, points)
 
-        if self.petrophysics is not None:
-            for i in self.petrophysics.items():
+        if self.spatial_data is not None:
+            for i in self.spatial_data.items():
                 grid.cell_arrays[i[0]] = i[1]
 
         return grid

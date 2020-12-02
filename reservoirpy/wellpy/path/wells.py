@@ -1602,7 +1602,6 @@ class wells_group:
             _df = wells_surveys_df.loc[wells_surveys_df['well']==w,cols] * factor
             string += f"WELLNAME: {w}\n"
             string += _df.to_string(header=False,index=False,float_format=float_format) + '\n'
-            string += '-999'
         return string
         
 
