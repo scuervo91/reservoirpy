@@ -1,10 +1,92 @@
+#########################################################################
+# Most of the Code has been taken from the next  Github Repository:      #
+#  https://github.com/BinWang0213/PyGRDECL                              #
+#  Code is used to load and manipulate Eclipse Data Grid
+#########################################################################
+
 import numpy as np 
 import pyvista as pv 
 import vtk
 from shapely.geometry import Point
 import math
+import os
 
 petrophysical_properties = ['PORO','PERMX','PERMY','PERMZ','SW','RT']
+
+SupportKeyWords=[
+    'SPECGRID', #Dimenion of the corner point grid
+    'DIMENS',   #Define the dimension of the cartesian grid
+    'TOPS','DX','DY','DZ',
+    'COORD','ZCORN',
+    'PORO',
+    'PERMX' , 'PERMXY', 'PERMXZ', 
+    'PERMYX', 'PERMY' , 'PERMYZ', 
+    'PERMZX', 'PERMZY', 'PERMZ',
+    'SW_NPSL'
+]
+
+KeyWordsDatatypes=[#Corrsponding data types
+    int,
+    float,
+    int,int,int,int,
+    float,float,
+    float,
+    float,float,float,
+    float,float,float,
+    float,float,float
+]
+
+def parseDataArray(DataArray):
+        """Parse special dataArray format in GRDECL 
+        example:
+            5*3.0=[3.0 3.0 3.0 3.0 3.0]
+            1.0 2*3.0 5.0=[1.0 3.0 3.0 5.0]
+        
+        Author:Bin Wang(binwang.0213@gmail.com)
+        Date: Sep. 2018
+        """
+
+        data=[]
+        error_count=0
+        for value in DataArray:
+            if(is_number(value)==2):
+                num,val=value.split('*')
+                for i in range(int(num)): data.append(val)
+            elif(is_number(value)==1):
+                data.append(value)
+            else:
+                error_count+=1
+        
+        if(error_count>0):
+            print(DataArray)
+        
+        assert error_count==0, '[Error] Can not find any numeric value!'
+        
+        return data
+    
+def is_number(s):
+    #Determine a string is a number or not
+    #Used in [read_GRDECL] [getBlkdata]
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+ 
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+    
+    try: #Special format N*val= [val val val ....]
+        num, val = s.split('*')
+        return 2
+    except ValueError:
+        pass
+ 
+    return False
 
 ## Auxilary functions
 def cell_id(i,j,k,nx,ny):
@@ -82,7 +164,25 @@ def rotation(points,azimuth,dip,plunge):
 
     return rot_points
 
+def RemoveCommentLines(data,commenter='--'):
+    #Remove comment and empty lines
+    data_lines=data.strip().split('\n')
+    newdata=[]
+    for line in data_lines:
+        if line.startswith(commenter) or not line.strip():
+            # skip comments and blank lines
+            continue   
+        newdata.append(line)
+    return '\n'.join(newdata)
 
+
+def scanKeyword(data):
+    #scan and find the keyword
+    #e.g. ['INIT','DX','2500*30.0'] -> ['DX','2500*30.0']
+    for key in SupportKeyWords:
+        if (key in data) and (data.find(key)!=0):
+            return data[data.find(key):-1]
+    return data
 ## Grid Class
 
 class grid():
@@ -106,7 +206,7 @@ class grid():
         self.dy = kwargs.pop('dy',None)
         self.dz = kwargs.pop('dz',None)
         self.tops = kwargs.pop('tops',None)  #Pending to define
-        self.origin = kwargs.pop('origin',Point(0,0,0))
+        self.origin = kwargs.pop('origin',None)
         self.azimuth = kwargs.pop('azimuth',0) #counterclockwise
         self.dip = kwargs.pop('dip',0) #clockwise
         self.plunge = kwargs.pop('plunge',0) #clockwise
@@ -118,6 +218,8 @@ class grid():
         #Petrophysical properties
         self._petrophysics = {}
         self.petrophysics = kwargs.pop('petrophysics',None)
+        
+        self.skiped_keywords = 0
 
 #####################################################
 ############## Properties ###########################
@@ -129,8 +231,9 @@ class grid():
 
     @grid_type.setter
     def grid_type(self,value):
-        assert isinstance(value,str), f'{type(value)} not accepted. Name must be str'
-        assert value in ['cartesian','corner_point']
+        if value is not None:
+            assert isinstance(value,str), f'{type(value)} not accepted. Name must be str'
+            assert value in ['cartesian','corner_point']
         self._grid_type = value
 
     #---NX---
@@ -140,7 +243,8 @@ class grid():
 
     @nx.setter 
     def nx(self,value):
-        assert isinstance(value,int) and value > 0 
+        if value is not None:
+            assert isinstance(value,(int,np.int64)) and value > 0, f'{type(value)} not accepted. Must be int'
         self._nx = value 
 
     #---NY---
@@ -150,7 +254,8 @@ class grid():
 
     @ny.setter 
     def ny(self,value):
-        assert isinstance(value,int) and value > 0 
+        if value is not None:
+            assert isinstance(value,(int,np.int64)) and value > 0 
         self._ny = value 
 
     #---NZ---
@@ -160,7 +265,8 @@ class grid():
 
     @nz.setter 
     def nz(self,value):
-        assert isinstance(value,int) and value > 0 
+        if value is not None:
+            assert isinstance(value,(int,np.int64)) and value > 0 
         self._nz = value 
 
     #---N---
@@ -178,25 +284,28 @@ class grid():
 
     @dx.setter 
     def dx(self,value):
-        assert isinstance(value,(int,float,list,np.ndarray,type(None))), 'Value entered is not the right type Tyepes allowed: (int,float,list,np.ndarray,None)'
-        
-        if value is None:
-            assert self._grid_type != 'cartesian', 'If cartesian grid set, dx, dy, dz must be set'
+        if value is not None:
+            assert isinstance(value,(int,float,list,np.ndarray)), 'Value entered is not the right type Tyepes allowed: (int,float,list,np.ndarray,None)'
+            
+            if value is None:
+                assert self._grid_type != 'cartesian', 'If cartesian grid set, dx, dy, dz must be set'
+                self._dx = value
+            elif isinstance(value, (int,float)) and value > 0:
+                self._dx = np.full(self.n,value)
+            elif isinstance(value,list):
+                _dx = np.array(value).flatten(order='F')
+                assert len(_dx) == self.n, f'list must be of length {self.n}'
+                assert np.issubdtype(_dx.dtype, np.number), 'List must contain only numbers'
+                assert all(_dx>0), 'Deltas must be greater than 0'
+                self._dx = _dx
+            elif isinstance(value,np.ndarray):
+                _dx = value.flatten(order='F')
+                assert len(_dx) == self.n, f'list must be of length {self.n}'
+                assert np.issubdtype(_dx.dtype, np.number), 'List must contain only numbers'
+                assert all(_dx>0), 'Deltas must be greater than 0'
+                self._dx = _dx
+        else:
             self._dx = value
-        elif isinstance(value, (int,float)) and value > 0:
-            self._dx = np.full(self.n,value)
-        elif isinstance(value,list):
-            _dx = np.array(value).flatten(order='F')
-            assert len(_dx) == self.n, f'list must be of length {self.n}'
-            assert np.issubdtype(_dx.dtype, np.number), 'List must contain only numbers'
-            assert all(_dx>0), 'Deltas must be greater than 0'
-            self._dx = _dx
-        elif isinstance(value,np.ndarray):
-            _dx = value.flatten(order='F')
-            assert len(_dx) == self.n, f'list must be of length {self.n}'
-            assert np.issubdtype(_dx.dtype, np.number), 'List must contain only numbers'
-            assert all(_dx>0), 'Deltas must be greater than 0'
-            self._dx = _dx
 
     #---DY---
     @property
@@ -206,26 +315,29 @@ class grid():
 
     @dy.setter 
     def dy(self,value):
-        assert isinstance(value,(int,float,list,np.ndarray,type(None))), 'Value entered is not the right type Tyepes allowed: (int,float,list,np.ndarray,None)'
-        
-        if value is None:
-            assert self._grid_type != 'cartesian', 'If cartesian grid set, dx, dy, dz must be set'
+        if value is not None:
+            assert isinstance(value,(int,float,list,np.ndarray)), 'Value entered is not the right type Tyepes allowed: (int,float,list,np.ndarray,None)'
+            
+            if value is None:
+                assert self._grid_type != 'cartesian', 'If cartesian grid set, dx, dy, dz must be set'
+                self._dy = value
+            elif isinstance(value, (int,float)) and value > 0:
+                self._dy = np.full(self.n,value)
+            elif isinstance(value,list):
+                _dy = np.array(value).flatten(order='F')
+                assert len(_dy) == self.n, f'list must be of length {self.n}'
+                assert np.issubdtype(_dy.dtype, np.number), 'List must contain only numbers'
+                assert all(_dy>0), 'Deltas must be greater than 0'
+                self._dy = _dy
+            elif isinstance(value,np.ndarray):
+                _dy = value.flatten(order='F')
+                assert len(_dy) == self.n, f'list must be of length {self.n}'
+                assert np.issubdtype(_dy.dtype, np.number), 'List must contain only numbers'
+                assert all(_dy>0), 'Deltas must be greater than 0'
+                self._dy = _dy
+        else:
             self._dy = value
-        elif isinstance(value, (int,float)) and value > 0:
-            self._dy = np.full(self.n,value)
-        elif isinstance(value,list):
-            _dy = np.array(value).flatten(order='F')
-            assert len(_dy) == self.n, f'list must be of length {self.n}'
-            assert np.issubdtype(_dy.dtype, np.number), 'List must contain only numbers'
-            assert all(_dy>0), 'Deltas must be greater than 0'
-            self._dy = _dy
-        elif isinstance(value,np.ndarray):
-            _dy = value.flatten(order='F')
-            assert len(_dy) == self.n, f'list must be of length {self.n}'
-            assert np.issubdtype(_dy.dtype, np.number), 'List must contain only numbers'
-            assert all(_dy>0), 'Deltas must be greater than 0'
-            self._dy = _dy
-
+            
     #---DZ---
     @property
     def dz(self):
@@ -234,25 +346,28 @@ class grid():
 
     @dz.setter 
     def dz(self,value):
-        assert isinstance(value,(int,float,list,np.ndarray,type(None))), 'Value entered is not the right type Tyepes allowed: (int,float,list,np.ndarray,None)'
-        
-        if value is None:
-            assert self._grid_type != 'cartesian', 'If cartesian grid set, dx, dy, dz must be set'
-            self._dz = value
-        elif isinstance(value, (int,float)) and value > 0:
-            self._dz = np.full(self.n,value)
-        elif isinstance(value,list):
-            _dz = np.array(value).flatten(order='F')
-            assert len(_dz) == self.n, f'list must be of length {self.n}'
-            assert np.issubdtype(_dz.dtype, np.number), 'List must contain only numbers'
-            assert all(_dz>0), 'Deltas must be greater than 0'
-            self._dz = _dz
-        elif isinstance(value,np.ndarray):
-            _dz = value.flatten(order='F')
-            assert len(_dz) == self.n, f'list must be of length {self.n}'
-            assert np.issubdtype(_dz.dtype, np.number), 'List must contain only numbers'
-            assert all(_dz>0), 'Deltas must be greater than 0'
-            self._dz = _dz
+        if value is not None:
+            assert isinstance(value,(int,float,list,np.ndarray)), 'Value entered is not the right type Tyepes allowed: (int,float,list,np.ndarray,None)'
+            
+            if value is None:
+                assert self._grid_type != 'cartesian', 'If cartesian grid set, dx, dy, dz must be set'
+                self._dz = value
+            elif isinstance(value, (int,float)) and value > 0:
+                self._dz = np.full(self.n,value)
+            elif isinstance(value,list):
+                _dz = np.array(value).flatten(order='F')
+                assert len(_dz) == self.n, f'list must be of length {self.n}'
+                assert np.issubdtype(_dz.dtype, np.number), 'List must contain only numbers'
+                assert all(_dz>0), 'Deltas must be greater than 0'
+                self._dz = _dz
+            elif isinstance(value,np.ndarray):
+                _dz = value.flatten(order='F')
+                assert len(_dz) == self.n, f'list must be of length {self.n}'
+                assert np.issubdtype(_dz.dtype, np.number), 'List must contain only numbers'
+                assert all(_dz>0), 'Deltas must be greater than 0'
+                self._dz = _dz
+        else:
+            self._dx = value
 
     @property
     def origin(self):
@@ -260,11 +375,12 @@ class grid():
 
     @origin.setter
     def origin(self,value):
-        assert isinstance(value,(Point,type(None))), 'Origin point must be Point or None types'
-        if value is None:
-            assert self._grid_type != 'cartesian', 'If cartesian grid set, origin must be set'
-        else:
-            assert value.has_z, 'Point must have x,y,z coordinates'
+        if value is not None:
+            assert isinstance(value,Point), 'Origin point must be Point or None types'
+            if value is None:
+                assert self._grid_type != 'cartesian', 'If cartesian grid set, origin must be set'
+            else:
+                assert value.has_z, 'Point must have x,y,z coordinates'
         self._origin = value
 
     @property
@@ -273,13 +389,14 @@ class grid():
 
     @azimuth.setter
     def azimuth(self,value):
-        assert isinstance(value,(int,float,np.ndarray)), 'Must be a number'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), 'Must be a number'
 
-        if isinstance(value,np.ndarray):
-            _az = value.flatten(order='F')
-            assert len(_az) == 1, f'list must length of 1'
-        
-        assert value >= -360 and value <= 360, 'Azimuth angle must be between 0 and 360'
+            if isinstance(value,np.ndarray):
+                _az = value.flatten(order='F')
+                assert len(_az) == 1, f'list must length of 1'
+            
+            assert value >= -360 and value <= 360, 'Azimuth angle must be between 0 and 360'
         self._azimuth = value
 
     @property
@@ -288,13 +405,14 @@ class grid():
 
     @dip.setter
     def dip(self,value):
-        assert isinstance(value,(int,float,np.ndarray)), 'Must be a number'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), 'Must be a number'
 
-        if isinstance(value,np.ndarray):
-            _az = value.flatten(order='F')
-            assert len(_az) == 1, f'list must length of 1'
-        
-        assert value >= -360 and value <= 360, 'dip angle must be between 0 and 360'
+            if isinstance(value,np.ndarray):
+                _az = value.flatten(order='F')
+                assert len(_az) == 1, f'list must length of 1'
+            
+            assert value >= -360 and value <= 360, 'dip angle must be between 0 and 360'
         self._dip = value
 
     @property
@@ -303,13 +421,14 @@ class grid():
 
     @plunge.setter
     def plunge(self,value):
-        assert isinstance(value,(int,float,np.ndarray)), 'Must be a number'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), 'Must be a number'
 
-        if isinstance(value,np.ndarray):
-            _az = value.flatten(order='F')
-            assert len(_az) == 1, f'list must length of 1'
-        
-        assert value >= -360 and value <= 360, 'plunge angle must be between 0 and 360'
+            if isinstance(value,np.ndarray):
+                _az = value.flatten(order='F')
+                assert len(_az) == 1, f'list must length of 1'
+            
+            assert value >= -360 and value <= 360, 'plunge angle must be between 0 and 360'
         self._plunge = value
 
     @property
@@ -371,21 +490,24 @@ class grid():
 
     @coord.setter 
     def coord(self,value):
-        assert isinstance(value,(list,np.ndarray,type(None))), 'Origin point must be Point or None types'
-   
-        if value is None:
-            assert self.grid_type != 'corner_point', 'If Corner Point Grid set, coord must be set'
-            self._coord = value 
-        elif isinstance(value,list):
-            _coord = np.array(value).flatten(order='F')
-            assert len(_coord) == 6*(self.nx+1)*(self.ny+1), f'list must be of length {6*(self.nx+1)*(self.ny+1)}'
-            assert np.issubdtype(_coord.dtype, np.number), 'List must contain only numbers'
-            self._coord = _coord
-        elif isinstance(value,np.ndarray):
-            _coord = value.flatten(order='F')
-            assert len(_coord) == 6*(self.nx+1)*(self.ny+1), f'list must be of length {6*(self.nx+1)*(self.ny+1)}'
-            assert np.issubdtype(_coord.dtype, np.number), 'List must contain only numbers'
-            self._coord = _coord
+        if value is not None:
+            assert isinstance(value,(list,np.ndarray,type(None))), 'Origin point must be Point or None types'
+    
+            if value is None:
+                assert self.grid_type != 'corner_point', 'If Corner Point Grid set, coord must be set'
+                self._coord = value 
+            elif isinstance(value,list):
+                _coord = np.array(value).flatten(order='F')
+                assert len(_coord) == 6*(self.nx+1)*(self.ny+1), f'list must be of length {6*(self.nx+1)*(self.ny+1)}'
+                assert np.issubdtype(_coord.dtype, np.number), 'List must contain only numbers'
+                self._coord = _coord
+            elif isinstance(value,np.ndarray):
+                _coord = value.flatten(order='F')
+                assert len(_coord) == 6*(self.nx+1)*(self.ny+1), f'list must be of length {6*(self.nx+1)*(self.ny+1)}'
+                assert np.issubdtype(_coord.dtype, np.number), 'List must contain only numbers'
+                self._coord = _coord
+        else:
+            self._coord = value
 
     #---ZCORN---
     @property
@@ -394,53 +516,206 @@ class grid():
 
     @zcorn.setter 
     def zcorn(self,value):
-        assert isinstance(value,(list,np.ndarray,type(None))), 'Origin point must be Point or None types'
-   
-        if value is None:
-            assert self.grid_type != 'corner_point', 'If Corner Point Grid set, zcorn must be set'
-            self._zcorn = value 
-        elif isinstance(value,list):
-            _zcorn = np.array(value).flatten(order='F')
-            assert len(_zcorn) == 8*self.n, f'list must be of length {8*self.n}'
-            assert np.issubdtype(_zcorn.dtype, np.number), 'List must contain only numbers'
-            self._zcorn = _zcorn
-        elif isinstance(value,np.ndarray):
-            _zcorn = value.flatten(order='F')
-            assert len(_zcorn) == 8*self.n, f'list must be of length {8*self.n}'
-            assert np.issubdtype(_zcorn.dtype, np.number), 'List must contain only numbers'
-            self._zcorn = _zcorn
-
+        if value is not None:
+            assert isinstance(value,(list,np.ndarray,type(None))), 'Origin point must be Point or None types'
+    
+            if value is None:
+                assert self.grid_type != 'corner_point', 'If Corner Point Grid set, zcorn must be set'
+                self._zcorn = value 
+            elif isinstance(value,list):
+                _zcorn = np.array(value).flatten(order='F')
+                assert len(_zcorn) == 8*self.n, f'list must be of length {8*self.n}'
+                assert np.issubdtype(_zcorn.dtype, np.number), 'List must contain only numbers'
+                self._zcorn = _zcorn
+            elif isinstance(value,np.ndarray):
+                _zcorn = value.flatten(order='F')
+                assert len(_zcorn) == 8*self.n, f'list must be of length {8*self.n}'
+                assert np.issubdtype(_zcorn.dtype, np.number), 'List must contain only numbers'
+                self._zcorn = _zcorn
+        else:
+            self._zcorn = value
     @property 
     def petrophysics(self):
         return self._petrophysics 
 
     @petrophysics.setter 
     def petrophysics(self,value):
-        assert isinstance(value,(dict,type(None)))
+        if value is not None:
+            assert isinstance(value,dict)
 
-        if isinstance(value,dict):
-            for i in value:
-                #assert i in petrophysical_properties, f"Keyword {i} not in supported properties {petrophysical_properties} "
-                assert isinstance(value[i],(int,float,list,np.ndarray))     
+            if isinstance(value,dict):
+                for i in value:
+                    #assert i in petrophysical_properties, f"Keyword {i} not in supported properties {petrophysical_properties} "
+                    assert isinstance(value[i],(int,float,list,np.ndarray))     
 
-                if isinstance(value[i],(int,float)):
-                    self._petrophysics[i] = np.full(self.n,value[i])
-                elif isinstance(value[i],list):
-                    _prop = np.array(value[i]).flatten(order='F')
-                    assert len(_prop) == self.n, f'{i} list must be of length {self.n}'
-                    assert np.issubdtype(_prop.dtype, np.number), f'{i} List must contain only numbers'
-                    assert all(_prop>=0), f'{i} must be greater than 0'
-                    self._petrophysics[i] = _prop
-                elif isinstance(value[i],np.ndarray):
-                    _prop = value[i].flatten(order='F')
-                    assert len(_prop) == self.n, f'{i} list must be of length {self.n}'
-                    assert np.issubdtype(_prop.dtype, np.number), f'{i} List must contain only numbers'
-                    assert all(_prop>=0), f'{i} must be greater than 0'
-                    self._petrophysics[i] = _prop
+                    if isinstance(value[i],(int,float)):
+                        self._petrophysics[i] = np.full(self.n,value[i])
+                    elif isinstance(value[i],list):
+                        _prop = np.array(value[i]).flatten(order='F')
+                        assert len(_prop) == self.n, f'{i} list must be of length {self.n}'
+                        assert np.issubdtype(_prop.dtype, np.number), f'{i} List must contain only numbers'
+                        assert all(_prop>=0), f'{i} must be greater than 0'
+                        self._petrophysics[i] = _prop
+                    elif isinstance(value[i],np.ndarray):
+                        _prop = value[i].flatten(order='F')
+                        assert len(_prop) == self.n, f'{i} list must be of length {self.n}'
+                        assert np.issubdtype(_prop.dtype, np.number), f'{i} List must contain only numbers'
+                        assert all(_prop>=0), f'{i} must be greater than 0'
+                        self._petrophysics[i] = _prop
+        else:
+            self._petrophysics = value
 
 
 #####################################################
 ############## Methods ###########################
+    def read_IncludeFile(self,filename_include,NumData):
+        """Read Include data file
+        this data file just a series of values
+        e.g. 0.2 0.3 12.23 ....
+        
+        Author:Bin Wang(binwang.0213@gmail.com)
+        Date: Aug. 2018
+        """
+
+        f=open(filename_include)
+        contents=f.read()
+        block_dataset=contents.strip().split() #Sepeart input file by slash /
+        block_dataset=np.array(block_dataset,dtype=float)
+        if(len(block_dataset)!=NumData):
+            print('Data size %s is not equal to defined block dimension (NX*NY*NZ) %s'%(len(block_dataset),NumData))
+        return block_dataset
+    
+    def LoadVar(self,Keyword,DataArray,DataSize):
+        """Load varables into class
+        example:
+        
+        Author:Bin Wang(binwang.0213@gmail.com)
+        Date: Sep. 2018
+        """
+        if(Keyword in SupportKeyWords):#KeyWords Check
+            assert len(DataArray)==DataSize,'\n     [Error-%s] Incompatible data size! %d-%d' %(Keyword,len(DataArray),DataSize)
+            KeywordID=SupportKeyWords.index(Keyword)
+            print('     [%s] '%(Keyword),end='')
+            self.petrophysics[Keyword]=np.array(DataArray,dtype=KeyWordsDatatypes[KeywordID])
+        else:
+            print('     [Warnning] Unsupport keywords[%s]' % (Keyword))
+            self.skiped_keywords+=1
+    
+    def read_GRDECL(self,file):
+        """Read input file(GRDECL) of Reservoir Simulator- Petrel (Eclipse)  
+        file format:http://petrofaq.org/wiki/Eclipse_Input_Data
+        
+        Arguments
+        ---------
+        NX, NY, NZ -- Grid dimension.
+        blockData_raw -- [0] Keywords [1] values
+        
+        Author:Bin Wang(binwang.0213@gmail.com)
+        Date: Sep. 2017
+        """
+        debug=0
+
+        print('[Input] Reading ECLIPSE/PETREL file \"%s\" ....'%(file))
+
+        #Read whole file into list
+        f=open(file)
+        contents=f.read()
+        contents=RemoveCommentLines(contents,commenter='--')
+        contents_in_block=contents.strip().split('/') #Sepeart input file by slash /
+        contents_in_block = [x for x in contents_in_block if x]#Remove empty block at the end
+        NumKeywords=len(contents_in_block)
+        print(f'Num Keywords {NumKeywords}')
+        GoodFlag=0
+        for i,block in enumerate(contents_in_block):#Keyword, Block-wise
+            #Clean the data where no spliter \ provided
+            block=scanKeyword(block)
+
+            blockData_raw=block.strip().split()
+            Keyword=''
+            DataArray=[]
+            if(len(blockData_raw)>1):
+                if(blockData_raw[0]=='ECHO'): #This keyword may next to real keyword
+                    Keyword,DataArray=blockData_raw[1],blockData_raw[2:]                    
+                else:
+                    Keyword,DataArray=blockData_raw[0],blockData_raw[1:]
+
+            #Read Grid Dimension [SPECGRID] or [DIMENS] 
+            if(Keyword=='DIMENS'):
+                DataArray=np.array(DataArray[:3],dtype=int)
+                self.grid_type='cartesian'
+                self.nx,self.ny,self.nz=DataArray[0],DataArray[1],DataArray[2]
+                print("     Grid Type=%s Grid" %(self.grid_type))
+                print("     Grid Dimension(NX,NY,NZ): (%s x %s x %s)"%(self.nx,self.ny,self.nz))
+                print("     NumOfGrids=%s"%(self.n))
+                print('     NumOfKeywords=%s'%(NumKeywords))
+                print("     Reading Keyword %d [%s] " %(i+1,Keyword),end='')
+                GoodFlag=1
+                continue
+            elif(Keyword=='SPECGRID'):
+                DataArray=np.array(DataArray[:3],dtype=int)
+                self.grid_type='corner_point'
+                self.nx,self.ny,self.nz=DataArray[0],DataArray[1],DataArray[2]
+                print("     Grid Type=%s" %(self.grid_type))
+                print("     Grid Dimension(NX,NY,NZ): (%s x %s x %s)"%(self.nx,self.ny,self.nz))
+                print("     NumOfGrids=%s"%(self.n))
+                print('     NumOfKeywords=%s'%(NumKeywords))
+                print("     Reading Keywords [%s] " %(Keyword),end='')
+                GoodFlag=1
+                continue
+            
+            if(self.grid_type is None):#Skip unnecessary keywords
+                continue
+
+            if(Keyword in SupportKeyWords): #We need parse the special format in 
+                if(len(DataArray)==1 and '.' in DataArray[0]):
+                    folder_name=os.path.dirname(file)
+                    DataArray=self.read_IncludeFile(os.path.join(folder_name,DataArray[0]),self.n)
+                #print(Keyword,DataArray)
+                DataArray=parseDataArray(DataArray)
+            
+
+            #Read Grid spatial information, x,y,z ordering
+            #Corner point cell
+            if(Keyword=='COORD'):# Pillar coords
+                assert len(DataArray)==6*(self.nx+1)*(self.ny+1),'[Error] Incompatible COORD data size!'
+                self.coord=np.array(DataArray,dtype=float)       
+            elif(Keyword=='ZCORN'):# Depth coords
+                assert len(DataArray)==8*self.n, '[Error] Incompatible ZCORN data size!'
+                self.zcorn=np.array(DataArray,dtype=float)
+            
+            #Cartesian cell
+            elif(Keyword=='DX'):# Grid size in X dir
+                assert len(DataArray)==self.n, '[Error] Incompatible DX data size!'
+                self.dx=np.array(DataArray,dtype=float)
+            elif(Keyword=='DY'):# Grid size in Y dir
+                assert len(DataArray)==self.n, '[Error] Incompatible DY data size!'
+                self.dy=np.array(DataArray,dtype=float)
+            elif(Keyword=='DZ'):# Grid size in Z dir
+                assert len(DataArray)==self.n, '[Error] Incompatible DZ data size!'
+                self.dz=np.array(DataArray,dtype=float)
+            elif(Keyword=='TOPS'):# TOP position
+                assert len(DataArray)==self.n, '[Error] Incompatible TOPS data size!'
+                self.tops=np.array(DataArray,dtype=float)
+
+            #Read Grid Properties information
+            else:
+                self.LoadVar(Keyword,DataArray,DataSize=self.n)
+
+        f.close()
+        assert GoodFlag==1,'Can not find grid dimension info, [SPECGRID] or [DIMENS]!'
+        print('.....Done!')
+
+
+        #Genetrate TOPS for cartesian grid if TOPS if not given
+        if(self.grid_type=='Cartesian' and len(self.tops)==0):
+            self.tops=np.zeros(self.n)
+            for k in range(self.nz-1):
+                for j in range(self.ny):
+                    for i in range(self.nx):
+                        ijk=cell_id(i,j,k,self.nx,self.ny)
+                        ijk_next=cell_id(i,j,k+1,self.nx,self.ny)
+                        self.tops[ijk_next] = self.tops[ijk] + self.dz[ijk]
+
 
     def get_cell_id(self,i,j,k):
         """

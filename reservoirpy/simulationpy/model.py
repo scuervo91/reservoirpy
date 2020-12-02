@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd 
 from .grid import grid
-from ...pvtpy.black_oil import oil, gas, water
-from ...krpy import water_oil_kr, gas_oil_kr
-from ...wellpy.path import wells_group
+from ..pvtpy.black_oil import oil, gas, water
+from ..krpy import water_oil_kr, gas_oil_kr
+from ..wellpy.path import wells_group
 from .numerical import numerical
 from .results import results
 from .initial_conditions import initial_conditions
