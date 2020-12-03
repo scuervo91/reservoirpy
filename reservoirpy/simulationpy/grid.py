@@ -24,6 +24,7 @@ SupportKeyWords=[
     'PERMYX', 'PERMY' , 'PERMYZ', 
     'PERMZX', 'PERMZY', 'PERMZ',
     'ACTNUM',
+    'SATNUM',
     'INCLUDE',
     
 ]
@@ -37,6 +38,7 @@ KeyWordsDatatypes=[#Corrsponding data types
     float,float,float,
     float,float,float,
     float,float,float,
+    int,
     int
 ]
 
@@ -737,50 +739,84 @@ class grid():
                         self.tops[ijk_next] = self.tops[ijk] + self.dz[ijk]
 
 
-    def to_ecl(self, filename=None):
-        string = "-- Data Exported from reservoirpy Python Package\n"
+    def to_ecl(self, filename=None, keywords=None, one_file=False, return_string=False, save_file=True):
+        
+        
+        list_str =[]
+        key_added = []
+        
         if self.grid_type == 'cartesian':
-            
-            string += 'TOPS\n'
-            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.tops)]) + '/\n'
-            
-            string += 'DX\n'
-            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.dx)]) + '/\n'
 
-            string += 'DY\n'
-            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.dy)]) + '/\n'
-        
-            string += 'DZ\n'
-            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%5==0 else str(v) for i,v in enumerate(self.dz)]) + '/\n'
-        
-        # elif corner_point
-        else:
+            if keywords is None:
+                keywords = ['TOPS','DX','DY','DZ']
+            else:
+                assert isinstance(keywords,list)
+            keywords_type = [i for i in keywords if i in ['TOPS','DX','DY','DZ']]
+        else: 
+            if keywords is None:
+                keywords = ['COORD','ZCORN','SPECGRID']
+            else:
+                assert isinstance(keywords,list)
+            keywords_type = [i for i in keywords if i in ['COORD','ZCORN']]
             
-            string += 'SPECGRID\n'
-            string += f' {self.nx} {self.ny} {self.nz} 1 F\n'                               
+            if 'SPECGRID' in keywords:
+                print('SPECGRID')
+                list_str.append(f'SPECGRID\n {self.nx} {self.ny} {self.nz} 1 F /\n') 
+                key_added.append('SPECGRID')
+                
+        if len(keywords_type)>0:
+            for k in keywords_type:
+                print(k)
+                key_str = ""
+                key_str += f'{k.upper()}\n'
+                key_str += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(getattr(self,k.lower()))]) + '/\n'
+                list_str.append(key_str)
+                key_added.append(k)
+                    
+        
+        keywords_spatial = [i for i in keywords if i not in ['SPECGRID','COORD','ZCORN','TOPS','DX','DY','DZ']]
 
-            print('COORD')
-            string += 'COORD\n'
-            #string += ' ' + pd.DataFrame(self.coord.reshape(-1,6)).to_string(index=False,header=False) + '\n'
-            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(self.coord)]) + '/\n'
-            print('ZCOORN')
-            string += 'ZCORN\n'
-            #string += ' ' + pd.DataFrame(self.zcorn.reshape(-1,8)).to_string(index=False,header=False) + '\n'
-            string += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(self.zcorn)]) + '/\n'
-        if bool(self.spatial_data):
-            for key in self.spatial_data.keys():
+        if all([bool(self.spatial_data),len(keywords_spatial)>0]):
+            for key in keywords_spatial:
                 print(key)
-                string += key + '\n'
-                string += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(self.spatial_data[key])])  + '/\n'
- 
-        if filename is not None:
-            try:
-                with open(filename,'w') as text_file:
-                    text_file.write(string)
-            except Exception as e:
-                print(e)
-                pass
-        return string
+                key_str =""
+                try:
+                    key_str += key + '\n'
+                    key_str += ' ' + ' '.join([str(v) + '\n' if (i+1)%10==0 else str(v) for i,v in enumerate(getattr(self,'spatial_data')[key])])  + '/\n'
+                    list_str.append(key_str)   
+                    key_added.append(key)                       
+                except:
+                    pass
+        
+        if save_file:            
+            if one_file==True:
+                if filename is None:
+                    filename ='grid.GRDECL'
+                try:
+                    string = "".join(list_str)
+                    with open(filename,'w') as text_file:
+                        text_file.write(string)
+                except Exception as e:
+                    print(e)
+                    pass
+            
+            else:
+                if filename is None:
+                    filename = '.'        
+                filename = os.path.abspath(filename)
+                print(filename)
+                for i, key in enumerate(list_str):
+                    
+                    try:
+                        with open(os.path.join(filename,key_added[i]+'.prop'),'w') as text_file:
+                            text_file.write(key)
+                    except Exception as e:
+                        print(e)
+                        pass
+        
+        if return_string:
+            return "".join(list_str)
+        
             
     
     def get_cell_id(self,i,j,k):

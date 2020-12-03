@@ -1605,7 +1605,7 @@ class wells_group:
         return string
         
 
-    def wells_perforations(self, wells:list=None):
+    def wells_perforations(self, wells:list=None, horizons=None):
         """
         Get a DataFrame with the wells perforations
         Input:
@@ -1616,8 +1616,14 @@ class wells_group:
         Return:
             tops -> (gpd.GeoDataFrame) GeoDataFrame with tops indexed by well
         """    
-        assert isinstance(wells,(list,type(None)))
-
+        if wells is not None:
+            assert isinstance(wells,(list,str))
+            wells = input_to_list(wells)
+            
+        if horizons is not None:
+            assert isinstance(wells,(list,str))
+            horizons = input_to_list(horizons)
+            
         # Define which wells for the distance matrix will be shown    
         if wells is None:
             _well_list = []
@@ -1627,19 +1633,66 @@ class wells_group:
             _well_list = wells
 
         _wells_survey = gpd.GeoDataFrame()
-
+      
         for well in _well_list:
             if self.wells[well].perforations is None:
                 continue
             else:
-                _s = self.wells[well].perforations.copy()
-                _s['well'] = well 
-                _s = _s.reset_index()
-                _wells_survey = _wells_survey.append(gpd.GeoDataFrame(_s))
+                if horizons is None:
+                    _s = self.wells[well].perforations.copy()
+                else:
+                    _s = self.wells[well].perforations.copy()
+                    _s = _s[_s['formation'].isin(horizons)]
+                if _s.empty:
+                    continue
+                else:
+                    _s['well'] = well 
+                    _s = _s.reset_index()
+                    _wells_survey = _wells_survey.append(gpd.GeoDataFrame(_s))
 
         return _wells_survey
+    
+    def wells_perforations_ascii(self,
+        wells:list=None, 
+        horizons:list=None,
+        factor=None, 
+        cols=['md_top','md_bottom'],
+        float_format='{:.2f}'.format
+    ):
+        assert isinstance(wells,(list,type(None)))
+        
+        wells_perforations_df = self.wells_perforations(wells=wells, horizons=horizons).reset_index()
+             
+        string = ""
 
+        if factor is None:
+            factor = np.ones(len(cols))
+        else:
+            factor = np.atleast_1d(factor)
+            assert (factor.ndim==1) & (factor.shape[0]==len(cols))
+            
+        wells_perforations_df['completion'] = 'perforation'
+        
+        if 'date' not in wells_perforations_df.columns:
+            wells_perforations_df['date'] = '"SOH"'
+        else:
+            wells_perforations_df['date'] = wells_perforations_df['date'].apply(lambda x: x.strftime('%d %b %Y').upper())
+        
+        if 'skin' not in wells_perforations_df.columns:
+            wells_perforations_df['skin'] = 0
 
+        if 'OH' not in wells_perforations_df.columns:
+            wells_perforations_df['oh'] = 0.354           
+        
+        for w in wells_perforations_df['well'].unique():
+            #_df = wells_perforations_df.loc[wells_perforations_df['well']==w,:]
+            wells_perforations_df.loc[wells_perforations_df['well']==w,cols] = wells_perforations_df.loc[wells_perforations_df['well']==w,cols] * factor        
+            
+            string += f"WELLNAME {w}\n"
+            cols_order = ['date','completion','md_top','md_bottom','oh','skin']
+            string += wells_perforations_df.loc[wells_perforations_df['well']==w,cols_order].to_string(header=False,index=False,float_format=float_format) + '\n'
+        return string
+        
     def wells_coordinates(self, wells:list=None, z_unit='ft', to_crs='EPSG:4326'):
         """
         Get a DataFrame with the wells surface coordinates
