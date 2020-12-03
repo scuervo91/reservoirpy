@@ -1676,7 +1676,7 @@ class wells_group:
         if 'date' not in wells_perforations_df.columns:
             wells_perforations_df['date'] = '"SOH"'
         else:
-            wells_perforations_df['date'] = wells_perforations_df['date'].apply(lambda x: x.strftime('%d %b %Y').upper())
+            wells_perforations_df['date'] = wells_perforations_df['date'].apply(lambda x: x.strftime('%Y-%m-%d').upper())
         
         if 'skin' not in wells_perforations_df.columns:
             wells_perforations_df['skin'] = 0
