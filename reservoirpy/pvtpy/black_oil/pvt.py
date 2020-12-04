@@ -101,7 +101,8 @@ class oil:
 
     @formation.setter
     def formation(self,value):
-        assert isinstance(value,(str,type(None))), f'{type(value)} not accepted. Name must be str'
+        if value is not None:
+            assert isinstance(value,str), f'{type(value)} not accepted. Name must be str'
         self._formation = value
 
     @property
@@ -110,7 +111,8 @@ class oil:
 
     @api.setter
     def api(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be int'
         self._api = value
 
     @property
@@ -119,7 +121,8 @@ class oil:
 
     @sulphur.setter
     def sulphur(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be int'
         self._sulphur = value
 
     @property
@@ -128,7 +131,8 @@ class oil:
 
     @pb.setter
     def pb(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be int'
         self._pb = value
 
     @property
@@ -137,7 +141,8 @@ class oil:
 
     @rsb.setter
     def rsb(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be int'
         self._rsb = value
 
     @property
@@ -146,7 +151,8 @@ class oil:
 
     @sg_gas.setter
     def sg_gas(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be int'
         self._sg_gas = value
 
     @property
@@ -155,7 +161,8 @@ class oil:
 
     @temp.setter
     def temp(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be int'
         self._temp = value
 
     @property
@@ -164,7 +171,8 @@ class oil:
 
     @bg.setter
     def bg(self,value):
-        assert isinstance(value,(int,float,np.ndarray,type(None))), f'{type(value)} not accepted. Name must be int'
+        if value is not None:
+            assert isinstance(value,(int,float,np.ndarray)), f'{type(value)} not accepted. Name must be int'
         self._bg = value
 
     @property
@@ -173,7 +181,8 @@ class oil:
 
     @pvt.setter
     def pvt(self,value):
-        assert isinstance(value,(pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
+        if value is not None:
+            assert isinstance(value,pvt), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
         self._pvt = value
 
     @property
@@ -224,6 +233,78 @@ class oil:
 
         return self._pvt
 
+    def to_ecl(
+        self,
+        pressure=None,
+        n_sat = 10, 
+        n_unsat=5, 
+        min_pressure=None, 
+        max_pressure=None,
+        properties = ['rs','bo','muo'],
+        float_format='{:.3f}'.format
+    ):
+        
+        assert self.pvt is not None, 'PVT not defined'
+        assert self.pb is not None, 'Bublle pressure not defined'
+        assert self.rsb is not None, 'Rsb not defined'
+        
+        string = ""
+        string += "-- OIL PVT TABLE FOR LIVE OIL\n"
+        string += 'PVTO\n'
+        string += "-- rs      pres  bo      visc\n"
+        string += "-- Mscf/rb psi   RB/STB  cP  \n"
+        string += "-- ------- ----  ----    ---- \n"
+        
+        if pressure is None:
+        
+            if min_pressure is None:
+                min_pressure = self.pvt.index.min()
+            
+            if max_pressure is None:
+                max_pressure = self.pvt.index.max()
+            
+            if min_pressure >= self.pb:
+                pressure = np.linspace(min_pressure,max_pressure,n_sat)
+                flag = 'unsat'
+            elif max_pressure <= self.pb:
+                pressure = np.linspace(min_pressure,max_pressure,n_sat)
+                flag = 'sat'
+            else:
+                sat_pressure = np.linspace(min_pressure,self.pb,n_sat)
+                unsat_pressure = np.linspace(self.pb,max_pressure, n_unsat+1)
+                pressure = np.concatenate((sat_pressure,unsat_pressure[1:]))
+                flag = 'mixed'
+                
+        pvt_df = self.pvt.interpolate(pressure,property=properties).reset_index()
+        
+        #convert rs units from scf/bbl to Mscf/bbl
+        pvt_df['rs'] = pvt_df['rs'] * 1e-3
+        
+        # Write the string
+        
+        if flag == 'unsat':
+            string += pvt_df[['rs','pressure','bo','muo']].to_string(header=False, index=False,float_format=float_format) +'\n /\n'
+            
+        elif flag == 'sat':
+            
+            for i,r in pvt_df.iterrows():
+                string += pvt_df.loc[[i],['rs','pressure','bo','muo']].to_string(index=False, header=False,float_format=float_format) + '/\n'
+                
+            string += '/\n'
+        else:
+            
+            #Print Saturated data
+            for i,r in pvt_df[pvt_df['pressure']<self.pb].iterrows():
+                string += pvt_df.loc[[i],['rs','pressure','bo','muo']].to_string(index=False, header=False,float_format=float_format) + '/\n'  
+                    
+            #Print data at bubble point
+            string += pvt_df.loc[pvt_df['pressure']==self.pb,['rs','pressure','bo','muo']].to_string(index=False, header=False,float_format=float_format) + '\n'  
+            
+            string += '-- Unsaturated Data\n'
+            string += pvt_df.loc[pvt_df['pressure']>self.pb,['pressure','bo','muo']].to_string(index=False, header=False,float_format=float_format)
+            string += '/\n/'
+        
+        return string
            
 ############################################################
 ############################################################
@@ -607,3 +688,43 @@ class gas:
         _pvt = pd.concat([z_cor,rhog_cor,bg_cor,mug_cor,cg_cor],axis=1)
 
         self._pvt=pvt(_pvt.reset_index())
+
+
+    def to_ecl(
+        self,
+        pressure=None,
+        n = 10, 
+        min_pressure=None, 
+        max_pressure=None,
+        properties = ['bg','mug'],
+        float_format='{:.3f}'.format
+    ):
+        
+        assert self.pvt is not None, 'PVT not defined'
+        
+        string = ""
+        string += "-- GAS PVT TABLE FOR LIVE OIL\n"
+        string += 'PVDG\n'
+        string += "-- pres   bg       vic  \n"
+        string += "-- psi    Rb/Mscf  cP  \n"
+        string += "-- ----   ----     ---- \n"
+        
+        if pressure is None:
+        
+            if min_pressure is None:
+                min_pressure = self.pvt.index.min()
+            
+            if max_pressure is None:
+                max_pressure = self.pvt.index.max()
+            
+            pressure = np.linspace(min_pressure,max_pressure,n)
+                
+        pvt_df = self.pvt.interpolate(pressure,property=properties).reset_index()
+        
+        #convert bo units from rb/scf to rb/Mscf
+        pvt_df['bg'] = pvt_df['bg'] * 1e3
+        
+        # Write the string
+        string += pvt_df[['pressure','bg','mug']].to_string(header=False, index=False,float_format=float_format) +'/\n'
+                   
+        return string  

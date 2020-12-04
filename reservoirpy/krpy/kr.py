@@ -2,6 +2,68 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+
+
+def kr_curve(sn:np.ndarray, n:float, krend:float) -> np.ndarray:
+    """kr_curve [Estimate Relative permeability curve from normalized saturation, exponent and end-points]
+
+    Parameters
+    ----------
+    sn : np.ndarray
+        [Saturation Array]
+    n : float
+        [Exponent]
+    krend : float
+        [End-point]
+
+    Returns
+    -------
+    np.ndarray
+        [Relative permeability curve]
+    """
+    return krend * np.power(sn,n)
+
+def sw_normalize(sw:np.ndarray, swir:float, sor:float) -> np.ndarray:
+    """sw_normalize [Convert array of water saturation to normalized water saturation]
+
+    Parameters
+    ----------
+    sw : np.ndarray
+        [Water saturation array]
+    swir : float
+        [Irreducible water saturation]
+    sor : float
+        [Residual Oil Saturation]
+
+    Returns
+    -------
+    np.ndarray
+        [Normalized water Saturation]
+    """
+    swn = (sw - swir) / (1 - swir - sor)
+    return swn
+
+def sw_denormalize(swn:np.ndarray, swir:float, sor:float) -> np.ndarray:
+    """sw_normalize [Convert array of normalized water saturation to water saturation]
+
+    Parameters
+    ----------
+    sw : np.ndarray
+        [normalized Water saturation array]
+    swir : float
+        [Irreducible water saturation]
+    sor : float
+        [Residual Oil Saturation]
+
+    Returns
+    -------
+    np.ndarray
+        [water Saturation]
+    """
+    sw = swn * (1 - swir - sor) + swir 
+    return sw
+
 
 class kr_df(pd.DataFrame):
     
@@ -62,7 +124,7 @@ class water_oil_kr:
         self.sor = kwargs.pop('sor',0)
         self.krwend = kwargs.pop('krwend',1)
         self.kroend = kwargs.pop('kroend',1)
-        self.pcend = kwargs.pop('pcend',1)
+        self.pcend = kwargs.pop('pcend',0)
         self.nw = kwargs.pop('nw',1)
         self.no = kwargs.pop('no',1)
         self.np = kwargs.pop('np',1)
@@ -168,15 +230,17 @@ class water_oil_kr:
         son = 1 - swn 
 
         #Calculate Krw, kro  and pc
-        kro = self.kroend * np.power(son,self.no)
+        kro = kr_curve(son,self.no,self.kroend)
         kro = np.append(kro,0)
-        krw = self.krwend * np.power(swn,self.nw)
+        
+        krw = kr_curve(swn,self.nw,self.krwend)
         krw = np.append(krw,1)
+        
         pcwo = self.pcend * np.power(son,self.np) 
         pcwo = np.append(pcwo,0)
 
         #Calculate Sw from endpoints
-        sw = swn * (1 - self.swir - self.sor) + self.swir 
+        sw = sw_denormalize(swn, self.swir, self.sor)
         sw = np.append(sw,1)
 
         kr_table = kr_df({
@@ -314,15 +378,38 @@ class water_oil_kr:
         else:
             raise ValueError('kr is not defiend')
 
-    def SWOF(self):
+    def to_ecl(self):
         
         assert self.kr is not None
         string = "SWOF\n"
         
-        string += self.kr.to_string(header=False, index=False)
+        string += self.kr.reset_index().to_string(header=False, index=False) +'/\n'
         
         return string
 
+    def fit(self, df:pd.DataFrame, krw:str=None, kro:str=None):
+        
+        sw = df.index.values 
+        
+        if krw is not None:
+            krw_array = df[krw].values
+        
+            popt, pcov = curve_fit(kr_curve, sw, krw_array, bounds=([0.01,0], [np.inf, 1]))
+            
+            print(f'Krw parameters\n-----\n n: {popt[0]}\n krend: {popt[1]}')
+            self.nw = popt[0]
+            self.krwend = popt[1]
+            
+        if kro is not None:
+            kro_array = df[kro].values
+        
+            popt, pcov = curve_fit(kr_curve, 1-sw, kro_array, bounds=([0.01,0], [np.inf, 1]))
+            
+            print(f'Kro parameters\n-----\n n: {popt[0]}\n krend: {popt[1]}')
+            self.no = popt[0]
+            self.kroend = popt[1]      
+
+    
 class gas_oil_kr:
 
     def __init__(self, **kwargs):
@@ -330,7 +417,7 @@ class gas_oil_kr:
         self.sgc = kwargs.pop('sgc',0)
         self.krgend = kwargs.pop('krgend',1)
         self.kroend = kwargs.pop('kroend',1)
-        self.pcend = kwargs.pop('pcend',1)
+        self.pcend = kwargs.pop('pcend',0)
         self.no = kwargs.pop('no',1)
         self.ng = kwargs.pop('ng',1)
         self.np = kwargs.pop('np',1)
@@ -449,7 +536,7 @@ class gas_oil_kr:
             'krg':krg,
             'kro':kro,
             'pcgo':pcgo,
-        }, index='sl')
+        }, index='sg')
 
         self._kr = kr_table
 
@@ -525,7 +612,7 @@ class gas_oil_kr:
                 krax.plot(sw_x, kro, **kro_kw)
 
                 #set labels
-                krax.set_xlabel('Liquid Saturation []')
+                krax.set_xlabel('Gas Saturation []')
                 krax.set_ylabel('Kr []')
                 krax.set_xlim([0,1])
                 krax.set_ylim([0,1])
@@ -571,3 +658,34 @@ class gas_oil_kr:
                 
         else:
             raise ValueError('kr is not defiend')
+        
+    def to_ecl(self):
+        
+        assert self.kr is not None
+        string = "SGOF\n"
+        
+        string += self.kr.reset_index().to_string(header=False, index=False) +'/\n'
+        
+        return string
+
+    def fit(self, df:pd.DataFrame, krg:str=None, kro:str=None):
+        
+        sg = df.index.values 
+        
+        if krg is not None:
+            krg_array = df[krg].values
+        
+            popt, pcov = curve_fit(kr_curve, sg, krg_array, bounds=([0.01,0], [np.inf, 1]))
+            
+            print(f'Krg parameters\n-----\n n: {popt[0]}\n krend: {popt[1]}')
+            self.nw = popt[0]
+            self.krgend = popt[1]
+            
+        if kro is not None:
+            kro_array = df[kro].values
+        
+            popt, pcov = curve_fit(kr_curve, 1-sg, kro_array, bounds=([0.01,0], [np.inf, 1]))
+            
+            print(f'Kro parameters\n-----\n n: {popt[0]}\n krend: {popt[1]}')
+            self.no = popt[0]
+            self.kroend = popt[1]     
