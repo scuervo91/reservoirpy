@@ -3,3 +3,4 @@ from .model import model
 from .numerical import numerical
 from .initial_conditions import initial_conditions
 from .results import results
+from .schedule import schedule_writer
