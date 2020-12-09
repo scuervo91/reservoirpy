@@ -36,7 +36,7 @@ def grtrack(df: pd.DataFrame,
                 sp_baseline:float = 0,
                 sp_fill:bool = False
                ):
-    """grtrack [Create a Gamma Ray & SP track with matplotlib as a backend. ]
+    """grtrack [Create a Gamma Ray & SP track with matplotlib as a backend]
 
     Parameters
     ----------
