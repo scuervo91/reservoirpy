@@ -2,11 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 import matplotlib as mpl
+from typing import Union, Sequence
 
 def grtrack(df: pd.DataFrame,
-                gr: (str,list) = None,
-                sp: (str,list) = None,
-                lims: list = None,
+                gr: Union[str,list] = None,
+                sp: Union[str,list] = None,
+                lims: Sequence[float] = None,
                 gr_max: int = 200,
                 sp_lim:list = None,
                 fm: pd.DataFrame = None,
@@ -16,96 +17,91 @@ def grtrack(df: pd.DataFrame,
                 correlation: pd.DataFrame = None,
                 fontsize: int = 8,
                 dtick: bool = True,
-                sand_flag: pd.Series=None,
-                grid_numbers : list = [11,51],
-                steps: list  = None,
-                legend = False,
-                gr_kw={},
-                sp_kw={},
-                fm_kw={},
-                unit_kw={},
-                perf_kw={},
-                gr_sand_kw={},
-                gr_shale_kw={},
-                corr_kw={},
+                grid_numbers : Sequence[float] = [11,51],
+                steps: Sequence[float]  = None,
+                legend:bool = False,
+                gr_kw:dict={},
+                sp_kw:dict={},
+                fm_kw:dict={},
+                unit_kw:dict={},
+                perf_kw:dict={},
+                gr_sand_kw:dict={},
+                gr_shale_kw:dict={},
+                corr_kw:dict={},
                 ax=None,
-                depth_ref='md',
+                depth_ref:str='md',
                 gr_colormap: str='autumn',
                 sp_colormap: str='gray',
                 sp_norm:bool = False,
                 sp_baseline:float = 0,
                 sp_fill:bool = False
                ):
-    """grtrack [summary]
+    """grtrack [Create a Gamma Ray & SP track with matplotlib as a backend. ]
 
     Parameters
     ----------
     df : pd.DataFrame
-        [description]
-    gr : [type], optional
-        [description], by default None
-    sp : [type], optional
-        [description], by default None
-    lims : list, optional
-        [description], by default None
+        [DataFrame with the data to plot indexed by the depth]
+    gr : Union[str,list], optional
+        [Gamma Ray Columns name in the df DataFrame], by default None
+    sp : Union[str,list], optional
+        [Gamma Ray Columns name in the df DataFrame], by default None
+    lims : Sequence[float], optional
+        [Interval depth to plot. List of numbers [Top, Bottom]], by default None
     gr_max : int, optional
-        [description], by default 200
+        [Set max Gr interval to plot], by default 200
     sp_lim : list, optional
-        [description], by default None
+        [Set sp lim], by default None
     fm : pd.DataFrame, optional
-        [description], by default None
+        [Add Tops depth], by default None
     units : pd.DataFrame, optional
-        [description], by default None
+        [Add Units depth], by default None
     perf : pd.DataFrame, optional
-        [description], by default None
+        [Add perforations depth], by default None
     gr_sand_shale : pd.DataFrame, optional
-        [description], by default None
+        [Add Gr sand a shale depth to plot], by default None
     correlation : pd.DataFrame, optional
-        [description], by default None
+        [Add correlations], by default None
     fontsize : int, optional
-        [description], by default 8
+        [Plot Fontsize], by default 8
     dtick : bool, optional
-        [description], by default True
-    sand_flag : pd.Series, optional
-        [description], by default None
-    grid_numbers : list, optional
-        [description], by default [11,51]
-    steps : list, optional
-        [description], by default None
+        [If True show the depth tick. ], by default True
+    grid_numbers : Sequence[float], optional
+        [Number of mayor and minor horizontal grids], by default [11,51]
+    steps : Sequence[float], optional
+        [Set size of horizontal grids], by default None
     legend : bool, optional
-        [description], by default False
+        [If true show the curves legend], by default False
     gr_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the gamma ray curve], by default {}
     sp_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the sp curve], by default {}
     fm_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the formation curve], by default {}
     unit_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the units curve], by default {}
     perf_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the perforations curve], by default {}
     gr_sand_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the Sand vertical curve], by default {}
     gr_shale_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the Shale curve], by default {}
     corr_kw : dict, optional
-        [description], by default {}
+        [Add key arguments that modify the correlation curven], by default {}
     ax : [type], optional
-        [description], by default None
+        [Matplotlib axes], by default None
     depth_ref : str, optional
-        [description], by default 'md'
+        [Set the depth reference: md, tvd, tvdss], by default 'md'
     gr_colormap : str, optional
-        [description], by default 'autumn'
+        [Set colormap when there are multiple gammaray curves], by default 'autumn'
     sp_colormap : str, optional
-        [description], by default 'gray'
-    fm_colormao : str, optional
-        [description], by default 'jet'
+        [Set colormap when there are multiple sp curves], by default 'gray'
     sp_norm : bool, optional
-        [description], by default False
+        [Normalize sp curve], by default False
     sp_baseline : float, optional
-        [description], by default 0
+        [Plot the sp baseline], by default 0
     sp_fill : bool, optional
-        [description], by default False
+        [Fill the sp curve], by default False
     """
     assert isinstance(df,pd.DataFrame)
     assert depth_ref in ['md','tvd','tvdss'], "depth_ref can only be one of ['md','tvd','tvdss']"
