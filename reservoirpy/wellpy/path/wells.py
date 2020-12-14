@@ -1108,6 +1108,9 @@ class well:
                 
                 #fluid rate
                 fluid_rate = sched[v].get('fluid_rate',None)
+                
+                #gor
+                gor = sched[v].get('gor',None) 
                     
                 if depend_start in list(num_dict.keys()) and i>0:
                     
@@ -1138,7 +1141,8 @@ class well:
                     econ_limit = econ_limit,
                     np_limit = np_limit,
                     npi = npi,
-                    fluid_rate = fluid_rate
+                    fluid_rate = fluid_rate,
+                    gor=gor
                 )
 
                 if start_date is not None:
@@ -1261,6 +1265,13 @@ class well:
                     'vw':'sum',
                     'wp':'max',
                     'bsw':'mean'
+                })
+                
+            if 'qg' in _cases_forecast.columns:
+                output_agg.update({
+                    'qg':'mean',
+                    'vg':'sum',
+                    'gp':'max',
                 })
             
             
