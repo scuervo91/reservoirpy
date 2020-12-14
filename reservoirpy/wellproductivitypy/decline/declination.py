@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 ############################################################################################
 # Forecast Function
-def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False):
+def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False, fluid_rate=None):
   """forecast_curve [Estimate a Forecast curve given Decline curve parameters]
 
   Parameters
@@ -32,10 +32,12 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False):
       [description]
   """
   ##Convert dates to number for apply regression methods
+
   days_number = range_time.apply(lambda x: x.toordinal()) 
   ti_day = ti.toordinal()
 
-  #Estimate the difference in days between the dates to forecast and Initial Ti                         
+  #Estimate the difference in days between the dates to forecast and Initial Ti
+     
   day_diff = days_number-ti_day                          
 
   if b == 0:
@@ -50,15 +52,31 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False):
   cum = cum + npi
   if gas:
     forecast = pd.DataFrame({'time':range_time[:-1],'qg':q[:-1], 'vg':diff_q[:-1],'gp':cum[:-1]}) 
-  else:
+  elif fluid_rate is None:
     forecast = pd.DataFrame({'time':range_time[:-1],'qo':q[:-1], 'vo':diff_q[:-1],'np':cum[:-1]})
+  else:
+    qw = fluid_rate - q 
+    diff_qw = diff_period * qw
+    cumw = diff_qw.cumsum()
+    forecast = pd.DataFrame(
+      {
+        'time':range_time[:-1],
+        'qo':q[:-1],
+        'vo':diff_q[:-1],
+        'np':cum[:-1],
+        'qw':qw[:-1],
+        'vw':diff_qw[:-1],
+        'wp':cumw[:-1],
+      }
+    )
+
   forecast = forecast.set_index('time')
   forecast = forecast.round(2)
-  total_cum = forecast.iloc[-1,-1]
+  total_cum = forecast['np'].iloc[-1]
   
   return forecast, total_cum
 
-def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False):
+def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False, fluid_rate=None):
   """
   Estimate a Forecast curve until a given Economic limit rate and Decline curve parameters
 
@@ -94,7 +112,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False):
   else:
     TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
 
-    f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=npi, gas=gas)
+    f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=npi, gas=gas, fluid_rate=None)
 
   return f, Np
 
@@ -331,9 +349,9 @@ class declination:
 
     if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
-      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi, gas=self.gas)
+      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi, gas=self.gas,fluid_rate=fluid_rate)
     else:
-      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi,gas=self.gas)
+      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi,gas=self.gas,fluid_rate=fluid_rate)
 
     if np_limit is not None:
       if Np > np_limit:
@@ -341,7 +359,6 @@ class declination:
         Np = f.iloc[-1,-1]
 
     if show_water and fluid_rate is not None:
-      f['qw'] = fluid_rate  - f['qo']
       f['bsw'] = f['qw'] / (f['qw'] + f['qo'])
       f['wor'] = f['qw'] / f['qo']
       f['wor_1'] = f['wor'] + 1

@@ -1105,6 +1105,9 @@ class well:
                 
                 #Move Ti
                 move_ti = sched[v].get('move_ti',None)
+                
+                #fluid rate
+                fluid_rate = sched[v].get('fluid_rate',None)
                     
                 if depend_start in list(num_dict.keys()) and i>0:
                     
@@ -1134,7 +1137,8 @@ class well:
                     end_date=end_date_case,
                     econ_limit = econ_limit,
                     np_limit = np_limit,
-                    npi = npi
+                    npi = npi,
+                    fluid_rate = fluid_rate
                 )
 
                 if start_date is not None:
@@ -1256,6 +1260,7 @@ class well:
                     'qw':'mean',
                     'vw':'sum',
                     'wp':'max',
+                    'bsw':'mean'
                 })
             
             
