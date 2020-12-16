@@ -5,8 +5,8 @@ from datetime import date
 
 def schedule_writer(keywords_dict, keywords, start_date=None, end_date=None):
     string = ""
-    string += 'RPTRST\n 0\n'
-    
+    string += "RPTRST\n 'BASIC=1' /\n"
+    string += "RPTSCHED\n 'FIP=1' 'WELLS=1' 'WELLSPECS' /\n"
     dates_list = []
     
     #Extract all dates from all keywords
