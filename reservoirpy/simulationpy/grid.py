@@ -24,7 +24,7 @@ SupportKeyWords=[
     'PERMYX', 'PERMY' , 'PERMYZ', 
     'PERMZX', 'PERMZY', 'PERMZ',
     'ACTNUM',
-    'SATNUM',
+    'SATNUM', 'NTG',
     'INCLUDE',
     
 ]
@@ -39,7 +39,7 @@ KeyWordsDatatypes=[#Corrsponding data types
     float,float,float,
     float,float,float,
     int,
-    int
+    int,float
 ]
 
 def parseDataArray(DataArray):

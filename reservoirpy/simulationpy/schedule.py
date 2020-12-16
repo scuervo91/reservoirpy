@@ -3,7 +3,7 @@ import pandas as pd
 import os 
 from datetime import date
 
-def schedule_writer(keywords_dict, keywords):
+def schedule_writer(keywords_dict, keywords, start_date=None, end_date=None):
     string = ""
     string += 'RPTRST\n 0\n'
     
@@ -19,13 +19,18 @@ def schedule_writer(keywords_dict, keywords):
     # Flag to decide to write new DATE keyword
     write_date_keyword = True 
     for date in dates_df.unique():
-        
+        if start_date is not None:
+            if pd.Timestamp(date) < start_date:
+                continue
+        if end_date is not None:
+            if pd.Timestamp(date) > end_date:
+                continue
         # If other keywords have been written in previous date 
         # The keyword Dates must be written
         if write_date_keyword:
             string += 'DATES\n'
         
-        date_str = pd.Timestamp(date).strftime("%d %b %Y").upper()
+        date_str = pd.Timestamp(date).strftime("%d '%b' %Y").upper()
         string += date_str + ' /\n'
 
         #Check if keyword is in the allowed keywords to write
@@ -40,8 +45,9 @@ def schedule_writer(keywords_dict, keywords):
                 write_date_keyword = True if write_date_keyword else False
                 continue
             
-            key_date = keywords_dict[key].loc[keywords_dict[key]['date']==date]
+            key_date = keywords_dict[key].loc[keywords_dict[key]['date']==pd.Timestamp(date)]
             if key_date.empty:
+
                 write_date_keyword = True if write_date_keyword else False
                 continue
             c += 1
