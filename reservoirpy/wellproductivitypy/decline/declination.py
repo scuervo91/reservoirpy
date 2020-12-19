@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 ############################################################################################
 # Forecast Function
-def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False, fluid_rate=None, gor=None):
+def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False, fluid_rate=None, gor=None, bsw=None):
   """forecast_curve [Estimate a Forecast curve given Decline curve parameters]
 
   Parameters
@@ -66,8 +66,15 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False, fluid_rate=None, gor=
           'np':cum[:-1],
     }
   
-  if fluid_rate is not None:
-    qw = fluid_rate - q 
+  #Caculate water rate by providing either fluid rate or bsw. 
+  if any([fluid_rate is not None,bsw is not None]):
+    
+    #If fluid rate and Bsw are provided the 'fluid_rate' parameters has priority
+    if fluid_rate is not None:
+      qw = fluid_rate - q 
+    elif bsw is not None:
+      qw = (bsw*q)/(1-bsw) 
+      
     diff_qw = diff_period * qw
     cumw = diff_qw.cumsum()
     df_dict.update({
@@ -75,7 +82,7 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False, fluid_rate=None, gor=
         'vw':diff_qw[:-1],
         'wp':cumw[:-1],      
     })
-   
+     
   if gor is not None:
     qg = (gor/1000) * q
     diff_qg = diff_period * qg
@@ -88,11 +95,11 @@ def forecast_curve(range_time,qi,di,ti,b,npi=0, gas=False, fluid_rate=None, gor=
   forecast = pd.DataFrame(df_dict)
   forecast = forecast.set_index('time')
   forecast = forecast.round(2)
-  total_cum = forecast['np'].iloc[-1]
+  total_cum = forecast['gp'].iloc[-1]  if gas else forecast['np'].iloc[-1] 
   
   return forecast, total_cum
 
-def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False, fluid_rate=None, gor=None):
+def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False, fluid_rate=None, gor=None, bsw=None):
   """
   Estimate a Forecast curve until a given Economic limit rate and Decline curve parameters
 
@@ -128,7 +135,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False, fluid
   else:
     TimeRange = pd.Series(pd.date_range(start=t, end=date_until, freq=fr))
 
-    f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=npi, gas=gas, fluid_rate=fluid_rate,gor=gor)
+    f, Np = forecast_curve(TimeRange,qi,di,ti,b, npi=npi, gas=gas, fluid_rate=fluid_rate,gor=gor, bsw=bsw)
 
   return f, Np
 
@@ -313,6 +320,7 @@ class declination:
     fluid_rate:float=None,
     show_water:bool = False,
     gor = None,
+    bsw=None,
     **kwargs
     ):
     """
@@ -366,16 +374,16 @@ class declination:
 
     if econ_limit is None:
       time_range = pd.Series(pd.date_range(start=start_date, end=end_date, freq=fq, **kwargs))
-      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi, gas=self.gas,fluid_rate=fluid_rate, gor=gor)
+      f, Np = forecast_curve(time_range,self.qi,self.di,self.ti,self.b,npi=npi, gas=self.gas,fluid_rate=fluid_rate, gor=gor, bsw=bsw)
     else:
-      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi,gas=self.gas,fluid_rate=fluid_rate,gor=gor)
+      f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi,gas=self.gas,fluid_rate=fluid_rate,gor=gor, bsw=bsw)
 
     if np_limit is not None:
       if Np > np_limit:
         f = f.loc[f['np']<np_limit,:]
         Np = f.iloc[-1,-1]
 
-    if show_water and fluid_rate is not None:
+    if show_water and any([fluid_rate is not None, bsw is not None]):
       f['bsw'] = f['qw'] / (f['qw'] + f['qo'])
       f['wor'] = f['qw'] / f['qo']
       f['wor_1'] = f['wor'] + 1

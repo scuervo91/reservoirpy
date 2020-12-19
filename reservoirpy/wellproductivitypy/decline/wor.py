@@ -25,7 +25,9 @@ def wor_forecast(
     econ_limit = None,
     np_limit=None, 
     wor_limit=None,
-    npi=0
+    npi=0,
+    bsw=None,
+    gor=None
     ):
     """
     Estimate a Forecast curve given wor+1 parameters
@@ -34,6 +36,7 @@ def wor_forecast(
 
         Return -> 
     """
+    # TODO Implement Gor forecast. 
     assert isinstance(range_time,pd.Series)
     days_number = range_time.apply(lambda x: x.toordinal()).values
     assert isinstance(fluid_rate,(pd.Series,np.ndarray))
@@ -204,13 +207,15 @@ class wor_declination:
         time_range:pd.Series=None,
         start_date:date=None, 
         end_date:date=None, 
-        fluid_rate:(pd.Series,np.ndarray,int,float)=None, 
+        fluid_rate=None, 
         fq:str=None, 
         np_limit=None,
         wor_limit=None,
         econ_limit=None,
         show_water=True,
         npi = None,
+        bsw=None,
+        gor=None,
         **kwargs
     ):
         """

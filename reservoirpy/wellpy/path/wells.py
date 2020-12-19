@@ -1070,11 +1070,11 @@ class well:
                 assert isinstance(time_delay,timedelta)
 
                 # for declination object change ti the depend start
-                change_ti = sched[v].get('change_ti', True)
+                change_ti = sched[v].get('change_ti', False)
                 change_flow = sched[v].get('change_flow', False)
 
                 # for wor_declination 
-                depend_bsw = sched[v].get('depend_bsw', True)
+                depend_bsw = sched[v].get('depend_bsw', False)
                 discount_bsw = sched[v].get('discount_bsw', 0.95)
 
                 fix_end = sched[v].get('fix_end', False)
@@ -1108,7 +1108,7 @@ class well:
                 
                 #fluid rate
                 fluid_rate = sched[v].get('fluid_rate',None)
-                
+                bsw = sched[v].get('bsw',None)
                 #gor
                 gor = sched[v].get('gor',None) 
                     
@@ -1142,7 +1142,8 @@ class well:
                     np_limit = np_limit,
                     npi = npi,
                     fluid_rate = fluid_rate,
-                    gor=gor
+                    gor=gor,
+                    bsw=bsw
                 )
 
                 if start_date is not None:
@@ -1252,12 +1253,14 @@ class well:
         if len(cases_forecast_list)>0:
             _cases_forecast = pd.concat(cases_forecast_list,axis=0)       
 
+            output_agg ={}
             #Aggregation dict for output dataframe
-            output_agg = {
-                'qo':'mean',
-                'vo':'sum',
-                'np':'max',
-            }
+            if 'qo' in _cases_forecast.columns:
+                output_agg.update({
+                    'qo':'mean',
+                    'vo':'sum',
+                    'np':'max',
+                })
             
             if 'qw' in _cases_forecast.columns:
                 output_agg.update({
