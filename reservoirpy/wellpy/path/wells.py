@@ -18,10 +18,11 @@ from ...welllogspy.log import Log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import Declination, WorDeclination, bsw_to_wor
 from ...volumetricspy import SurfaceGroup
-from ...cashflows.timeseries import Cash
-from ...cashflows.taxing import after_tax_cashflow
-from ...cashflows.analysis import timevalue
-from ...cashflows.rate import perrate
+from ...cashflows.cash import CashFlow
+from cashflows.timeseries import cashflow
+from cashflows.taxing import after_tax_cashflow
+from cashflows.analysis import timevalue
+from cashflows.rate import perrate
 from sqlalchemy import create_engine
 from ...wellschematicspy import WellSchema
 import pickle
@@ -479,7 +480,7 @@ class Well:
             for i in value:
                 assert isinstance(value[i],dict)   
                 for j in value[i]:
-                    assert isinstance(value[i][j],Cash)       
+                    assert isinstance(value[i][j],CashFlow)       
         self._cashflow = value
 
     @property
@@ -524,7 +525,7 @@ class Well:
         assert isinstance(cashflows,dict)
         assert case is not None
         for cashflow in cashflows:
-            assert isinstance(cashflows[cashflow],Cash) 
+            assert isinstance(cashflows[cashflow],CashFlow) 
 
         if self.cashflow is None:
             self.cashflow = {case:cashflows}
@@ -1217,9 +1218,9 @@ class Well:
             #Add to general forecast
             cases_forecast_list.append(_forecast)
             
-            #Cash flow generate
+            #CashFlow flow generate
             if bool(capex_sched):
-                cash_objt = Cash(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
+                cash_objt = CashFlow(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
                     end=_forecast.index.max(), freq=fq_output, name=cash_name['capex'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['capex']:cash_objt},case=case)
@@ -1227,7 +1228,7 @@ class Well:
             if len(income_list)>0:
                 income_df = pd.concat(income_list, axis=1)
                 income_df['total'] = income_df.sum(axis=1)
-                inc_cash_objt = Cash(const_value=income_df['total'].to_list(),
+                inc_cash_objt = CashFlow(const_value=income_df['total'].to_list(),
                     start=income_df.index.min().to_timestamp(),
                     freq=fq_output, name=cash_name['income'] +'_'+ self.name)
                 
@@ -1236,7 +1237,7 @@ class Well:
             if len(var_opex_list)>0:
                 var_opex_df = pd.concat(var_opex_list, axis=1)
                 var_opex_df['total'] = var_opex_df.sum(axis=1)
-                varopex_cash_objt = Cash(const_value=var_opex_df['total'].to_list(),
+                varopex_cash_objt = CashFlow(const_value=var_opex_df['total'].to_list(),
                     start=var_opex_df.index.min().to_timestamp(),
                     freq=fq_output, name=cash_name['var_opex'] +'_'+ self.name)
                 
@@ -1245,7 +1246,7 @@ class Well:
             if len(fix_opex_list)>0:
                 fix_opex_df = pd.concat(fix_opex_list, axis=1)
                 fix_opex_df['total'] = fix_opex_df.sum(axis=1)
-                fixopex_cash_objt = Cash(const_value=fix_opex_df['total'].to_list(),
+                fixopex_cash_objt = CashFlow(const_value=fix_opex_df['total'].to_list(),
                     start=fix_opex_df.index.min().to_timestamp(),
                     freq=fq_output, name=cash_name['fix_opex'] +'_'+ self.name)
                 
