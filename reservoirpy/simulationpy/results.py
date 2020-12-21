@@ -1,6 +1,6 @@
 import numpy as np
 
-class results:
+class Results:
     def __init__(self,**kwargs):
         
         self.time = kwargs.pop('time',None)

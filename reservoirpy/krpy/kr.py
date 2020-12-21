@@ -65,7 +65,7 @@ def sw_denormalize(swn:np.ndarray, swir:float, sor:float) -> np.ndarray:
     return sw
 
 
-class kr_df(pd.DataFrame):
+class Kr(pd.DataFrame):
     
     def __init__(self, *args, **kwargs):
         wet_col = kwargs.pop("index", 'sw')
@@ -115,9 +115,9 @@ class kr_df(pd.DataFrame):
          
     @property   
     def _constructor(self):
-        return kr_df
+        return Kr
 
-class water_oil_kr:
+class KrWaterOil:
 
     def __init__(self, **kwargs):
         self.swir = kwargs.pop('swir',0)
@@ -410,7 +410,7 @@ class water_oil_kr:
             self.kroend = popt[1]      
 
     
-class gas_oil_kr:
+class KrGasOil:
 
     def __init__(self, **kwargs):
         self.slc = kwargs.pop('slc',0)
@@ -511,7 +511,7 @@ class gas_oil_kr:
     @kr.setter
     def kr(self,value):
         if value is not None:
-            assert isinstance(value,kr_df)
+            assert isinstance(value,Kr)
         self._kr = value
 
     #Methods
@@ -530,7 +530,7 @@ class gas_oil_kr:
         #Calculate Sg from endpoints
         sg = sgn * (1 - self.slc - self.sgc) + self.sgc
         sl = 1-sg
-        kr_table = kr_df({
+        kr_table = Kr({
             'sl':sl,
             'sg':sg,
             'krg':krg,

@@ -1,6 +1,6 @@
 import numpy as np
 
-class initial_conditions:
+class InitialConditions:
     def __init__(self,**kwargs):
         self.pi = kwargs.pop('pi', None)
         self.woc = kwargs.pop('woc',None)

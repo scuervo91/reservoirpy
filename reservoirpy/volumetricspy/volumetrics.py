@@ -11,7 +11,7 @@ from zmapio import ZMAPGrid
 def poly_area(x,y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-class surface:
+class Surface:
     def __init__(self, **kwargs):
         self.x = kwargs.pop('x',None)
         self.y = kwargs.pop('y',None)
@@ -252,7 +252,7 @@ class surface:
         self.z = p.values
         self.crs=crs
 
-class surface_group:
+class SurfaceGroup:
     def __init__(self,**kwargs):
        
         self.surfaces = kwargs.pop('surfaces',None) 
@@ -265,14 +265,14 @@ class surface_group:
     def surfaces(self,value):
         if value is not None:
             assert isinstance(value,dict)
-            assert all(isinstance(value[i],surface) for i in value)
+            assert all(isinstance(value[i],Surface) for i in value)
             self._surfaces = value
         else:
             self._surfaces = {}
 
     def add_surface(self,surf):
         assert isinstance(surf,dict)
-        assert all(isinstance(surf[i],surface) for i in surf)
+        assert all(isinstance(surf[i],Surface) for i in surf)
 
         _surface_dict = self.surfaces.copy()
 

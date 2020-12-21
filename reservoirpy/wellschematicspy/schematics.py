@@ -14,7 +14,7 @@ completion_properties = {
     'plug':{'hatch':'..','color':'#60b1eb'},
 }
 
-class well_schema:
+class WellSchema:
     def __init__(self, **kwargs):
         self.open_hole = kwargs.get('open_hole',None)
         self.casing = kwargs.get('casing',None)

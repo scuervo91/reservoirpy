@@ -1,3 +1,3 @@
-class als:
+class Als:
     pass
 

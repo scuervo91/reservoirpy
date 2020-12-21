@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
-from ...pvtpy.black_oil import oil, water, gas 
-from ...krpy import water_oil_kr, gas_oil_kr
+from ...pvtpy.black_oil import Oil, Water, Gas 
+from ...krpy import KrWaterOil, KrGasOil
 from ...wellproductivitypy.decline import bsw_to_wor
-from .aquifer import pot_aquifer
+from .aquifer import PotAquifer
 import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
@@ -55,7 +55,7 @@ def eg(boi,bg,bgi):
 def efw(boi,cw,swi,cf,dp):
     return boi*((cw*swi+cf)/(1-swi))*dp
 
-class production_history(pd.DataFrame):
+class ProductionHistory(pd.DataFrame):
     def __init__(self, *args, **kwargs):
 
         #Indicate pressure column name
@@ -75,7 +75,7 @@ class production_history(pd.DataFrame):
     def _constructor(self):
         return production_history
 
-class oil_reservoir:
+class OilReservoir:
     def __init__(self,**kwargs):
         self.n = kwargs.pop('n',None)  #Original Oil in Place in bbl (barrels)
         self.g = kwargs.pop('g',None) #Original Gas in Place in  scf (Standard Cubic Feet)
@@ -605,7 +605,7 @@ class oil_reservoir:
             )
         return _df
 
-class gas_reservoir:
+class GasReservoir:
     def __init__(self,**kwargs):
         self.g = kwargs.pop('g',0) #Original Gas in Place in  scf (Standard Cubic Feet)
         self.aquifer = kwargs.pop('aquifer',None) # aquifer model

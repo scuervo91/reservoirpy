@@ -1,9 +1,9 @@
 import numpy as np 
 import pandas as pd 
 from .outflow import one_phase_pressure_profile, two_phase_pressure_profile, two_phase_outflow_curve, two_phase_upward_pressure
-from .als import als
-from .inflow import oil_inflow
-from ...pvtpy.black_oil import pvt, gas, oil, water
+from .als import Als
+from .inflow import OilInflow
+from ...pvtpy.black_oil import Pvt,Oil,Gas,Water
 
 
 def nozzle_flow(
@@ -42,7 +42,7 @@ def minimum_suction_area(
 
     return acm
 
-class jet_pump(als):
+class JetPump(Als):
     def __init__(self,**kwargs):
         self.n = kwargs.pop('n',15)
         self.surf_to_pump_depth_md = kwargs.pop('surf_to_pump_depth_md',None)

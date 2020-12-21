@@ -8,7 +8,7 @@ import os
 ############################################################
 ############################################################
 ## Oil PVT
-class pvt(pd.DataFrame):
+class Pvt(pd.DataFrame):
     
     def __init__(self, *args, **kwargs):
         pressure = kwargs.pop("pressure", None)
@@ -58,7 +58,7 @@ class pvt(pd.DataFrame):
          
     @property   
     def _constructor(self):
-        return pvt
+        return Pvt
 
 #Default Correlations
 oil_def_corr = {
@@ -77,7 +77,7 @@ oil_def_corr = {
     'rho':'banzer'
 }
 
-class oil:
+class Oil:
 
     def __init__(self, **kwargs):
 
@@ -182,7 +182,7 @@ class oil:
     @pvt.setter
     def pvt(self,value):
         if value is not None:
-            assert isinstance(value,pvt), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
+            assert isinstance(value,Pvt), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
         self._pvt = value
 
     @property
@@ -229,7 +229,7 @@ class oil:
 
         _pvt = pd.concat([rs_cor,bo_cor,co_cor,muo_cor,rho_cor],axis=1)
 
-        self._pvt=pvt(_pvt.reset_index())
+        self._pvt=Pvt(_pvt.reset_index())
 
         return self._pvt
 
@@ -317,7 +317,7 @@ water_def_corr = {
     'muw' : 'van_wingen'
 }
 
-class water:
+class Water:
     def __init__(self, **kwargs):
 
         self.formation = kwargs.pop('formation',None)
@@ -401,7 +401,7 @@ class water:
 
         _pvt = pd.concat([rsw_cor,cw_cor,bw_cor,muw_cor,rhow_cor],axis=1)
 
-        self._pvt=pvt(_pvt.reset_index())
+        self._pvt=Pvt(_pvt.reset_index())
 ############################################################
 ############################################################
 ############################################################
@@ -412,7 +412,7 @@ components_path = os.path.join(file_dir,'components_properties.csv')
 
 properties_df = pd.read_csv(components_path, index_col='name')
 
-class chromatography(pd.DataFrame):
+class Chromatography(pd.DataFrame):
 
     def __init__(self, *args, **kwargs):
         mole_fraction = kwargs.pop("mole_fraction", None)
@@ -501,7 +501,7 @@ class chromatography(pd.DataFrame):
         
     @property   
     def _constructor(self):
-        return chromatography
+        return Chromatography
 
 gas_def_corr = {
     'cp_correction': 'wichert-aziz',
@@ -511,7 +511,7 @@ gas_def_corr = {
     'mug':'lee_gonzalez',
     'cg':'ideal_gas'
 }
-class gas:
+class Gas:
     def __init__(self, **kwargs):
 
         self.formation = kwargs.pop('formation',None)
@@ -565,7 +565,7 @@ class gas:
     
     @pvt.setter
     def pvt(self,value):
-        assert isinstance(value,(pvt,type(None))), 'PVT must be a instance of reservoirpy.pvtpy.black_oil.pvt object'
+        assert isinstance(value,(Pvt,type(None))), 'PVT must be a instance of reservoirpy.pvtpy.black_oil.pvt object'
         self._pvt = value 
 
     @property
@@ -574,7 +574,7 @@ class gas:
     
     @chromatography.setter
     def chromatography(self,value):
-        assert isinstance(value,(chromatography,type(None))), 'chromatography must be a instance of reservoirpy.pvtpy.black_oil.chromatography object'
+        assert isinstance(value,(Chromatography,type(None))), 'chromatography must be a instance of reservoirpy.pvtpy.black_oil.chromatography object'
         self._chromatography = value 
 
     @property
@@ -687,7 +687,7 @@ class gas:
 
         _pvt = pd.concat([z_cor,rhog_cor,bg_cor,mug_cor,cg_cor],axis=1)
 
-        self._pvt=pvt(_pvt.reset_index())
+        self._pvt=Pvt(_pvt.reset_index())
 
 
     def to_ecl(

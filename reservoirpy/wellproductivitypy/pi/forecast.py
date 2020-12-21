@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd 
-from ...wellpy.path import well, wells_group
-from .inflow import gas_inflow, oil_inflow
-from ...pvtpy.black_oil import oil, gas, water
+from ...wellpy.path import Well, WellsGroup
+from .inflow import OilInflow, GasInflow
+from ...pvtpy.black_oil import Oil, Gas, Water
 
 
 class pressure_model:

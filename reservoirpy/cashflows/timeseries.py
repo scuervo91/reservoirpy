@@ -169,7 +169,7 @@ def textplot(cflo):
     print('\n'.join(txt))
 
 
-class cash:
+class Cash:
     def __init__(self, **kwargs):
         self.const_value = kwargs.pop('const_value',0)
         self.start = kwargs.pop('start',None)

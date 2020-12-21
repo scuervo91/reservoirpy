@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 from datetime import date, timedelta
 import matplotlib.pyplot as plt
+from .dca import DCA
 
 ############################################################################################
 # Forecast Function
@@ -142,7 +143,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False, fluid
 ######################################################################
 #Create Declination Object 
 
-class declination:
+class Declination(DCA):
   """
   Decline curve object for Oil and Gas Forecasting
   
@@ -597,7 +598,7 @@ def time_limit(qi,qlim,b,di):
     tl = ((np.power(qi/qlim,b)-1)/(b*di))*365
     return tl
 
-class hybrid_declination:
+class HybridDeclination(DCA):
   def __init__(self,dec_hyp, dlim):
     self.dec_hyp = dec_hyp
     self.dlim = dlim 
