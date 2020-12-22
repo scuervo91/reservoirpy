@@ -410,7 +410,7 @@ class Declination(DCA):
 
       Return -> q -> 1D Numpy array with the Flow rate
     """
-    r=[] # Return
+    r=None # Return
     df = df.dropna()
     df = df[df[rate]>0]
     print("Shape of input dataframe ",df.shape[0])

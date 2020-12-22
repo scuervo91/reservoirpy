@@ -18,7 +18,7 @@ from ...welllogspy.log import Log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import Declination, WorDeclination, bsw_to_wor
 from ...volumetricspy import SurfaceGroup
-from ...cashflows.cash import CashFlow
+from ...cashpy.cashflow import CashFlow
 from cashflows.timeseries import cashflow
 from cashflows.taxing import after_tax_cashflow
 from cashflows.analysis import timevalue
