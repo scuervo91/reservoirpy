@@ -305,7 +305,7 @@ class Well:
     @tops.setter
     def tops(self,value):
         if value is not None:
-            assert isinstance(value,tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
+            assert isinstance(value,Tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
             if self.crs is not None and value is not None:
                 value.crs = self.crs
         self._tops = value    
@@ -317,7 +317,7 @@ class Well:
     @units.setter
     def units(self,value):
         if value is not None:
-            assert isinstance(value,tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
+            assert isinstance(value,Tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
             if self.crs is not None and value is not None:
                 value.crs = self.crs
         self._units = value    
@@ -990,7 +990,7 @@ class Well:
         """
         Add perforations to the existing ones
         """
-        assert isinstance(value,perforations)
+        assert isinstance(value,Perforations)
 
         if self.perforations is None:
             self._perforations = value
@@ -1064,7 +1064,7 @@ class Well:
                 end_date_case = sched[v].get('end_date', None)  
                 
                 #show water default True if WorDeclination; if declination default is false
-                show_water = sched[v].get('show_water', False if isinstance(sched[v]['declination'],declination) else True)
+                show_water = sched[v].get('show_water', False if isinstance(sched[v]['declination'],Declination) else True)
                 # Start of declination is the end of prevous
                 depend_start = sched[v].get('depend_start', None) 
 
@@ -1120,10 +1120,10 @@ class Well:
                     depend_number = num_dict[depend_start]
                     start_date_case = _forecast_list[depend_number].index[-1] + time_delay
 
-                    if change_ti and isinstance(sched[v]['declination'],declination):
+                    if change_ti and isinstance(sched[v]['declination'],Declination):
                         sched[v]['declination'].ti = _forecast_list[depend_number].index[-1].date()
 
-                    if change_flow and isinstance(sched[v]['declination'],declination):
+                    if change_flow and isinstance(sched[v]['declination'],Declination):
                         if sched[v]['declination'].gas:
                             sched[v]['declination'].qi = _forecast_list[depend_number]['qg'].iloc[-1]
                         else:
@@ -1446,7 +1446,7 @@ class WellsGroup:
     @surfaces.setter
     def surfaces(self, value):
         if value is not None:
-            assert isinstance(value, surface_group)
+            assert isinstance(value, SurfaceGroup)
         self._surfaces = value
 
     def add_well(self,*args):
