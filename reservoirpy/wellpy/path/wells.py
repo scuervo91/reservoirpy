@@ -18,11 +18,10 @@ from ...welllogspy.log import Log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import Declination, WorDeclination, bsw_to_wor
 from ...volumetricspy import SurfaceGroup
-from ...cashpy.cashflow import CashFlow
-from cashflows.timeseries import cashflow
-from cashflows.taxing import after_tax_cashflow
-from cashflows.analysis import timevalue
-from cashflows.rate import perrate
+from ...cashpy.timeseries import CashFlow
+from ...cashpy.taxing import after_tax_cashflow
+from ...cashpy.analysis import timevalue
+from ...cashpy.rate import perrate
 from sqlalchemy import create_engine
 from ...wellschematicspy import WellSchema
 import pickle
@@ -1171,7 +1170,9 @@ class Well:
 
                 if fix_opex is not None:
                     if isinstance(fix_opex,(int,float,list)):
-                        fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
+                        fr_output = _f.to_period(fq_output).reset_index()['time'].unique()
+                        fix_opex_s = pd.Series(np.full(fr_output.shape, fix_opex), index=fr_output)
+                        fix_opex_list.append(fix_opex_s)
                     elif isinstance(fix_opex,pd.Series):
                         fix_opex_list.append(fix_opex)
 
