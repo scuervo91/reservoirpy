@@ -2506,20 +2506,19 @@ class WellsGroup:
                         print(f'None value passed to well case. Error found {e}')
                         continue
                 else:
-                    _cash_name_list.extend(list(self.wells[well].cashflow[case].keys()))
-                                           
+                    _cash_name_list.extend(list(self.wells[well].cashflow[case].keys()))                       
                 _cash_name_list = [i for i in _cash_name_list if i in self.wells[well].cashflow[case].keys()]
-
+                
                 if len(_cash_name_list) == 0:
                     print(f'No cash name found in case {case} on well {well}')
                     continue
                 
-                for cash_name in _cash_name_list:
-                    cash_series = self.wells[well].cashflow[case][cash_name].cashflow()
+                for _cash_name in _cash_name_list:
+                    cash_series = self.wells[well].cashflow[case][_cash_name].cashflow()
                     cash_df = pd.DataFrame(cash_series.values, columns=['cashflow'], index=cash_series.index)
                     cash_df['well'] = well 
                     cash_df['case'] = case 
-                    cash_df['cash_name'] = cash_name
+                    cash_df['cash_name'] = _cash_name
                     cashflow_list.append(cash_df)
 
         if len(cashflow_list)>0:
