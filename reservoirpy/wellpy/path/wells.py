@@ -2464,13 +2464,12 @@ class WellsGroup:
         else:
             _well_list = wells
         
-        _cases_list = []
-        _cash_name_list = []
         cashflow_list = []
         
         #Iterate over wells
         for well in _well_list:
-            
+            _cases_list = []
+            _cash_name_list = []
             if self.wells[well].cashflow is None:
                 continue
             if isinstance(cases,(str,list)):
@@ -2487,9 +2486,7 @@ class WellsGroup:
                     continue
             else:
                 _cases_list.extend(list(self.wells[well].cashflow.keys()))
-
             _cases_list = [i for i in _cases_list if i in self.wells[well].cashflow.keys()]
-            
             if len(_cases_list) == 0:
                 print(f'No cases found in {well}')
                 continue
