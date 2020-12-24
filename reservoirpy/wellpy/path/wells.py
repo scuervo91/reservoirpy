@@ -1,19 +1,8 @@
-import pandas as pd 
-import numpy as np
-import geopandas as gpd
-from shapely.geometry import Point
-from .mincurve import min_curve_method
-from .mincurve import Survey
+#Local Imports
+from .mincurve import min_curve_method, Survey, vtk_survey
 from .interpolate import interpolate_deviation, interpolate_position
 from .projection import unit_vector, projection_1d
-from scipy.interpolate import interp1d
-from scipy.spatial import distance_matrix
-from pyproj import Proj, transform
-import folium
-from folium.plugins import MarkerCluster, MeasureControl,MousePosition#,LocateControl
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pyvista as pv 
+from .perftops import Perforations, Tops
 from ...welllogspy.log import Log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import Declination, WorDeclination, bsw_to_wor
@@ -22,8 +11,21 @@ from ...cashpy.timeseries import CashFlow
 from ...cashpy.taxing import after_tax_cashflow
 from ...cashpy.analysis import timevalue
 from ...cashpy.rate import perrate
-from sqlalchemy import create_engine
 from ...wellschematicspy import WellSchema
+#External Imports
+import pandas as pd 
+import numpy as np
+import geopandas as gpd
+from shapely.geometry import Point
+from scipy.interpolate import interp1d
+from scipy.spatial import distance_matrix
+from pyproj import Proj, transform
+import folium
+from folium.plugins import MarkerCluster, MeasureControl,MousePosition#,LocateControl
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pyvista as pv 
+from sqlalchemy import create_engine
 import pickle
 from datetime import date, timedelta
 import pyDOE2 as ed
@@ -32,7 +34,30 @@ import time
 from typing import Union
 
 
-def input_to_list(input):
+def input_to_list(input:Union[list,str])->list:
+    """input_to_list [Utility function used when one or multiple inputs are allowed.
+                        When one parameters is required to pass, it is more 
+                        convinient to pass a string rather than a list. When multiple choice,
+                        is required it allows to pass a list. The runction returns a list.
+                        
+                        Example:
+                        >>> input_to_list('well-1')
+                        ['well-1]
+                        
+                        >>> input_to_list(['well-1','well-2'])
+                        ['well-1','well-2']
+                    ]
+
+    Parameters
+    ----------
+    input : Union[list,str]
+        [Input of parameters. List or string]
+
+    Returns
+    -------
+    list
+        [Return the list of parameters. When a string is passed, a list of length of 1 is return]
+    """
     assert isinstance(input,(str,list)), f'input must be either string or list'
     
     input_list = []
@@ -42,148 +67,8 @@ def input_to_list(input):
         input_list.extend(input)
     return input_list
 
-
-class Perforations(gpd.GeoDataFrame):
-
-    def __init__(self, *args, **kwargs):
-        kh = kwargs.pop("kh", None)
-        productivity_index = kwargs.pop("productivity_index", None)
-        is_open = kwargs.pop('is_open',None)  
-        fluid = kwargs.pop('fluid',None)                                                                                                                               
-        super(Perforations, self).__init__(*args, **kwargs)
-
-        if kh is not None:
-            assert isinstance(kh,list) 
-            assert all(isinstance(i,(int,float)) for i in kh)
-            self['kh'] = kh
-        elif 'kh' in self.columns:
-            assert all(isinstance(i,(int,float)) for i in self['kh'].tolist())
-
-        if productivity_index is not None:
-            assert isinstance(productivity_index,list) 
-            assert all(isinstance(i,(int,float)) for i in productivity_index)
-            self['productivity_index'] = productivity_index
-        elif 'productivity_index' in self.columns:
-            assert all(isinstance(i,(int,float)) for i in self['productivity_index'].tolist())
-
-        if is_open is not None:
-            assert isinstance(is_open,list)
-            assert all(isinstance(i,bool) for i in is_open)
-            self['is_open'] = is_open
-        elif 'is_open' in self.columns:
-            assert all(isinstance(i,bool) for i in self['is_open'].tolist())
-
-        if fluid is not None:
-            assert isinstance(fluid,list)
-            assert all(i in ['oil','gas','water'] for i in fluid)
-            self['fluid'] = fluid
-        elif 'fluid' in self.columns:
-            assert all(isinstance(i,bool) for i in self['is_open'].tolist())
-            assert all(i in ['oil','gas','water'] for i in self['fluid'].tolist())
-
-
-    def open_perf(self):
-        return self[self['is_open']==True]
-
-    def get_tick(self):
-        try:
-            self['md_tick'] = self['md_bottom'] - self['md_top']
-        except:
-            pass
-
-        try:
-            self['tvd_tick'] = self['tvd_bottom'] - self['tvd_top']
-        except:
-            pass
-        
-        return self
-    
-    def get_mid_point(self):
-        try:
-            self['md_mid_point'] = (self['md_bottom'] + self['md_top'])*0.5
-        except:
-            pass
-
-        try:
-            self['tvd_mid_point'] = (self['tvd_bottom'] + self['tvd_top'])*0.5
-        except:
-            pass
-    
-        try:
-            self['tvdss_mid_point'] = (self['tvdss_bottom'] + self['tvdss_top'])*0.5
-        except:
-            pass
-        return self
-        
-    
-    @property
-    def _constructor(self):
-        return Perforations
-    
-class Tops(gpd.GeoDataFrame):
-
-    def __init__(self, *args, **kwargs):    
-        formation = kwargs.pop("formation", None)            
-        unit = kwargs.pop("unit", None)                                                                                                                     
-        super(Tops, self).__init__(*args, **kwargs)  
-
-        if formation is not None:
-            formation = np.atleast_1d(formation)
-            self['formation'] = formation
-            self.set_index('formation',inplace=True)
-        elif 'formation' in self.columns:
-            self.set_index('formation',inplace=True)
-
-        if unit is not None:
-            unit = np.atleast_1d(unit)
-            self['unit'] = unit
-            self.set_index('unit',inplace=True)
-        elif 'unit' in self.columns:
-            self.set_index('unit',inplace=True)
-
-    def get_tick(self):
-        try:
-            self['md_tick'] = self['md_bottom'] - self['md_top']
-        except:
-            pass
-
-        try:
-            self['tvd_tick'] = self['tvd_bottom'] - self['tvd_top']
-        except:
-            pass
-        
-        return self
-    
-    def get_mid_point(self):
-        try:
-            self['md_mid_point'] = (self['md_bottom'] + self['md_top'])*0.5
-        except:
-            pass
-
-        try:
-            self['tvd_mid_point'] = (self['tvd_bottom'] + self['tvd_top'])*0.5
-        except:
-            pass
-    
-        try:
-            self['tvdss_mid_point'] = (self['tvdss_bottom'] + self['tvdss_top'])*0.5
-        except:
-            pass
-        return self 
-    
-    @property
-    def _constructor(self):
-        return Tops
-
-def vtk_survey(points):
     """Given an array of points, make a line set"""
-    poly = pv.PolyData()
-    poly.points = points
-    cells = np.full((len(points)-1, 3), 2, dtype=np.int)
-    cells[:, 1] = np.arange(0, len(points)-1, dtype=np.int)
-    cells[:, 2] = np.arange(1, len(points), dtype=np.int)
-    poly.lines = cells
-    return poly
+
    
 freq_format={
     'M':'%Y-%m',
@@ -192,6 +77,123 @@ freq_format={
 }
 
 class Well:
+    """Tops [
+    Well is a python Object that tries to represent a single Oil&Gas well with all its attributes.
+    
+    When Working with Reservoirpy, this is the main object an user will use in order to 
+    connect other modules in the library and have all information organized and easily accessible. 
+
+    All the attributes are written with a getter and setter features in order to both, validate and update the
+    information.    
+    ]
+
+
+    Attributes
+    ----------
+    name : str
+        Well name. It must be present in the object to be allowed to initiate an instance of it.
+        The name will be used in some methods to specify a well's attributes
+    rte : float
+        Rotary table elevation referenced with the sea level. It is used to estimate depths in 
+        tvdss in different wells attributes like Tops, Perforations, Surveys.
+    surf_coord : Union[list,Point]
+        Well surface coodinates. When a list is given, either a length  of 2 or 3 is allowed. [x,y,z] z is optional
+        given the rte must be specified. The user can pass a shapely.Point object 
+    crs : Union[int,str]
+        surf_coord coordinate system. The coordinate system is used by methods in order to estimate,
+        changes in coordinate systems to map or report. When pass an integer it must represent the different
+        coordinate systems described in http://epsg.io/. When pass a str it must follow the next template 'EPSG:####'
+        
+        Example: 
+         By passing 'EPSG:4326' string or 4326 are equivalent
+    
+    perforations : Perforations
+        Wells perforations described by an instance of Perforations which is a GeoDataFrame Subclass
+    
+    tops : Tops
+        Wells formations tops described by an instance of Tops which is a GeoDataFrame Subclass
+
+    units : Tops
+        Wells formations tops described by an instance of Tops which is a GeoDataFrame Subclass
+    
+    openlog :  dict of LASFile
+        Add well logs adquired in open hole.
+        
+        User can attach well logs. A dictionary of lasio.LASFile allows to add more than one logs to the
+        well. A LASFile Object is part of lasio library that allows to read, write, manipulate LAS files in 
+        Python  https://lasio.readthedocs.io/en/latest/ 
+
+    caselog :  dict of LASFile
+        Add well logs adquired in cased hole.
+        
+        User can attach well logs. A dictionary of lasio.LASFile allows to add more than one logs to the
+        well. A LASFile Object is part of lasio library that allows to read, write, manipulate LAS files in 
+        Python  https://lasio.readthedocs.io/en/latest/ 
+        
+    masterlog :  dict of LASFile
+        Add well logs adquired as masterlog
+        
+        User can attach well logs. A dictionary of lasio.LASFile allows to add more than one logs to the
+        well. A LASFile Object is part of lasio library that allows to read, write, manipulate LAS files in 
+        Python  https://lasio.readthedocs.io/en/latest/ 
+
+    survey : Union[pd.DataFrame,Survey]
+        Wells perforations described by an instance of Perforations which is a GeoDataFrame Subclass.
+        When a pd.DataFrame is passed it must contain the columns ['md','inc','azi'] in order to estimate a full
+        survey for the well by using the minimum curvature method represented as a Survey object which is a GeoDataFrame Subclass.
+        
+        If a Survey object is passed no manipulation is done because it is already a Survey!
+        
+    schema : WellSchema
+        It represents the well schema as a WellSchema Object which can be initalized with the reservoirpy.wellschematicspy
+
+    schedule : dict
+        It represents a well planning scheme for well forecasting by using the 
+        reservoipy.wellproductivitypy.decline module. The dictionary is build by levels.
+        First level keys are the Scenarios. Each Scenario key contains a Period dictionary as value. 
+        A period is the second level, which represents defferent periods over a well forecast. For example,
+        workovers, drilling, etc. Each period contains must-have keys in order to the function works properly.
+        
+        - 'declination' Declination or WorDeclination object
+        - 'start_date' datetime.date object
+        - 'end_date' datetime.date object  
+        - 'show_water' Bool. If return the water and bsw, wor columns
+        - 'depend_start' str. Indicate if the period start depends on another period when it ends.
+                            For exaple a period workover starts once the before period ends
+        - 'time_delay' datetime.timedelta object. Represent the delay time a period starts
+        - 'change_ti' Bool, If depend_start is passed, specify if the ti attribute of Declination object
+                        must be change to the start date
+        - 'change_flow' Bool, If depend_start is passed, specify if the qi attribute of Declination object
+                        must be change to the start date
+        - 'depend_bsw' Bool. Specify if the bsw depends on the period specified
+        - 'discount_bsw', float. Percentage of the depend period on when depend_bsw is true
+        - 'capex' float. Amount of capex of the period. It creates a cashflow at the begining
+        - 'abandonment' float. Amount of capex for abandonment of the period. It creates a cashflow at the end
+        - 'var_oil_opex'/'var_gas_opex' float. cost of producing oil in $/bbl or $/mscf
+        - 'fix_opex': float. Fix ammount to every period of time in the forecast
+        - 'oil_price'/'gas_price' float. Amount of money the oil or gas can be sell
+        - 'oil_royalty'/'gas_royalty'. Fraction of produced oil or gas to be paid as a royalty.
+                        it is used to estimate the income after royalties
+        - 'econ_limit' float. economic limit rate. when reach a period will end and a next period will start
+        - 'np_limit' float cumulative limit when reached the period ends
+        - 'npi' float. Initial cumulative oil
+        - 'move_ti'. bool. Specity if move Ti 
+        - 'fluid_rate' float. Specify the fluid rate for period forecast
+        - 'bsw' float specify bsw for period forecast
+        - 'gor' float specify the gor for period forecast in scf/bbl
+        
+    cashflow: dict of CashFlow
+        It represents the well cashflow either estimated by the schedule forecast or as user input. As schedule
+        it is represented by levels, like scenario and capex name. At the bottom dictionary contains a CashFlow
+        object that can be used to make financial analysis.
+    fq: str
+        Represents the default time frecuency of the output forecast when not specified the the proper methods
+
+    Methods
+    ----------
+
+    """
+    
     def __init__(self, **kwargs):
 
         self.name = kwargs.pop('name', None)
@@ -204,7 +206,6 @@ class Well:
         self.openlog = kwargs.pop('openlog', None)
         self.masterlog = kwargs.pop('masterlog', None) 
         self.caselog = kwargs.pop('caselog', None)
-        self.td = kwargs.pop('td',None)  # First set td before survey
         self.survey = kwargs.pop('survey', None)
         self.declination = kwargs.pop('declination',None)
         self.kh = kwargs.pop('kh',None)
@@ -377,16 +378,6 @@ class Well:
                     kbe=self._rte,
                     crs=self._crs)
                 self._survey = _survey
-        elif self.td is not None:
-            _survey = min_curve_method(
-                np.array([0,self.td]),
-                np.zeros(2),
-                np.zeros(2),
-                surface_easting=self._surf_coord.x, 
-                surface_northing=self._surf_coord.y, 
-                kbe=self._rte,
-                crs=self._crs)
-            self._survey = _survey
         else:
             self._survey = value
 
