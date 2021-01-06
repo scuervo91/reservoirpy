@@ -8,5 +8,5 @@ from . import krpy
 from . import wellschematicspy
 from . import volumetricspy
 from . import utils
-from . import cashpy
+from . import cashflows
 from . import welltestpy
