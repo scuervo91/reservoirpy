@@ -80,6 +80,7 @@ class Surface:
         cax= ax or plt.gca()
 
         cax.contourf(self.x,self.y,self.z,**kwargs)
+        
     
     def structured_surface_vtk(self):
 

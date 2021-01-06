@@ -373,7 +373,7 @@ class Water:
 
     @pvt.setter
     def pvt(self,value):
-        assert isinstance(value,(pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
+        assert isinstance(value,(Pvt,type(None))), f'{type(value)} not accepted. Name must be reservoirpy.pvtpy.black_oil.pvt'
         self._pvt = value
 
     @property

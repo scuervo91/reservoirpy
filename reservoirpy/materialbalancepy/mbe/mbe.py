@@ -73,7 +73,7 @@ class ProductionHistory(pd.DataFrame):
         
     @property   
     def _constructor(self):
-        return production_history
+        return ProductionHistory
 
 class OilReservoir:
     def __init__(self,**kwargs):
@@ -101,7 +101,7 @@ class OilReservoir:
 
     @kr_wo.setter 
     def kr_wo(self,value):
-        assert isinstance(value,(water_oil_kr,type(None)))
+        assert isinstance(value,(KrWaterOil,type(None)))
         self._kr_wo = value
 
     # Properties
@@ -112,7 +112,7 @@ class OilReservoir:
     @production_history.setter 
     def production_history(self,value):
         if value is not None:
-            assert isinstance(value,production_history)
+            assert isinstance(value,ProductionHistory)
         self._production_history = value
 
     # Properties
@@ -122,7 +122,7 @@ class OilReservoir:
 
     @kr_go.setter 
     def kr_go(self,value):
-        assert isinstance(value,(gas_oil_kr,type(None)))
+        assert isinstance(value,(KrGasOil,type(None)))
         self._kr_go = value
 
     @property
@@ -195,7 +195,7 @@ class OilReservoir:
 
     @aquifer.setter 
     def aquifer(self,value):
-        assert isinstance(value,(pot_aquifer, type(None))), "we must be an aquifer model"
+        assert isinstance(value,(PotAquifer, type(None))), "we must be an aquifer model"
         self._aquifer = value
 
     @property
@@ -224,7 +224,7 @@ class OilReservoir:
 
     @oil.setter 
     def oil(self,value):
-        assert isinstance(value,(oil,type(None))), "oil must be pvtpy.black_oil.oil"
+        assert isinstance(value,(Oil,type(None))), "oil must be pvtpy.black_oil.oil"
         self._oil = value
 
     @property
@@ -233,7 +233,7 @@ class OilReservoir:
 
     @gas.setter 
     def gas(self,value):
-        assert isinstance(value,(gas,type(None))), "gas must be pvtpy.black_oil.gas"
+        assert isinstance(value,(Gas,type(None))), "gas must be pvtpy.black_oil.gas"
         self._gas = value
 
     @property
@@ -242,7 +242,7 @@ class OilReservoir:
 
     @water.setter 
     def water(self,value):
-        assert isinstance(value,(water,type(None))), "water must be pvtpy.black_oil.water"
+        assert isinstance(value,(Water,type(None))), "water must be pvtpy.black_oil.water"
         self._water = value
 
     def calculate_mbe_parameters(self,**kwargs):
