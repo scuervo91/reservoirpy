@@ -60,7 +60,7 @@ Functions in this module
 """
 
 import numpy
-from cashflows.common import _vars2list
+from .common import _vars2list
 
 
 def tvmm(pval=None, fval=None, pmt=None, nrate=None, nper=None, due=0, pyr=1, noprint=True):
