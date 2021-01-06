@@ -35,8 +35,8 @@ Functions in this module
 import numpy as np
 import pandas as pd
 
-from cashflows.timeseries import *
-from cashflows.common import *
+from .timeseries import *
+from .common import *
 
 def effrate(nrate=None, prate=None, pyr=1):
     """

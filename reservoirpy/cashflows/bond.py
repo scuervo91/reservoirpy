@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 # cashflows.
-from cashflows.tvmm import tvmm
+from .tvmm import tvmm
 
 def bond(maturity_date=None, freq='A', face_value=None,
          coupon_rate=None, coupon_value=None, num_coupons=None, value=None, ytm=None):

@@ -31,10 +31,10 @@ Functions in this module
 import numpy as np
 import pandas as pd
 
-from cashflows.analysis import *
-from cashflows.tvmm import *
-from cashflows.timeseries import *
-from cashflows.common import *
+from .analysis import *
+from .tvmm import *
+from .timeseries import *
+from .common import *
 
 ##
 ## base class for computations
