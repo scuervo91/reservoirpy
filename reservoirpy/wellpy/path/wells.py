@@ -7,10 +7,10 @@ from ...welllogspy.log import Log
 from ...wellproductivitypy import pi
 from ...wellproductivitypy.decline import Declination, WorDeclination, bsw_to_wor
 from ...volumetricspy import SurfaceGroup
-from ...cashpy.timeseries import CashFlow
-from ...cashpy.taxing import after_tax_cashflow
-from ...cashpy.analysis import timevalue
-from ...cashpy.rate import perrate
+from ...cashflows.timeseries import CashFlow
+from ...cashflows.taxing import after_tax_cashflow
+from ...cashflows.analysis import timevalue
+from ...cashflows.rate import perrate
 from ...wellschematicspy import WellSchema
 #External Imports
 import pandas as pd 
