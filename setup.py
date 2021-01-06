@@ -31,7 +31,7 @@ setuptools.setup(
         'scikit-image',
         'zmapio',
         'statsmodels',
-        'cashflows'
+        'pyDOE2'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
