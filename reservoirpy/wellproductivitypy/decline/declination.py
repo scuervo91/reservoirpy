@@ -380,8 +380,9 @@ class Declination(DCA):
       f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi,gas=self.gas,fluid_rate=fluid_rate,gor=gor, bsw=bsw)
 
     if np_limit is not None:
+      cum_name = 'gp' if self.gas else 'np'
       if Np > np_limit:
-        f = f.loc[f['np']<np_limit,:]
+        f = f.loc[f[cum_name]<np_limit,:]
         Np = f.iloc[-1,-1]
 
     if show_water and any([fluid_rate is not None, bsw is not None]):
