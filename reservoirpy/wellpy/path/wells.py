@@ -1156,7 +1156,7 @@ class Well:
                     if isinstance(var_gas_opex, (int,float,list,np.ndarray)):
                         var_gas_opex = np.atleast_1d(var_gas_opex)
                         assert var_gas_opex.ndim==1
-                    var_opex_g = _f[['vg']].to_period(fq_output).reset_index().groupby('time').sum().multiply(var_gas_opex,axis='index')
+                    var_opex_g = _f[['vg']].to_period(fq_output).reset_index().groupby('time').sum().multiply(var_gas_opex)
                     var_opex_list.append(var_opex_g.fillna(0))
 
                 if fix_opex is not None:
@@ -1174,7 +1174,7 @@ class Well:
 
                 if gas_price is not None:
                     # Oil price must be a scalar or a pd Series indexed by Period
-                    income_g = _f['vg'].to_period(fq_output).reset_index().groupby('time').sum().multiply(oil_price,axis='index').multiply((1-oil_royalty),axis='index').dropna()
+                    income_g = _f['vg'].to_period(fq_output).reset_index().groupby('time').sum().multiply(gas_price,axis='index').multiply((1-gas_royalty),axis='index').dropna()
                     income_list.append(income_g)                    
                     
 
