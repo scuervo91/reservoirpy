@@ -77,7 +77,7 @@ freq_format={
 }
 
 class Well:
-    """Tops [
+    """Wells [
     Well is a python Object that tries to represent a single Oil&Gas well with all its attributes.
     
     When Working with Reservoirpy, this is the main object an user will use in order to 
@@ -548,7 +548,24 @@ class Well:
         else:
             raise ValueError('No attribute target defined')
 
-    def sample_deviation(self,step=100):
+    def sample_deviation(self,step=100)->pd.DataFrame:
+        """sample_deviation. Sample the wells deviation (md, inc, Azi) for a given step
+        
+        Parameters
+        ----------
+        step : int, optional
+            Step size for the deviation, by default 100
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the sampled deviation
+
+        Raises
+        ------
+        ValueError
+            [description]
+        """
         if self._survey is not None:
             _survey = self.survey
             new_dev = interpolate_deviation(_survey.index, 
