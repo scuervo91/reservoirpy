@@ -2525,7 +2525,7 @@ class WellsGroup:
         prate=0,
         pyr=12
     ):
-        assert cases is not None
+        #assert cases is not None
 
         if wells is None:
             _well_list = []
@@ -2550,6 +2550,8 @@ class WellsGroup:
 
 
         if len(fcf_list)>0:
+            spreadsheet_cases = []
+            npv_cases = {}
             fcf_df = pd.concat(fcf_list,axis=0, ignore_index=False)
 
             spreadsheet=fcf_df.reset_index().groupby('index')[['total_income','total_opex','total_capex']].sum()
