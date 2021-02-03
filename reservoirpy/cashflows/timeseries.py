@@ -97,7 +97,7 @@ class TimeSeries:
     @freq.setter
     def freq(self,value):
         assert isinstance(value,str), f"{type(value)} not accepted. Name must be str"
-        assert value in ['A', 'BA', 'Q', 'BQ', 'M', 'BM', 'CBM', 'SM', '6M', '6BM', '6CMB']      
+        assert value in ['D','A', 'BA', 'Q', 'BQ', 'M', 'BM', 'CBM', 'SM', '6M', '6BM', '6CMB']      
         self._freq = value
 
     @property
