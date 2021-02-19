@@ -19,6 +19,7 @@ def grtrack(df: pd.DataFrame,
                 dtick: bool = True,
                 grid_numbers : Sequence[float] = [11,51],
                 steps: Sequence[float]  = None,
+                gr_steps=4,
                 legend:bool = False,
                 gr_kw:dict={},
                 sp_kw:dict={},
@@ -269,7 +270,7 @@ def grtrack(df: pd.DataFrame,
         grax.set_yticklabels(mayor_grid)
     else:
         grax.set_yticklabels([])
-    grax.set_xticks(np.linspace(0,gr_max,4))
+    grax.set_xticks(np.linspace(0,gr_max,gr_steps))
     grax.xaxis.set_label_position("top")
     grax.xaxis.tick_top()
     
