@@ -1,11 +1,22 @@
+#Local Imports
+from .mincurve import min_curve_method, Survey, vtk_survey
+from .interpolate import interpolate_deviation, interpolate_position
+from .projection import unit_vector, projection_1d
+from .perftops import Perforations, Tops
+from ...welllogspy.log import Log
+from ...wellproductivitypy import pi
+from ...wellproductivitypy.decline import Declination, WorDeclination, bsw_to_wor
+from ...volumetricspy import SurfaceGroup
+from ...cashflows.timeseries import CashFlow
+from ...cashflows.taxing import after_tax_cashflow
+from ...cashflows.analysis import timevalue
+from ...cashflows.rate import perrate
+from ...wellschematicspy import WellSchema
+#External Imports
 import pandas as pd 
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point
-from .mincurve import min_curve_method
-from .mincurve import survey
-from .interpolate import interpolate_deviation, interpolate_position
-from .projection import unit_vector, projection_1d
 from scipy.interpolate import interp1d
 from scipy.spatial import distance_matrix
 from pyproj import Proj, transform
@@ -14,23 +25,39 @@ from folium.plugins import MarkerCluster, MeasureControl,MousePosition#,LocateCo
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pyvista as pv 
-from ...welllogspy.log import log
-from ...wellproductivitypy import pi
-from ...wellproductivitypy.decline import declination, wor_declination, bsw_to_wor
-from ...volumetricspy import surface_group
-from ...cashflows.timeseries import cash
-from ...cashflows.taxing import after_tax_cashflow
-from ...cashflows.analysis import timevalue
-from ...cashflows.rate import perrate
 from sqlalchemy import create_engine
-from ...wellschematicspy import well_schema
 import pickle
 from datetime import date, timedelta
 import pyDOE2 as ed
 from lasio import LASFile
 import time
+from typing import Union
 
-def input_to_list(input):
+
+def input_to_list(input:Union[list,str])->list:
+    """input_to_list [Utility function used when one or multiple inputs are allowed.
+                        When one parameters is required to pass, it is more 
+                        convinient to pass a string rather than a list. When multiple choice,
+                        is required it allows to pass a list. The runction returns a list.
+                        
+                        Example:
+                        >>> input_to_list('well-1')
+                        ['well-1]
+                        
+                        >>> input_to_list(['well-1','well-2'])
+                        ['well-1','well-2']
+                    ]
+
+    Parameters
+    ----------
+    input : Union[list,str]
+        [Input of parameters. List or string]
+
+    Returns
+    -------
+    list
+        [Return the list of parameters. When a string is passed, a list of length of 1 is return]
+    """
     assert isinstance(input,(str,list)), f'input must be either string or list'
     
     input_list = []
@@ -40,148 +67,8 @@ def input_to_list(input):
         input_list.extend(input)
     return input_list
 
-
-class perforations(gpd.GeoDataFrame):
-
-    def __init__(self, *args, **kwargs):
-        kh = kwargs.pop("kh", None)
-        productivity_index = kwargs.pop("productivity_index", None)
-        is_open = kwargs.pop('is_open',None)  
-        fluid = kwargs.pop('fluid',None)                                                                                                                               
-        super(perforations, self).__init__(*args, **kwargs)
-
-        if kh is not None:
-            assert isinstance(kh,list) 
-            assert all(isinstance(i,(int,float)) for i in kh)
-            self['kh'] = kh
-        elif 'kh' in self.columns:
-            assert all(isinstance(i,(int,float)) for i in self['kh'].tolist())
-
-        if productivity_index is not None:
-            assert isinstance(productivity_index,list) 
-            assert all(isinstance(i,(int,float)) for i in productivity_index)
-            self['productivity_index'] = productivity_index
-        elif 'productivity_index' in self.columns:
-            assert all(isinstance(i,(int,float)) for i in self['productivity_index'].tolist())
-
-        if is_open is not None:
-            assert isinstance(is_open,list)
-            assert all(isinstance(i,bool) for i in is_open)
-            self['is_open'] = is_open
-        elif 'is_open' in self.columns:
-            assert all(isinstance(i,bool) for i in self['is_open'].tolist())
-
-        if fluid is not None:
-            assert isinstance(fluid,list)
-            assert all(i in ['oil','gas','water'] for i in fluid)
-            self['fluid'] = fluid
-        elif 'fluid' in self.columns:
-            assert all(isinstance(i,bool) for i in self['is_open'].tolist())
-            assert all(i in ['oil','gas','water'] for i in self['fluid'].tolist())
-
-
-    def open_perf(self):
-        return self[self['is_open']==True]
-
-    def get_tick(self):
-        try:
-            self['md_tick'] = self['md_bottom'] - self['md_top']
-        except:
-            pass
-
-        try:
-            self['tvd_tick'] = self['tvd_bottom'] - self['tvd_top']
-        except:
-            pass
-        
-        return self
-    
-    def get_mid_point(self):
-        try:
-            self['md_mid_point'] = (self['md_bottom'] + self['md_top'])*0.5
-        except:
-            pass
-
-        try:
-            self['tvd_mid_point'] = (self['tvd_bottom'] + self['tvd_top'])*0.5
-        except:
-            pass
-    
-        try:
-            self['tvdss_mid_point'] = (self['tvdss_bottom'] + self['tvdss_top'])*0.5
-        except:
-            pass
-        return self
-        
-    
-    @property
-    def _constructor(self):
-        return perforations
-    
-class tops(gpd.GeoDataFrame):
-
-    def __init__(self, *args, **kwargs):    
-        formation = kwargs.pop("formation", None)            
-        unit = kwargs.pop("unit", None)                                                                                                                     
-        super(tops, self).__init__(*args, **kwargs)  
-
-        if formation is not None:
-            formation = np.atleast_1d(formation)
-            self['formation'] = formation
-            self.set_index('formation',inplace=True)
-        elif 'formation' in self.columns:
-            self.set_index('formation',inplace=True)
-
-        if unit is not None:
-            unit = np.atleast_1d(unit)
-            self['unit'] = unit
-            self.set_index('unit',inplace=True)
-        elif 'unit' in self.columns:
-            self.set_index('unit',inplace=True)
-
-    def get_tick(self):
-        try:
-            self['md_tick'] = self['md_bottom'] - self['md_top']
-        except:
-            pass
-
-        try:
-            self['tvd_tick'] = self['tvd_bottom'] - self['tvd_top']
-        except:
-            pass
-        
-        return self
-    
-    def get_mid_point(self):
-        try:
-            self['md_mid_point'] = (self['md_bottom'] + self['md_top'])*0.5
-        except:
-            pass
-
-        try:
-            self['tvd_mid_point'] = (self['tvd_bottom'] + self['tvd_top'])*0.5
-        except:
-            pass
-    
-        try:
-            self['tvdss_mid_point'] = (self['tvdss_bottom'] + self['tvdss_top'])*0.5
-        except:
-            pass
-        return self 
-    
-    @property
-    def _constructor(self):
-        return tops
-
-def vtk_survey(points):
     """Given an array of points, make a line set"""
-    poly = pv.PolyData()
-    poly.points = points
-    cells = np.full((len(points)-1, 3), 2, dtype=np.int)
-    cells[:, 1] = np.arange(0, len(points)-1, dtype=np.int)
-    cells[:, 2] = np.arange(1, len(points), dtype=np.int)
-    poly.lines = cells
-    return poly
+
    
 freq_format={
     'M':'%Y-%m',
@@ -189,7 +76,124 @@ freq_format={
     'A':'%Y'
 }
 
-class well:
+class Well:
+    """Wells [
+    Well is a python Object that tries to represent a single Oil&Gas well with all its attributes.
+    
+    When Working with Reservoirpy, this is the main object an user will use in order to 
+    connect other modules in the library and have all information organized and easily accessible. 
+
+    All the attributes are written with a getter and setter features in order to both, validate and update the
+    information.    
+    ]
+
+
+    Attributes
+    ----------
+    name : str
+        Well name. It must be present in the object to be allowed to initiate an instance of it.
+        The name will be used in some methods to specify a well's attributes
+    rte : float
+        Rotary table elevation referenced with the sea level. It is used to estimate depths in 
+        tvdss in different wells attributes like Tops, Perforations, Surveys.
+    surf_coord : Union[list,Point]
+        Well surface coodinates. When a list is given, either a length  of 2 or 3 is allowed. [x,y,z] z is optional
+        given the rte must be specified. The user can pass a shapely.Point object 
+    crs : Union[int,str]
+        surf_coord coordinate system. The coordinate system is used by methods in order to estimate,
+        changes in coordinate systems to map or report. When pass an integer it must represent the different
+        coordinate systems described in http://epsg.io/. When pass a str it must follow the next template 'EPSG:####'
+        
+        Example: 
+         By passing 'EPSG:4326' string or 4326 are equivalent
+    
+    perforations : Perforations
+        Wells perforations described by an instance of Perforations which is a GeoDataFrame Subclass
+    
+    tops : Tops
+        Wells formations tops described by an instance of Tops which is a GeoDataFrame Subclass
+
+    units : Tops
+        Wells formations tops described by an instance of Tops which is a GeoDataFrame Subclass
+    
+    openlog :  dict of LASFile
+        Add well logs adquired in open hole.
+        
+        User can attach well logs. A dictionary of lasio.LASFile allows to add more than one logs to the
+        well. A LASFile Object is part of lasio library that allows to read, write, manipulate LAS files in 
+        Python  https://lasio.readthedocs.io/en/latest/ 
+
+    caselog :  dict of LASFile
+        Add well logs adquired in cased hole.
+        
+        User can attach well logs. A dictionary of lasio.LASFile allows to add more than one logs to the
+        well. A LASFile Object is part of lasio library that allows to read, write, manipulate LAS files in 
+        Python  https://lasio.readthedocs.io/en/latest/ 
+        
+    masterlog :  dict of LASFile
+        Add well logs adquired as masterlog
+        
+        User can attach well logs. A dictionary of lasio.LASFile allows to add more than one logs to the
+        well. A LASFile Object is part of lasio library that allows to read, write, manipulate LAS files in 
+        Python  https://lasio.readthedocs.io/en/latest/ 
+
+    survey : Union[pd.DataFrame,Survey]
+        Wells perforations described by an instance of Perforations which is a GeoDataFrame Subclass.
+        When a pd.DataFrame is passed it must contain the columns ['md','inc','azi'] in order to estimate a full
+        survey for the well by using the minimum curvature method represented as a Survey object which is a GeoDataFrame Subclass.
+        
+        If a Survey object is passed no manipulation is done because it is already a Survey!
+        
+    schema : WellSchema
+        It represents the well schema as a WellSchema Object which can be initalized with the reservoirpy.wellschematicspy
+
+    schedule : dict
+        It represents a well planning scheme for well forecasting by using the 
+        reservoipy.wellproductivitypy.decline module. The dictionary is build by levels.
+        First level keys are the Scenarios. Each Scenario key contains a Period dictionary as value. 
+        A period is the second level, which represents defferent periods over a well forecast. For example,
+        workovers, drilling, etc. Each period contains must-have keys in order to the function works properly.
+        
+        - 'declination' Declination or WorDeclination object
+        - 'start_date' datetime.date object
+        - 'end_date' datetime.date object  
+        - 'show_water' Bool. If return the water and bsw, wor columns
+        - 'depend_start' str. Indicate if the period start depends on another period when it ends.
+                            For exaple a period workover starts once the before period ends
+        - 'time_delay' datetime.timedelta object. Represent the delay time a period starts
+        - 'change_ti' Bool, If depend_start is passed, specify if the ti attribute of Declination object
+                        must be change to the start date
+        - 'change_flow' Bool, If depend_start is passed, specify if the qi attribute of Declination object
+                        must be change to the start date
+        - 'depend_bsw' Bool. Specify if the bsw depends on the period specified
+        - 'discount_bsw', float. Percentage of the depend period on when depend_bsw is true
+        - 'capex' float. Amount of capex of the period. It creates a cashflow at the begining
+        - 'abandonment' float. Amount of capex for abandonment of the period. It creates a cashflow at the end
+        - 'var_oil_opex'/'var_gas_opex' float. cost of producing oil in $/bbl or $/mscf
+        - 'fix_opex': float. Fix ammount to every period of time in the forecast
+        - 'oil_price'/'gas_price' float. Amount of money the oil or gas can be sell
+        - 'oil_royalty'/'gas_royalty'. Fraction of produced oil or gas to be paid as a royalty.
+                        it is used to estimate the income after royalties
+        - 'econ_limit' float. economic limit rate. when reach a period will end and a next period will start
+        - 'np_limit' float cumulative limit when reached the period ends
+        - 'npi' float. Initial cumulative oil
+        - 'move_ti'. bool. Specity if move Ti 
+        - 'fluid_rate' float. Specify the fluid rate for period forecast
+        - 'bsw' float specify bsw for period forecast
+        - 'gor' float specify the gor for period forecast in scf/bbl
+        
+    cashflow: dict of CashFlow
+        It represents the well cashflow either estimated by the schedule forecast or as user input. As schedule
+        it is represented by levels, like scenario and capex name. At the bottom dictionary contains a CashFlow
+        object that can be used to make financial analysis.
+    fq: str
+        Represents the default time frecuency of the output forecast when not specified the the proper methods
+
+    Methods
+    ----------
+
+    """
+    
     def __init__(self, **kwargs):
 
         self.name = kwargs.pop('name', None)
@@ -202,7 +206,6 @@ class well:
         self.openlog = kwargs.pop('openlog', None)
         self.masterlog = kwargs.pop('masterlog', None) 
         self.caselog = kwargs.pop('caselog', None)
-        self.td = kwargs.pop('td',None)  # First set td before survey
         self.survey = kwargs.pop('survey', None)
         self.declination = kwargs.pop('declination',None)
         self.kh = kwargs.pop('kh',None)
@@ -290,7 +293,7 @@ class well:
     @perforations.setter
     def perforations(self,value):
         if value is not None:
-            assert isinstance(value,perforations), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.perforations'
+            assert isinstance(value,Perforations), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.perforations'
             if self.crs is not None and value is not None:
                 value.crs = self.crs
         self._perforations = value
@@ -302,7 +305,7 @@ class well:
     @tops.setter
     def tops(self,value):
         if value is not None:
-            assert isinstance(value,tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
+            assert isinstance(value,Tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
             if self.crs is not None and value is not None:
                 value.crs = self.crs
         self._tops = value    
@@ -314,7 +317,7 @@ class well:
     @units.setter
     def units(self,value):
         if value is not None:
-            assert isinstance(value,tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
+            assert isinstance(value,Tops), f'{type(value)} not accepted. Name must be reservoirpy.wellpy.path.tops'
             if self.crs is not None and value is not None:
                 value.crs = self.crs
         self._units = value    
@@ -328,7 +331,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],(log,LASFile))         
+                assert isinstance(value[i],(Log,LASFile))         
         self._openlog = value
 
     @property
@@ -340,7 +343,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],(log,LASFile))         
+                assert isinstance(value[i],(Log,LASFile))         
         self._masterlog = value
 
     @property
@@ -352,7 +355,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],(log,LASFile))       
+                assert isinstance(value[i],(Log,LASFile))       
         self._caselog = value
 
     @property
@@ -362,7 +365,7 @@ class well:
     @survey.setter
     def survey(self,value):
         if value is not None:
-            if isinstance(value,survey):
+            if isinstance(value,Survey):
                 self._survey = value
             elif isinstance(value,pd.DataFrame):
                 assert all(i in value.columns for i in ['md','inc','azi'])
@@ -375,16 +378,6 @@ class well:
                     kbe=self._rte,
                     crs=self._crs)
                 self._survey = _survey
-        elif self.td is not None:
-            _survey = min_curve_method(
-                np.array([0,self.td]),
-                np.zeros(2),
-                np.zeros(2),
-                surface_easting=self._surf_coord.x, 
-                surface_northing=self._surf_coord.y, 
-                kbe=self._rte,
-                crs=self._crs)
-            self._survey = _survey
         else:
             self._survey = value
 
@@ -406,7 +399,7 @@ class well:
     
     @declination.setter
     def declination(self,value):
-        assert isinstance(value, (declination,type(None))), "must be declination type"
+        assert isinstance(value, (Declination,type(None))), "must be declination type"
         self._declination = value
 
     @property
@@ -447,7 +440,7 @@ class well:
     @als.setter 
     def als(self, value):
         if value is not None:
-            assert issubclass(type(value),pi.als)
+            assert issubclass(type(value),pi.Als)
             if value.surf_to_pump_depth_tvd is None:
                 value.surf_to_pump_depth_tvd = self.to_tvd(value.surf_to_pump_depth_md)
             if value.pump_to_perf_depth_tvd is None:
@@ -463,7 +456,7 @@ class well:
         if value is not None:
             assert isinstance(value,dict)
             for i in value:
-                assert isinstance(value[i],well_schema)       
+                assert isinstance(value[i],WellSchema)       
         self._schema = value
 
     @property
@@ -477,7 +470,7 @@ class well:
             for i in value:
                 assert isinstance(value[i],dict)   
                 for j in value[i]:
-                    assert isinstance(value[i][j],cash)       
+                    assert isinstance(value[i][j],CashFlow)       
         self._cashflow = value
 
     @property
@@ -491,7 +484,7 @@ class well:
             for i in value:
                 assert isinstance(value[i],dict)
                 for j in value[i]:
-                    assert isinstance(value[i][j]['declination'],(declination,wor_declination))     
+                    assert isinstance(value[i][j]['declination'],(Declination,WorDeclination))     
         self._schedule = value
 
 
@@ -501,7 +494,7 @@ class well:
     def add_schema(self,schema):
         assert isinstance(schema,dict)
         for i in schema:
-            assert isinstance(schema[i],well_schema) 
+            assert isinstance(schema[i],WellSchema) 
 
         if self.schema is None:
             self.schema = schema
@@ -522,7 +515,7 @@ class well:
         assert isinstance(cashflows,dict)
         assert case is not None
         for cashflow in cashflows:
-            assert isinstance(cashflows[cashflow],cash) 
+            assert isinstance(cashflows[cashflow],CashFlow) 
 
         if self.cashflow is None:
             self.cashflow = {case:cashflows}
@@ -535,7 +528,7 @@ class well:
 
         assert isinstance(logs_dict,dict)
         for i in logs_dict:
-            assert isinstance(logs_dict[i],log)     
+            assert isinstance(logs_dict[i],(Log,LASFile))     
         
         if which=='openlog':
             if self.openlog is None:
@@ -555,7 +548,24 @@ class well:
         else:
             raise ValueError('No attribute target defined')
 
-    def sample_deviation(self,step=100):
+    def sample_deviation(self,step=100)->pd.DataFrame:
+        """sample_deviation. Sample the wells deviation (md, inc, Azi) for a given step
+        
+        Parameters
+        ----------
+        step : int, optional
+            Step size for the deviation, by default 100
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the sampled deviation
+
+        Raises
+        ------
+        ValueError
+            [description]
+        """
         if self._survey is not None:
             _survey = self.survey
             new_dev = interpolate_deviation(_survey.index, 
@@ -587,7 +597,7 @@ class well:
             self.survey=None
 """
 
-    def to_tvd(self,md:(int,float)=None,which:list=None, ss:bool=False,tick=True):
+    def to_tvd(self,md:Union[int,float]=None,which:list=None, ss:bool=False,tick=True):
         if self._survey is not None:
             r = None
             _survey=self.survey
@@ -706,7 +716,7 @@ class well:
   
 
     
-    def to_coord(self,md:(int,float)=None,which:list=None):
+    def to_coord(self,md:Union[int,float]=None,which:list=None):
         if self._survey is not None:
             r=None
             _survey=self.survey
@@ -987,7 +997,7 @@ class well:
         """
         Add perforations to the existing ones
         """
-        assert isinstance(value,perforations)
+        assert isinstance(value,Perforations)
 
         if self.perforations is None:
             self._perforations = value
@@ -1060,8 +1070,8 @@ class well:
                 start_date_case = sched[v].get('start_date', None)
                 end_date_case = sched[v].get('end_date', None)  
                 
-                #show water default True if wor_declination; if declination default is false
-                show_water = sched[v].get('show_water', False if isinstance(sched[v]['declination'],declination) else True)
+                #show water default True if WorDeclination; if declination default is false
+                show_water = sched[v].get('show_water', False if isinstance(sched[v]['declination'],Declination) else True)
                 # Start of declination is the end of prevous
                 depend_start = sched[v].get('depend_start', None) 
 
@@ -1073,7 +1083,7 @@ class well:
                 change_ti = sched[v].get('change_ti', False)
                 change_flow = sched[v].get('change_flow', False)
 
-                # for wor_declination 
+                # for WorDeclination 
                 depend_bsw = sched[v].get('depend_bsw', False)
                 discount_bsw = sched[v].get('discount_bsw', 0.95)
 
@@ -1117,16 +1127,16 @@ class well:
                     depend_number = num_dict[depend_start]
                     start_date_case = _forecast_list[depend_number].index[-1] + time_delay
 
-                    if change_ti and isinstance(sched[v]['declination'],declination):
+                    if change_ti and isinstance(sched[v]['declination'],Declination):
                         sched[v]['declination'].ti = _forecast_list[depend_number].index[-1].date()
 
-                    if change_flow and isinstance(sched[v]['declination'],declination):
+                    if change_flow and isinstance(sched[v]['declination'],Declination):
                         if sched[v]['declination'].gas:
                             sched[v]['declination'].qi = _forecast_list[depend_number]['qg'].iloc[-1]
                         else:
                             sched[v]['declination'].qi = _forecast_list[depend_number]['qo'].iloc[-1]                        
                     
-                    if depend_bsw and isinstance(sched[v]['declination'],wor_declination):
+                    if depend_bsw and isinstance(sched[v]['declination'],WorDeclination):
                         sched[v]['declination'].bsw_i = _forecast_list[depend_number]['bsw'].iloc[-1] * discount_bsw
 
                 if move_ti is not None:
@@ -1163,12 +1173,14 @@ class well:
                     if isinstance(var_gas_opex, (int,float,list,np.ndarray)):
                         var_gas_opex = np.atleast_1d(var_gas_opex)
                         assert var_gas_opex.ndim==1
-                    var_opex_g = _f[['vg']].to_period(fq_output).reset_index().groupby('time').sum().multiply(var_gas_opex,axis='index')
+                    var_opex_g = _f[['vg']].to_period(fq_output).reset_index().groupby('time').sum().multiply(var_gas_opex)
                     var_opex_list.append(var_opex_g.fillna(0))
 
                 if fix_opex is not None:
                     if isinstance(fix_opex,(int,float,list)):
-                        fix_opex_s = pd.Series(np.full(_f.index.shape, fix_opex), index=_f.index)
+                        fr_output = _f.to_period(fq_output).reset_index()['time'].unique()
+                        fix_opex_s = pd.Series(np.full(fr_output.shape, fix_opex), index=fr_output)
+                        fix_opex_list.append(fix_opex_s)
                     elif isinstance(fix_opex,pd.Series):
                         fix_opex_list.append(fix_opex)
 
@@ -1179,7 +1191,7 @@ class well:
 
                 if gas_price is not None:
                     # Oil price must be a scalar or a pd Series indexed by Period
-                    income_g = _f['vg'].to_period(fq_output).reset_index().groupby('time').sum().multiply(oil_price,axis='index').multiply((1-oil_royalty),axis='index').dropna()
+                    income_g = _f['vg'].to_period(fq_output).reset_index().groupby('time').sum().multiply(gas_price,axis='index').multiply((1-gas_royalty),axis='index').dropna()
                     income_list.append(income_g)                    
                     
 
@@ -1215,9 +1227,9 @@ class well:
             #Add to general forecast
             cases_forecast_list.append(_forecast)
             
-            #Cash flow generate
+            #CashFlow flow generate
             if bool(capex_sched):
-                cash_objt = cash(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
+                cash_objt = CashFlow(const_value=0, start=_forecast.index.min(), chgpts=capex_sched,
                     end=_forecast.index.max(), freq=fq_output, name=cash_name['capex'] +'_'+ self.name)
                 
                 self.add_cashflow({cash_name['capex']:cash_objt},case=case)
@@ -1225,7 +1237,7 @@ class well:
             if len(income_list)>0:
                 income_df = pd.concat(income_list, axis=1)
                 income_df['total'] = income_df.sum(axis=1)
-                inc_cash_objt = cash(const_value=income_df['total'].to_list(),
+                inc_cash_objt = CashFlow(const_value=income_df['total'].to_list(),
                     start=income_df.index.min().to_timestamp(),
                     freq=fq_output, name=cash_name['income'] +'_'+ self.name)
                 
@@ -1234,7 +1246,7 @@ class well:
             if len(var_opex_list)>0:
                 var_opex_df = pd.concat(var_opex_list, axis=1)
                 var_opex_df['total'] = var_opex_df.sum(axis=1)
-                varopex_cash_objt = cash(const_value=var_opex_df['total'].to_list(),
+                varopex_cash_objt = CashFlow(const_value=var_opex_df['total'].to_list(),
                     start=var_opex_df.index.min().to_timestamp(),
                     freq=fq_output, name=cash_name['var_opex'] +'_'+ self.name)
                 
@@ -1243,7 +1255,7 @@ class well:
             if len(fix_opex_list)>0:
                 fix_opex_df = pd.concat(fix_opex_list, axis=1)
                 fix_opex_df['total'] = fix_opex_df.sum(axis=1)
-                fixopex_cash_objt = cash(const_value=fix_opex_df['total'].to_list(),
+                fixopex_cash_objt = CashFlow(const_value=fix_opex_df['total'].to_list(),
                     start=fix_opex_df.index.min().to_timestamp(),
                     freq=fq_output, name=cash_name['fix_opex'] +'_'+ self.name)
                 
@@ -1394,7 +1406,7 @@ class well:
                 
         return pd.concat(spreadsheet_cases,axis=0), npv_cases
 
-class wells_group:
+class WellsGroup:
     def __init__(self,*args,**kwargs):
         _well_list = []
 
@@ -1416,7 +1428,7 @@ class wells_group:
         if not value:
             self._wells = {}
         else:
-            assert all(isinstance(i,well) for i in value)
+            assert all(isinstance(i,Well) for i in value)
             w_dict={}
             for i in value:
                 w_dict[i.name] = i
@@ -1443,7 +1455,7 @@ class wells_group:
     @surfaces.setter
     def surfaces(self, value):
         if value is not None:
-            assert isinstance(value, surface_group)
+            assert isinstance(value, SurfaceGroup)
         self._surfaces = value
 
     def add_well(self,*args):
@@ -1453,7 +1465,7 @@ class wells_group:
             for i in args:
                 _add_well.append(i)
 
-        assert all(isinstance(i,well) for i in _add_well)
+        assert all(isinstance(i,Well) for i in _add_well)
 
         _wells_dict = self.wells.copy()
 
@@ -2045,7 +2057,7 @@ class wells_group:
                     legend=legend)
             
         if ann:
-            for i,v in tops.iterrows():
+            for i,v in Tops.iterrows():
                 stax.annotate(
                     f"{v['well']}",
                     xy=(v['projection'],v['tvdss_top']),
@@ -2260,7 +2272,7 @@ class wells_group:
             #Perforations
             _p = df_dict['well_perforations']
             try:
-                _perf = perforations(_p.loc[_p['well']==i,['md_top','md_bottom','formation']])
+                _perf = Perforations(_p.loc[_p['well']==i,['md_top','md_bottom','formation']])
                 if _perf.empty:
                     _perf = None
             except:
@@ -2270,7 +2282,7 @@ class wells_group:
             _t = df_dict['well_formations_tops']
 
             try:
-                _tops = tops(_t.loc[_t['well']==i,:])
+                _tops = Tops(_t.loc[_t['well']==i,:])
                 if _tops.empty:
                     _tops = None
             except:
@@ -2280,7 +2292,7 @@ class wells_group:
             _u = df_dict['well_units_tops']
 
             try:
-                _units = tops(_u.loc[_u['well']==i,:])
+                _units = Tops(_u.loc[_u['well']==i,:])
                 if _units.empty:
                     _units = None
             except:
@@ -2303,7 +2315,7 @@ class wells_group:
             _surf_coord = _wh.loc[_wh['well']==i,['surface_x','surface_y']].squeeze().tolist()
             
             _surf_coord =  None if any([i is None for i in _surf_coord]) else _surf_coord
-            _well = well(
+            _well = Well(
                 name = i,
                 rte = _rte,
                 crs = _crs,
@@ -2460,13 +2472,12 @@ class wells_group:
         else:
             _well_list = wells
         
-        _cases_list = []
-        _cash_name_list = []
         cashflow_list = []
         
         #Iterate over wells
         for well in _well_list:
-            
+            _cases_list = []
+            _cash_name_list = []
             if self.wells[well].cashflow is None:
                 continue
             if isinstance(cases,(str,list)):
@@ -2483,9 +2494,7 @@ class wells_group:
                     continue
             else:
                 _cases_list.extend(list(self.wells[well].cashflow.keys()))
-
             _cases_list = [i for i in _cases_list if i in self.wells[well].cashflow.keys()]
-            
             if len(_cases_list) == 0:
                 print(f'No cases found in {well}')
                 continue
@@ -2505,20 +2514,19 @@ class wells_group:
                         print(f'None value passed to well case. Error found {e}')
                         continue
                 else:
-                    _cash_name_list.extend(list(self.wells[well].cashflow[case].keys()))
-                                           
+                    _cash_name_list.extend(list(self.wells[well].cashflow[case].keys()))                       
                 _cash_name_list = [i for i in _cash_name_list if i in self.wells[well].cashflow[case].keys()]
-
+                
                 if len(_cash_name_list) == 0:
                     print(f'No cash name found in case {case} on well {well}')
                     continue
                 
-                for cash_name in _cash_name_list:
-                    cash_series = self.wells[well].cashflow[case][cash_name].cashflow()
+                for _cash_name in _cash_name_list:
+                    cash_series = self.wells[well].cashflow[case][_cash_name].cashflow()
                     cash_df = pd.DataFrame(cash_series.values, columns=['cashflow'], index=cash_series.index)
                     cash_df['well'] = well 
                     cash_df['case'] = case 
-                    cash_df['cash_name'] = cash_name
+                    cash_df['cash_name'] = _cash_name
                     cashflow_list.append(cash_df)
 
         if len(cashflow_list)>0:
@@ -2534,7 +2542,7 @@ class wells_group:
         prate=0,
         pyr=12
     ):
-        assert cases is not None
+        #assert cases is not None
 
         if wells is None:
             _well_list = []
@@ -2559,6 +2567,8 @@ class wells_group:
 
 
         if len(fcf_list)>0:
+            spreadsheet_cases = []
+            npv_cases = {}
             fcf_df = pd.concat(fcf_list,axis=0, ignore_index=False)
 
             spreadsheet=fcf_df.reset_index().groupby('index')[['total_income','total_opex','total_capex']].sum()

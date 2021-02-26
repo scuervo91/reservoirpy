@@ -1,1 +1,1 @@
-from .kr import kr_df, water_oil_kr, gas_oil_kr, kr_curve, sw_denormalize, sw_normalize
+from .kr import Kr, KrWaterOil, KrGasOil, kr_curve, sw_denormalize, sw_normalize

@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd 
 import matplotlib.pyplot as plt
-from ...pvtpy.black_oil import pvt, gas, oil, water
+from ...pvtpy.black_oil import Pvt,Oil,Water,Gas
 from scipy.optimize import root_scalar
-from .inflow import oil_inflow, gas_inflow
+from .inflow import OilInflow, GasInflow
 from ...utils import intercept_curves
 from typing import Union
 

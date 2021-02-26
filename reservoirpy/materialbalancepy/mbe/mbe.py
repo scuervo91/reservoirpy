@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
-from ...pvtpy.black_oil import oil, water, gas 
-from ...krpy import water_oil_kr, gas_oil_kr
+from ...pvtpy.black_oil import Oil, Water, Gas 
+from ...krpy import KrWaterOil, KrGasOil
 from ...wellproductivitypy.decline import bsw_to_wor
-from .aquifer import pot_aquifer
+from .aquifer import PotAquifer
 import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
@@ -55,7 +55,7 @@ def eg(boi,bg,bgi):
 def efw(boi,cw,swi,cf,dp):
     return boi*((cw*swi+cf)/(1-swi))*dp
 
-class production_history(pd.DataFrame):
+class ProductionHistory(pd.DataFrame):
     def __init__(self, *args, **kwargs):
 
         #Indicate pressure column name
@@ -73,9 +73,9 @@ class production_history(pd.DataFrame):
         
     @property   
     def _constructor(self):
-        return production_history
+        return ProductionHistory
 
-class oil_reservoir:
+class OilReservoir:
     def __init__(self,**kwargs):
         self.n = kwargs.pop('n',None)  #Original Oil in Place in bbl (barrels)
         self.g = kwargs.pop('g',None) #Original Gas in Place in  scf (Standard Cubic Feet)
@@ -101,7 +101,7 @@ class oil_reservoir:
 
     @kr_wo.setter 
     def kr_wo(self,value):
-        assert isinstance(value,(water_oil_kr,type(None)))
+        assert isinstance(value,(KrWaterOil,type(None)))
         self._kr_wo = value
 
     # Properties
@@ -112,7 +112,7 @@ class oil_reservoir:
     @production_history.setter 
     def production_history(self,value):
         if value is not None:
-            assert isinstance(value,production_history)
+            assert isinstance(value,ProductionHistory)
         self._production_history = value
 
     # Properties
@@ -122,7 +122,7 @@ class oil_reservoir:
 
     @kr_go.setter 
     def kr_go(self,value):
-        assert isinstance(value,(gas_oil_kr,type(None)))
+        assert isinstance(value,(KrGasOil,type(None)))
         self._kr_go = value
 
     @property
@@ -195,7 +195,7 @@ class oil_reservoir:
 
     @aquifer.setter 
     def aquifer(self,value):
-        assert isinstance(value,(pot_aquifer, type(None))), "we must be an aquifer model"
+        assert isinstance(value,(PotAquifer, type(None))), "we must be an aquifer model"
         self._aquifer = value
 
     @property
@@ -224,7 +224,7 @@ class oil_reservoir:
 
     @oil.setter 
     def oil(self,value):
-        assert isinstance(value,(oil,type(None))), "oil must be pvtpy.black_oil.oil"
+        assert isinstance(value,(Oil,type(None))), "oil must be pvtpy.black_oil.oil"
         self._oil = value
 
     @property
@@ -233,7 +233,7 @@ class oil_reservoir:
 
     @gas.setter 
     def gas(self,value):
-        assert isinstance(value,(gas,type(None))), "gas must be pvtpy.black_oil.gas"
+        assert isinstance(value,(Gas,type(None))), "gas must be pvtpy.black_oil.gas"
         self._gas = value
 
     @property
@@ -242,7 +242,7 @@ class oil_reservoir:
 
     @water.setter 
     def water(self,value):
-        assert isinstance(value,(water,type(None))), "water must be pvtpy.black_oil.water"
+        assert isinstance(value,(Water,type(None))), "water must be pvtpy.black_oil.water"
         self._water = value
 
     def calculate_mbe_parameters(self,**kwargs):
@@ -605,7 +605,7 @@ class oil_reservoir:
             )
         return _df
 
-class gas_reservoir:
+class GasReservoir:
     def __init__(self,**kwargs):
         self.g = kwargs.pop('g',0) #Original Gas in Place in  scf (Standard Cubic Feet)
         self.aquifer = kwargs.pop('aquifer',None) # aquifer model

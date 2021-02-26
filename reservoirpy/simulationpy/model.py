@@ -1,14 +1,14 @@
 import numpy as np
 import pandas as pd 
-from .grid import grid
-from ..pvtpy.black_oil import oil, gas, water
-from ..krpy import water_oil_kr, gas_oil_kr
-from ..wellpy.path import wells_group
-from .numerical import numerical
-from .results import results
-from .initial_conditions import initial_conditions
+from .grid import Grid
+from ..pvtpy.black_oil import Oil, Gas, Water
+from ..krpy import KrWaterOil, KrGasOil
+from ..wellpy.path import WellsGroup
+from .numerical import Numerical
+from .results import Results
+from .initial_conditions import InitialConditions
     
-class model:
+class SimModel:
 
     def __init__(self,**kwargs):
 
@@ -69,7 +69,7 @@ class model:
         
         for i in value:
             assert i in self.phase
-            assert isinstance(value[i], (oil,gas,water))
+            assert isinstance(value[i], (Oil,Gas,Water))
         self._pvt  = value
 
     @property 
@@ -99,7 +99,7 @@ class model:
 
                 for j in value[i]:
                     assert j in ['krwo','krgo']
-                    assert isinstance(value[i][j],(water_oil_kr,gas_oil_kr))
+                    assert isinstance(value[i][j],(KrWaterOil,KrGasOil))
 
             self._rock_fluid = value
 

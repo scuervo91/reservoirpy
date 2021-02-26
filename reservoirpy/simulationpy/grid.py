@@ -191,7 +191,7 @@ def scanKeyword(data):
     return data
 ## Grid Class
 
-class grid():
+class Grid():
     """
     Class for Reservoir Simulation Grid 
         * Cartesian

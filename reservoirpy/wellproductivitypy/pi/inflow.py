@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd 
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from ...pvtpy.black_oil import pvt, gas
+from ...pvtpy.black_oil import Pvt,Gas,Oil
 from scipy.optimize import curve_fit
 
 
@@ -99,7 +99,7 @@ def gas_inflow_curve(pr,j,gas_pvt,n=10):
 
 
 
-class oil_inflow:
+class OilInflow:
 
     def __init__(self,**kwargs):
         self.pr = kwargs.pop('pr',None)
@@ -320,7 +320,7 @@ class oil_inflow:
                 self.pr = pr
                 self.j = popt[0]
 
-class gas_inflow:
+class GasInflow:
 
     def __init__(self,**kwargs):
         self.pr = kwargs.pop('pr',None)

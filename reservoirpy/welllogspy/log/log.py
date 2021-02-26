@@ -3,7 +3,7 @@ import pandas as pd
 from lasio import LASFile
 import os
 
-class log(LASFile):
+class Log(LASFile):
 
     def __init__(self, file_ref,find_mnemonics=False,**kwargs):
         """__init__ [summary]

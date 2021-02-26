@@ -1,7 +1,7 @@
 import numpy as np 
 import pandas as pd 
 from datetime import date, timedelta
-
+from .dca import DCA
 
 def bsw_to_wor(bsw):
     assert isinstance(bsw,(int,float,np.ndarray,pd.Series))
@@ -83,7 +83,7 @@ def wor_forecast(
 
     return df
 
-class wor_declination:
+class WorDeclination(DCA):
     def __init__(self,**kwargs):
         self.slope = kwargs.pop('slope',0)
         self.bsw_i = kwargs.pop('bsw_i',0)

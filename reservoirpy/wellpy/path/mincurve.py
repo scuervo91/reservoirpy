@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+import pyvista as pv
 from .checkarrays import checkarrays
 
-class survey(gpd.GeoDataFrame):
+class Survey(gpd.GeoDataFrame):
 
     def __init__(self, *args, **kwargs): 
         md = kwargs.pop("md", None)                                                                                                                                  
-        super(survey, self).__init__(*args, **kwargs)
+        super(Survey, self).__init__(*args, **kwargs)
 
         if md is not None:
             md = np.atleast_1d(md)
@@ -25,7 +26,7 @@ class survey(gpd.GeoDataFrame):
    
     @property
     def _constructor(self):
-        return survey
+        return Survey
 
 def minimum_curvature(md, inc, azi):
     """Minimum curvature
@@ -184,7 +185,7 @@ def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,
     easting = surface_easting + (easting_off*0.3048)
     tvdss = (tvd - kbe)*-1
 
-    survdf = survey({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
+    survdf = Survey({'md':md,'inc':inc,'azi':azi,'tvd':tvd,'tvdss':tvdss,
                             'north_offset':northing_off,'east_offset':easting_off,
                             'northing':northing,'easting':easting,'dleg':dls}, 
                              geometry=gpd.points_from_xy(easting,northing)
@@ -195,3 +196,27 @@ def min_curve_method(md, inc, azi, md_units='ft', norm_opt=0,surface_northing=0,
         survdf.crs = crs
   
     return survdf
+
+
+def vtk_survey(points:np.ndarray):
+    """vtk_survey [    Transforms a x,y,z numpy array into a pyvista.PolyData object 
+                    that represents a well survey]
+
+    Parameters
+    ----------
+    points : np.ndarray
+        [A 2D numpy array with a values of (x,y,z) coordinates of a well]
+
+    Returns
+    -------
+    [pyvista.PolyData]
+        [Pyvista object spline that represents the well survey]
+    """
+
+    poly = pv.PolyData()
+    poly.points = points
+    cells = np.full((len(points)-1, 3), 2, dtype=np.int)
+    cells[:, 1] = np.arange(0, len(points)-1, dtype=np.int)
+    cells[:, 2] = np.arange(1, len(points), dtype=np.int)
+    poly.lines = cells
+    return poly

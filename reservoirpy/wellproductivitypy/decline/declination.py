@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 from datetime import date, timedelta
 import matplotlib.pyplot as plt
+from .dca import DCA
 
 ############################################################################################
 # Forecast Function
@@ -142,7 +143,7 @@ def forecast_econlimit(t,qt,qi,di,ti,b, fr, end_date=None,npi=0,gas=False, fluid
 ######################################################################
 #Create Declination Object 
 
-class declination:
+class Declination(DCA):
   """
   Decline curve object for Oil and Gas Forecasting
   
@@ -379,8 +380,9 @@ class declination:
       f, Np = forecast_econlimit(start_date,econ_limit,self.qi,self.di,self.ti,self.b, fr=fq,end_date=end_date,npi=npi,gas=self.gas,fluid_rate=fluid_rate,gor=gor, bsw=bsw)
 
     if np_limit is not None:
+      cum_name = 'gp' if self.gas else 'np'
       if Np > np_limit:
-        f = f.loc[f['np']<np_limit,:]
+        f = f.loc[f[cum_name]<np_limit,:]
         Np = f.iloc[-1,-1]
 
     if show_water and any([fluid_rate is not None, bsw is not None]):
@@ -409,7 +411,7 @@ class declination:
 
       Return -> q -> 1D Numpy array with the Flow rate
     """
-    r=[] # Return
+    r=None # Return
     df = df.dropna()
     df = df[df[rate]>0]
     print("Shape of input dataframe ",df.shape[0])
@@ -597,7 +599,7 @@ def time_limit(qi,qlim,b,di):
     tl = ((np.power(qi/qlim,b)-1)/(b*di))*365
     return tl
 
-class hybrid_declination:
+class HybridDeclination(DCA):
   def __init__(self,dec_hyp, dlim):
     self.dec_hyp = dec_hyp
     self.dlim = dlim 

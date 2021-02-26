@@ -1,1 +1,1 @@
-from .schematics import well_schema 
+from .schematics import WellSchema

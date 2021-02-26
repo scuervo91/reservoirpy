@@ -1,6 +1,6 @@
 import numpy as np
 
-class numerical:
+class Numerical:
     def __init__(self, **kwargs):
         self.relaxation = kwargs.pop('relaxation',1)
         self.max_iter = kwargs.pop('max_iter',30)

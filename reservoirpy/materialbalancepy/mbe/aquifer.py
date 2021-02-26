@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-class pot_aquifer:
+class PotAquifer:
     ## Pot aquifer model MBE Tarek Ahmed Reservoir Engineer Handbook
     def __init__(self,**kwargs):
         self.k = kwargs.pop('k',None)

@@ -47,7 +47,111 @@ Functions in this module
 
 import numpy as np
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date
+
+## Add Classes
+
+class TimeSeries:
+    def __init__(self, **kwargs):
+        self.const_value = kwargs.pop('const_value',0)
+        self.start = kwargs.pop('start',None)
+        self.end = kwargs.pop('end',None)
+        self.periods = kwargs.pop('end',None)
+        self.freq = kwargs.pop('freq','M')
+        self.chgpts = kwargs.pop('chgpts',None)
+        self.name = kwargs.pop('name', None)
+
+    @property
+    def const_value(self):
+        return self._const_value
+
+    @const_value.setter
+    def const_value(self,value):
+        assert isinstance(value,(int,float, list))
+        self._const_value = value 
+
+    @property
+    def start(self):
+        return self._start
+
+    @start.setter
+    def start(self,value):
+        if value is not None:
+            assert isinstance(value,(date,str)), f'{type(value)} not accepted'
+        self._start = value 
+
+    @property
+    def end(self):
+        return self._end
+
+    @end.setter
+    def end(self,value):
+        if value is not None:
+            assert isinstance(value,(date,str))
+        self._end = value 
+
+    @property
+    def freq(self):
+        return self._freq
+
+    @freq.setter
+    def freq(self,value):
+        assert isinstance(value,str), f"{type(value)} not accepted. Name must be str"
+        assert value in ['D','A', 'BA', 'Q', 'BQ', 'M', 'BM', 'CBM', 'SM', '6M', '6BM', '6CMB']      
+        self._freq = value
+
+    @property
+    def period(self):
+        return self._period
+
+    @period.setter
+    def period(self,value):
+        if value is not None:
+            assert isinstance(value,int)
+        self._period = value 
+
+    @property
+    def chgpts(self):
+        return self._chgpts
+
+    @chgpts.setter
+    def chgpts(self,value):
+        if value is not None:
+            assert isinstance(value,dict)
+        self._chgpts = value 
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self,value):
+        if value is not None:
+            assert isinstance(value,str)
+        self._name = value 
+
+
+    def cashflow(self):
+
+        ch = cashflow(
+            const_value=self.const_value,
+            start = self.start,
+            end=self.end, 
+            periods=self.periods,
+            freq=self.freq,
+            chgpts=self.chgpts, 
+            name = self.name
+        )
+        return ch
+
+class CashFlow(TimeSeries):
+    def __init__(self,**kwargs):
+        super(CashFlow, self).__init__(**kwargs)
+        
+class InteresRate(TimeSeries):
+    def __init__(self,**kwargs):
+        super(InterestRate, self).__init__(**kwargs)
+
 
 def period2pos(index, date):
     """Returns the position (index) of a timestamp vector.
@@ -169,104 +273,10 @@ def textplot(cflo):
     print('\n'.join(txt))
 
 
-class cash:
-    def __init__(self, **kwargs):
-        self.const_value = kwargs.pop('const_value',0)
-        self.start = kwargs.pop('start',None)
-        self.end = kwargs.pop('end',None)
-        self.periods = kwargs.pop('end',None)
-        self.freq = kwargs.pop('freq','M')
-        self.chgpts = kwargs.pop('chgpts',None)
-        self.name = kwargs.pop('name', None)
-
-    @property
-    def const_value(self):
-        return self._const_value
-
-    @const_value.setter
-    def const_value(self,value):
-        assert isinstance(value,(int,float, list))
-        self._const_value = value 
-
-    @property
-    def start(self):
-        return self._start
-
-    @start.setter
-    def start(self,value):
-        if value is not None:
-            assert isinstance(value,(date,str)), f'{type(value)} not accepted'
-        self._start = value 
-
-    @property
-    def end(self):
-        return self._end
-
-    @end.setter
-    def end(self,value):
-        if value is not None:
-            assert isinstance(value,(date,str))
-        self._end = value 
-
-    @property
-    def freq(self):
-        return self._freq
-
-    @freq.setter
-    def freq(self,value):
-        assert isinstance(value,str), f"{type(value)} not accepted. Name must be str"
-        assert value in ['A', 'BA', 'Q', 'BQ', 'M', 'BM', 'CBM', 'SM', '6M', '6BM', '6CMB']      
-        self._freq = value
-
-    @property
-    def period(self):
-        return self._period
-
-    @period.setter
-    def period(self,value):
-        if value is not None:
-            assert isinstance(value,int)
-        self._period = value 
-
-    @property
-    def chgpts(self):
-        return self._chgpts
-
-    @chgpts.setter
-    def chgpts(self,value):
-        if value is not None:
-            assert isinstance(value,dict)
-        self._chgpts = value 
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self,value):
-        if value is not None:
-            assert isinstance(value,str)
-        self._name = value 
-
-
-    def cashflow(self):
-
-        ch = cashflow(
-            const_value=self.const_value,
-            start = self.start,
-            end=self.end, 
-            periods=self.periods,
-            freq=self.freq,
-            chgpts=self.chgpts, 
-            name = self.name
-        )
-        return ch
-
 
 
 def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts=None,name=None):
     """Returns a generic cashflow as a pandas.Series object.
-
     Args:
         const_value (number): constant value for all time series.
         start (string): Date as string using pandas convetion for dates.
@@ -278,17 +288,11 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
                       ``'6CMB'``. See
                       https://pandas.pydata.org/pandas-docs/stable/timeseries.html#timeseries-offset-aliases
         chgpts (dict): Dictionary indicating point changes in the values of the time series.
-
     Returns:
         A pandas time series object.
-
-
     **Examples**
-
     A quarterly cashflow with a constant value 1.0 beginning in 2000Q1 can be
     expressed as:
-
-
     >>> cashflow(const_value=1.0, start='2000Q1', periods=8, freq='Q') # doctest: +NORMALIZE_WHITESPACE
     2000Q1    1.0
     2000Q2    1.0
@@ -299,11 +303,8 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
     2001Q3    1.0
     2001Q4    1.0
     Freq: Q-DEC, dtype: float64
-
     In the following example, the cashflow function returns a time series object
     using a list for the ``const_value`` and a timestamp for the parameter ``start``.
-
-
     >>> cashflow(const_value=[10]*10, start='2000Q1', freq='Q') # doctest: +NORMALIZE_WHITESPACE
     2000Q1    10.0
     2000Q2    10.0
@@ -316,10 +317,8 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
     2002Q1    10.0
     2002Q2    10.0
     Freq: Q-DEC, dtype: float64
-
     The following example uses the operator ``[]`` to modify the value with
     index equal to 3.
-
     >>> x = cashflow(const_value=[0, 1, 2, 3], start='2000Q1', freq='Q')
     >>> x[3] = 10
     >>> x  # doctest: +NORMALIZE_WHITESPACE
@@ -328,13 +327,9 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
     2000Q3     2.0
     2000Q4    10.0
     Freq: Q-DEC, dtype: float64
-
-
     >>> x[3]  # doctest: +NORMALIZE_WHITESPACE
     10.0
-
     Indexes in the time series also can be specified using a valid timestamp.
-
     >>> x['2000Q4'] = 0
     >>> x # doctest: +NORMALIZE_WHITESPACE
     2000Q1    0.0
@@ -342,14 +337,10 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
     2000Q3    2.0
     2000Q4    0.0
     Freq: Q-DEC, dtype: float64
-
     >>> x['2000Q3']  # doctest: +NORMALIZE_WHITESPACE
     2.0
-
-
     The following example uses the member function ``cumsum()`` for computing
     the cumulative sum of the original time series.
-
     >>> cashflow(const_value=[0, 1, 2, 3, 4, 5], freq='Q', start='2000Q1').cumsum() # doctest: +NORMALIZE_WHITESPACE
     2000Q1     0.0
     2000Q2     1.0
@@ -358,11 +349,8 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
     2001Q1    10.0
     2001Q2    15.0
     Freq: Q-DEC, dtype: float64
-
-
     In the next examples, a change points are specified using a dictionary. The key
     can be a integer or a valid timestamp.
-
     >>> cashflow(const_value=0, freq='Q', periods=6, start='2000Q1', chgpts={2:10}) # doctest: +NORMALIZE_WHITESPACE
     2000Q1     0.0
     2000Q2     0.0
@@ -371,7 +359,6 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
     2001Q1     0.0
     2001Q2     0.0
     Freq: Q-DEC, dtype: float64
-
     >>> cashflow(const_value=0, freq='Q', periods=6, start='2000Q1', chgpts={'2000Q3':10}) # doctest: +NORMALIZE_WHITESPACE
     2000Q1     0.0
     2000Q2     0.0
@@ -380,8 +367,6 @@ def cashflow(const_value=0, start=None, end=None, periods=None, freq='M', chgpts
     2001Q1     0.0
     2001Q2     0.0
     Freq: Q-DEC, dtype: float64
-
-
     """
     if freq not in ['A', 'BA', 'Q', 'BQ', 'M', 'BM', 'CBM', 'SM', '6M', '6BM', '6CMB']:
         msg = 'Invalid freq value:  ' + freq.__repr__()
@@ -510,7 +495,3 @@ def interest_rate(const_value=0, start=None, end=None, periods=None, freq='A', c
                 if t >= pd.Period(x, freq=freq):
                     time_series[t] = chgpts[k]
     return time_series
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
