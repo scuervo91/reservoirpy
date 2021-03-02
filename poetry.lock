@@ -273,6 +273,14 @@ gdal = ["gdal"]
 itk = ["itk"]
 
 [[package]]
+name = "install"
+version = "1.3.4"
+description = "Install packages from within code"
+category = "main"
+optional = false
+python-versions = ">=2.7, >=3.5"
+
+[[package]]
 name = "ipykernel"
 version = "5.5.0"
 description = "IPython Kernel for Jupyter"
@@ -1199,7 +1207,7 @@ test = ["pandas", "matplotlib", "pytest"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "67ef557293dee9c158dc47de9f1d5ea14149f02a9df3a2beec344b968e5d6459"
+content-hash = "6ad9d25a4437e1bf2e33f7ed9813d0299fd125e81f51ae9a7826933c887c5a15"
 
 [metadata.files]
 appdirs = [
@@ -1356,6 +1364,10 @@ idna = [
 imageio = [
     {file = "imageio-2.9.0-py3-none-any.whl", hash = "sha256:3604d751f03002e8e0e7650aa71d8d9148144a87daf17cb1f3228e80747f2e6b"},
     {file = "imageio-2.9.0.tar.gz", hash = "sha256:52ddbaeca2dccf53ba2d6dec5676ca7bc3b2403ef8b37f7da78b7654bb3e10f0"},
+]
+install = [
+    {file = "install-1.3.4-py3-none-any.whl", hash = "sha256:dfec614e0cc90f00659067a078bc2ec032d9f0758f3df230c073eeaffd0cefa1"},
+    {file = "install-1.3.4.tar.gz", hash = "sha256:1455304a2475b6753a9b0c28243ca7d8b7d71aeea1a88e6de94034fc57d765a0"},
 ]
 ipykernel = [
     {file = "ipykernel-5.5.0-py3-none-any.whl", hash = "sha256:efd07253b54d84d26e0878d268c8c3a41582a18750da633c2febfd2ece0d467d"},
