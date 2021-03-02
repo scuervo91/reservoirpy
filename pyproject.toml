@@ -27,6 +27,7 @@ pydantic = "^1.8"
 
 [tool.poetry.dev-dependencies]
 notebook = "^6.2.0"
+ipykernel = "^5.5.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
