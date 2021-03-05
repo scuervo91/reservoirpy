@@ -346,7 +346,7 @@ def gas_pressure_profile(
     thp = np.atleast_1d(thp)
     assert thp.shape == (1,)
 
-    assert isinstance(gas_obj,gas) and gas_obj.pvt is not None
+    assert isinstance(gas_obj,Gas) and gas_obj.pvt is not None
 
     assert isinstance(di, (int,float,np.ndarray))
     if isinstance(di,np.ndarray):
@@ -510,7 +510,7 @@ def gas_outflow_curve(
     thp = np.atleast_1d(thp)
     assert thp.ndim == 1
 
-    assert isinstance(gas_obj,gas) and gas_obj.pvt is not None
+    assert isinstance(gas_obj,Gas) and gas_obj.pvt is not None
 
     assert isinstance(di, list)
 
@@ -1091,7 +1091,7 @@ def two_phase_pressure_profile(
     bsw = np.atleast_1d(bsw)
     assert bsw.shape == (1,)
 
-    assert isinstance(gas_obj,gas) and gas_obj.pvt is not None
+    assert isinstance(gas_obj,Gas) and gas_obj.pvt is not None
     assert isinstance(oil_obj,oil) and oil_obj.pvt is not None
     assert isinstance(water_obj,water) and water_obj.pvt is not None
 
@@ -1360,7 +1360,7 @@ def two_phase_outflow_curve(
     bsw = np.atleast_1d(bsw)
     assert bsw.ndim == 1
 
-    assert isinstance(gas_obj,gas) and gas_obj.pvt is not None
+    assert isinstance(gas_obj,Gas) and gas_obj.pvt is not None
     assert isinstance(oil_obj,oil) and oil_obj.pvt is not None
     assert isinstance(water_obj,water) and water_obj.pvt is not None
 
