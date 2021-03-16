@@ -4,6 +4,7 @@ import pyvista as pv
 import pandas as pd
 from skimage import measure
 from scipy.integrate import simps
+from scipy.interpolate import griddata
 import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon
 from zmapio import ZMAPGrid
@@ -316,6 +317,19 @@ class Surface:
         self.y = yy
         self.z = p.values
         self.crs=crs
+
+    def get_z(self, x, y, method='linear'):
+
+        _x = self.x.flatten()
+        _y = self.y.flatten()
+        _z = self.z.flatten()
+
+        _xf = _x[~np.isnan(_z)]
+        _yf = _y[~np.isnan(_z)]
+        _zf = _z[~np.isnan(_z)] 
+
+        return griddata((_xf,_yf),_zf,(x,y), method=method)
+
 
 class SurfaceGroup:
     def __init__(self,**kwargs):
