@@ -239,10 +239,7 @@ def grtrack(df: pd.DataFrame,
             spax.set_xlim(sp_lim)
             spax.set_xticks(np.linspace(sp_lim[0],sp_lim[1],5))
 
- 
-        
-
-        
+         
     # Set The lims of depth    
     grax.set_xlim([0,gr_max])           
     if lims==None: #Depth Limits
@@ -255,8 +252,12 @@ def grtrack(df: pd.DataFrame,
         mayor_grid = np.linspace(lims[0],lims[1],grid_numbers[0])
         minor_grid = np.linspace(lims[0],lims[1],grid_numbers[1])
     else:
-        mayor_grid = np.arange(lims[0],lims[1],steps[0])
-        minor_grid = np.arange(lims[0],lims[1],steps[1])
+        if depth_ref=='tvdss':
+            mayor_grid = np.arange(lims[1],lims[0],steps[0])
+            minor_grid = np.arange(lims[1],lims[0],steps[1])
+        else:
+            mayor_grid = np.arange(lims[0],lims[1],steps[0])
+            minor_grid = np.arange(lims[0],lims[1],steps[1])
 
     #Set Gridding and ticks
     grax.set_xlabel('GammaRay')
