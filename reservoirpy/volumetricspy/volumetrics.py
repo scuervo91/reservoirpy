@@ -112,7 +112,24 @@ class Surface:
 
         contours.points[:,2] = contours['Elevation']
 
-        return pd.DataFrame(contours.points, columns=['x','y','z'])
+        df = pd.DataFrame(contours.points, columns=['x','y','z'])
+
+        #Organize the points according their angle with respect the centroid. This is done with the 
+        #porpuse of plot the bounds continously.
+        list_df_sorted = []
+
+        for i in df['z'].unique():
+            df_z = df.loc[df['z']==i,['x','y','z']]
+            centroid = df_z[['x','y']].mean(axis=0).values
+            df_z[['delta_x','delta_y']] = df_z[['x','y']] - centroid
+            df_z['angle'] = np.arctan2(df_z['delta_y'],df_z['delta_x'])
+            df_z.sort_values(by='angle', inplace=True)
+
+
+            list_df_sorted.append(df_z)
+
+
+        return pd.concat(list_df_sorted, axis=0)
 
 
     def get_contours_area_bounds(self,levels=None,n=10,zmin=None,zmax=None,c=2.4697887e-4):
@@ -400,7 +417,7 @@ class SurfaceGroup:
         #rv=simps(area['dif'],area['thick'])
         #rv=area['vol'].sum()
 
-        return area.iloc[0:-1], rv
+        return rv, area.iloc[0:-1]
 
 
     def get_volume(self, 
