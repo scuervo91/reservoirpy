@@ -267,6 +267,20 @@ class KrWaterOil:
 
             kr_table['fw'] = fw 
             self._kr = kr_table
+
+    def swf(self):
+        if self.kr is not None:
+            kr_table = self.kr 
+            
+            s = np.zeros(kr_table.shape[0])
+            for i in range(1,kr_table.shape[0]):
+                s[i] = (kr_table['fw'].iloc[i] - kr_table['fw'].iloc[0]) / (kr_table.index[i] - kr_table.index[0])
+            
+            idx = np.argmax(s)
+            
+            swbt = ((1 - kr_table['fw'].iloc[idx])/s[idx]) + kr_table.index[idx]
+            
+            return kr_table['fw'].iloc[idx], kr_table.index[idx], swbt
             
 
     def plot(self,
