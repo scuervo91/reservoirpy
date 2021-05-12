@@ -313,7 +313,26 @@ def grtrack(df: pd.DataFrame,
     if units is not None:
         unit_ann = unit_kw.pop('ann',False)
         unit_ann_fontsize = unit_kw.pop('fontsize',8)
+        unit_fill = unit_kw.pop('fill',False)
+        unit_cmap = unit_kw.pop('cmap','jet')
+        unit_alpha = unit_kw.pop('alpha',0.2)
+        c = 0
         for i in units.iterrows():
+            # Fill with color between the top and bottom of each formation
+            if unit_fill:
+                if depth_ref == 'tvdss':
+                    if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
+                        continue
+                    fill_top = lims[0] if i[1][f'{depth_ref}_top'] >= lims[0] else i[1][f'{depth_ref}_top']
+                    fill_bottom = lims[1] if i[1][f'{depth_ref}_bottom'] <= lims[1] else i[1][f'{depth_ref}_bottom']
+                else:
+                    if i[1][f'{depth_ref}_top'] <= lims[0] or i[1][f'{depth_ref}_top'] >= lims[1]:
+                        continue
+                    fill_top = lims[0] if i[1][f'{depth_ref}_top'] <= lims[0] else i[1][f'{depth_ref}_top']
+                    fill_bottom = lims[1] if i[1][f'{depth_ref}_bottom'] >= lims[1] else i[1][f'{depth_ref}_bottom']
+                
+                grax.fill_between([0,gr_max],fill_top,fill_bottom,color=mpl.cm.get_cmap(unit_cmap,units.shape[0])(c)[:3]+(unit_alpha,))
+
             if depth_ref == 'tvdss':
                 if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
                     continue
@@ -325,7 +344,7 @@ def grtrack(df: pd.DataFrame,
                 grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
                                 xycoords='data',horizontalalignment='right', fontsize=unit_ann_fontsize,
                                 bbox={'boxstyle':'round', 'fc':'0.8'})
-                          
+            c += 1     
 
      #Add Interval Perforated
     if perf is not None:
