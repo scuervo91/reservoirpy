@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from ...pvtpy.black_oil import Oil, Water, Gas 
 from ...krpy import KrWaterOil, KrGasOil
-from ...wellproductivitypy.decline import bsw_to_wor
 from .aquifer import PotAquifer
 import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
@@ -10,6 +9,13 @@ import statsmodels.api as sm
 import json
 import os
 from scipy.optimize import curve_fit, root
+
+def bsw_to_wor(bsw):
+    assert isinstance(bsw,(int,float,np.ndarray,pd.Series))
+    bsw = np.atleast_1d(bsw)
+    assert np.all((bsw>=0)&(bsw<=1))
+    wor = bsw/(1-bsw)
+    return wor 
 
 def production_mechanisms_plot(ax=None):
     #Create the Axex
