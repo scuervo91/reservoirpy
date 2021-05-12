@@ -1027,7 +1027,6 @@ class WellsGroup:
                 'openlog': [False if self.wells[well].openlog is None else True],
                 'masterlog': [False if self.wells[well].masterlog is None else True],
                 'caselog': [False if self.wells[well].caselog is None else True],
-                'schedule':[False if self.wells[well].schedule is None else True]
                 }
             _well_gpd = gpd.GeoDataFrame(dict_attr, index=[well])
             gdf = gdf.append(_well_gpd)
