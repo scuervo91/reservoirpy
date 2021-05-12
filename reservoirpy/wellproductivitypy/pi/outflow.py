@@ -1361,8 +1361,8 @@ def two_phase_outflow_curve(
     assert bsw.ndim == 1
 
     assert isinstance(gas_obj,Gas) and gas_obj.pvt is not None
-    assert isinstance(oil_obj,oil) and oil_obj.pvt is not None
-    assert isinstance(water_obj,water) and water_obj.pvt is not None
+    assert isinstance(oil_obj,Oil) and oil_obj.pvt is not None
+    assert isinstance(water_obj,Water) and water_obj.pvt is not None
 
     if isinstance(di,(np.ndarray,list)):
         di = np.atleast_2d(di)
@@ -1382,9 +1382,9 @@ def two_phase_outflow_curve(
 
     if operating_point is not None:
         if use_gas:
-            assert isinstance(operating_point,gas_inflow)
+            assert isinstance(operating_point,GasInflow)
         else:
-            assert isinstance(operating_point,oil_inflow)
+            assert isinstance(operating_point,OilInflow)
 
     #Start
     if liquid_rate is None:
