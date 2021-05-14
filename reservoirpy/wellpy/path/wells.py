@@ -1479,7 +1479,8 @@ class WellsGroup:
             has_tops = self.wells[key].units is not None if units else self.wells[key].tops is not None
             if all([has_tops,has_survey]):
                 if units:
-                    assert horizon in self.wells[key].units.index.tolist() 
+                    if horizon not in self.wells[key].units.index.tolist():
+                        continue 
                     if 'tvdss_top' not in self.wells[key].units.columns:
                         self.wells[key].to_tvd(which=['units'])
                         self.wells[key].to_tvd(which=['units'],ss=True)
@@ -1491,7 +1492,8 @@ class WellsGroup:
                     #print(_df)
                     _fm_df = _fm_df.append(_df, ignore_index=True) 
                 else:  
-                    assert horizon in self.wells[key].tops.index.tolist()
+                    if horizon not in self.wells[key].tops.index.tolist():
+                        continue
                     if 'tvdss_top' not in self.wells[key].tops.columns:
                         self.wells[key].to_tvd(which=['tops'])
                         self.wells[key].to_tvd(which=['tops'],ss=True)
@@ -1586,7 +1588,7 @@ class WellsGroup:
                     legend=legend)
             
         if ann:
-            for i,v in Tops.iterrows():
+            for i,v in tops.iterrows():
                 stax.annotate(
                     f"{v['well']}",
                     xy=(v['projection'],v['tvdss_top']),
