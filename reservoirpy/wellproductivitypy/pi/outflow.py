@@ -1092,8 +1092,8 @@ def two_phase_pressure_profile(
     assert bsw.shape == (1,)
 
     assert isinstance(gas_obj,Gas) and gas_obj.pvt is not None
-    assert isinstance(oil_obj,oil) and oil_obj.pvt is not None
-    assert isinstance(water_obj,water) and water_obj.pvt is not None
+    assert isinstance(oil_obj,Oil) and oil_obj.pvt is not None
+    assert isinstance(water_obj,Water) and water_obj.pvt is not None
 
     if isinstance(di,(np.ndarray,pd.Series,list)):
         di = np.atleast_1d(di)
