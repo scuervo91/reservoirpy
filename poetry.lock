@@ -1531,7 +1531,7 @@ test = ["pandas", "matplotlib", "pytest"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "b62064c06ed05e81c2daf5a42ed122e51fbeb76e3c32ee514e3891525bae97aa"
+content-hash = "cd0d42e1d5e9cf222e92ef49d4d35392eae941bff2a950259454e7d7fb10b7f9"
 
 [metadata.files]
 appdirs = [
