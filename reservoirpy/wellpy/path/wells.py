@@ -518,7 +518,24 @@ class Well:
         else:
             self.survey=None
 """
+    def to_md(self,tvd:Union[int,float]=None, ss:bool=False):
+        if self._survey is not None:
+            r = None
+            _survey=self.survey
+            _tvd_int = interp1d(_survey['tvd'],_survey.index,fill_value='extrapolate')
+            _tvdss_int = interp1d(_survey['tvdss'],_survey.index,fill_value='extrapolate')
 
+            if tvd is not None:
+                if ss==True:
+                    _tvdss = _tvdss_int(tvd)
+                    r = _tvdss
+                else:
+                    _tvd = _tvd_int(tvd)
+                    r = _tvd
+        else:
+            raise ValueError("No survey has been set")
+        return r
+    
     def to_tvd(self,md:Union[int,float]=None,which:list=None, ss:bool=False,tick=True):
         if self._survey is not None:
             r = None
