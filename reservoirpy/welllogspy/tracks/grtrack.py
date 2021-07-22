@@ -10,7 +10,7 @@ def grtrack(df: pd.DataFrame,
                 lims: Sequence[float] = None,
                 gr_max: int = 200,
                 sp_lim:list = None,
-                fm: pd.DataFrame = None,
+                formations: pd.DataFrame = None,
                 units: pd.DataFrame = None,
                 perf: pd.DataFrame = None,
                 gr_sand_shale: pd.DataFrame = None,
@@ -23,7 +23,7 @@ def grtrack(df: pd.DataFrame,
                 legend:bool = False,
                 gr_kw:dict={},
                 sp_kw:dict={},
-                fm_kw:dict={},
+                formation_kw:dict={},
                 unit_kw:dict={},
                 perf_kw:dict={},
                 gr_sand_kw:dict={},
@@ -77,7 +77,7 @@ def grtrack(df: pd.DataFrame,
         [Add key arguments that modify the gamma ray curve], by default {}
     sp_kw : dict, optional
         [Add key arguments that modify the sp curve], by default {}
-    fm_kw : dict, optional
+    formation_kw : dict, optional
         [Add key arguments that modify the formation curve], by default {}
     unit_kw : dict, optional
         [Add key arguments that modify the units curve], by default {}
@@ -131,7 +131,7 @@ def grtrack(df: pd.DataFrame,
         if k not in sp_kw:
             sp_kw[k]=v
     
-    def_fm_kw = {
+    def_formation_kw = {
     'color': 'black',
     'linestyle':'-',
     'linewidth': 2,
@@ -139,9 +139,9 @@ def grtrack(df: pd.DataFrame,
     'cmap':'jet',
     'alpha':0.15
     }    
-    for (k,v) in def_fm_kw.items():
-        if k not in fm_kw:
-            fm_kw[k]=v
+    for (k,v) in def_formation_kw.items():
+        if k not in formation_kw:
+            formation_kw[k]=v
 
     def_unit_kw = {
     'color': 'black',
@@ -239,10 +239,7 @@ def grtrack(df: pd.DataFrame,
             spax.set_xlim(sp_lim)
             spax.set_xticks(np.linspace(sp_lim[0],sp_lim[1],5))
 
- 
-        
-
-        
+         
     # Set The lims of depth    
     grax.set_xlim([0,gr_max])           
     if lims==None: #Depth Limits
@@ -255,8 +252,12 @@ def grtrack(df: pd.DataFrame,
         mayor_grid = np.linspace(lims[0],lims[1],grid_numbers[0])
         minor_grid = np.linspace(lims[0],lims[1],grid_numbers[1])
     else:
-        mayor_grid = np.arange(lims[0],lims[1],steps[0])
-        minor_grid = np.arange(lims[0],lims[1],steps[1])
+        if depth_ref=='tvdss':
+            mayor_grid = np.arange(lims[1],lims[0],steps[0])
+            minor_grid = np.arange(lims[1],lims[0],steps[1])
+        else:
+            mayor_grid = np.arange(lims[0],lims[1],steps[0])
+            minor_grid = np.arange(lims[0],lims[1],steps[1])
 
     #Set Gridding and ticks
     grax.set_xlabel('GammaRay')
@@ -274,57 +275,74 @@ def grtrack(df: pd.DataFrame,
     grax.xaxis.set_label_position("top")
     grax.xaxis.tick_top()
     
-    #Add Formations tops
-    if fm is not None:
-        fm_ann = fm_kw.pop('ann',False)
-        fm_ann_fontsize = fm_kw.pop('fontsize',8)
-        fm_fill = fm_kw.pop('fill',False)
-        fm_cmap = fm_kw.pop('cmap','jet')
-        fm_alpha = fm_kw.pop('alpha',0.2)
-        c = 0
-        for i in fm.iterrows():
+    #Add formations tops
+    if formations is not None:
+        formation_ann = formation_kw.pop('ann',False)
+        formation_ann_fontsize = formation_kw.pop('fontsize',8)
+        formation_fill = formation_kw.pop('fill',False)
+        formation_cmap = formation_kw.pop('cmap','jet')
+        formation_alpha = formation_kw.pop('alpha',0.2)
 
+        if depth_ref == 'tvdss':
+            formations = formations.loc[(formations[f'{depth_ref}_top']<= lims[0])&(formations[f'{depth_ref}_top']>= lims[1]),:]
+        else:
+            formations = formations.loc[(formations[f'{depth_ref}_top']>= lims[0])&(formations[f'{depth_ref}_top']<= lims[1]),:]
+        formation_cmap_shape = formation_kw.pop('cmap_shape',formations.shape[0])
+        
+        if 'color_id' not in formations.columns:
+            formations['color_id'] = np.arange(formations.shape[0])
+        for i,r in formations.iterrows():
             # Fill with color between the top and bottom of each formation
-            if fm_fill:
+            if formation_fill:
                 if depth_ref == 'tvdss':
-                    fill_top = lims[0] if i[1][f'{depth_ref}_top'] >= lims[0] else i[1][f'{depth_ref}_top']
-                    fill_bottom = lims[1] if i[1][f'{depth_ref}_bottom'] <= lims[1] else i[1][f'{depth_ref}_bottom']
+                    fill_top = lims[0] if r[f'{depth_ref}_top'] >= lims[0] else r[f'{depth_ref}_top']
+                    fill_bottom = lims[1] if r[f'{depth_ref}_bottom'] <= lims[1] else r[f'{depth_ref}_bottom']
                 else:
-                    fill_top = lims[0] if i[1][f'{depth_ref}_top'] <= lims[0] else i[1][f'{depth_ref}_top']
-                    fill_bottom = lims[1] if i[1][f'{depth_ref}_bottom'] >= lims[1] else i[1][f'{depth_ref}_bottom']
+                    fill_top = lims[0] if r[f'{depth_ref}_top'] <= lims[0] else r[f'{depth_ref}_top']
+                    fill_bottom = lims[1] if r[f'{depth_ref}_bottom'] >= lims[1] else r[f'{depth_ref}_bottom']
                 
-                grax.fill_between([0,gr_max],fill_top,fill_bottom,color=mpl.cm.get_cmap(fm_cmap,fm.shape[0])(c)[:3]+(fm_alpha,))
+                grax.fill_between([0,gr_max],fill_top,fill_bottom,color=mpl.cm.get_cmap(formation_cmap,formation_cmap_shape)(r['color_id'])[:3]+(formation_alpha,))
 
-            if depth_ref == 'tvdss':
-                if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
-                    continue
-            else:
-                if i[1][f'{depth_ref}_top'] <= lims[0] or i[1][f'{depth_ref}_top'] >= lims[1]:
-                    continue
-            grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **fm_kw)
-            if fm_ann:
-                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
-                                xycoords='data',horizontalalignment='right', fontsize=fm_ann_fontsize,
+            grax.hlines([r[f'{depth_ref}_top']],0,gr_max, **formation_kw)
+            if formation_ann:
+                grax.annotate(f"Top of {i}",xy=(gr_max-3,r[f'{depth_ref}_top']-2),
+                                xycoords='data',horizontalalignment='right', fontsize=formation_ann_fontsize,
                                 bbox={'boxstyle':'round', 'fc':'0.8'})
-            c += 1
 
     #Add units tops
     if units is not None:
         unit_ann = unit_kw.pop('ann',False)
         unit_ann_fontsize = unit_kw.pop('fontsize',8)
-        for i in units.iterrows():
-            if depth_ref == 'tvdss':
-                if i[1][f'{depth_ref}_top'] >= lims[0] or i[1][f'{depth_ref}_top'] <= lims[1]:
-                    continue
-            else:
-                if i[1][f'{depth_ref}_top'] <= lims[0] or i[1][f'{depth_ref}_top'] >= lims[1]:
-                    continue
-            grax.hlines([i[1][f'{depth_ref}_top']],0,gr_max, **unit_kw)
+        unit_fill = unit_kw.pop('fill',False)
+        unit_cmap = unit_kw.pop('cmap','jet')
+        unit_alpha = unit_kw.pop('alpha',0.2)
+
+        if depth_ref == 'tvdss':
+            units = units.loc[(units[f'{depth_ref}_top']<= lims[0])&(units[f'{depth_ref}_top']>= lims[1]),:]
+        else:
+            units = units.loc[(units[f'{depth_ref}_top']>= lims[0])&(units[f'{depth_ref}_top']<= lims[1]),:]
+        unit_cmap_shape = unit_kw.pop('cmap_shape',units.shape[0])
+        
+        if 'color_id' not in units.columns:
+            units['color_id'] = np.arange(units.shape[0])
+        for i,r in units.iterrows():
+            # Fill with color between the top and bottom of each formation
+            if unit_fill:
+                if depth_ref == 'tvdss':
+                    fill_top = lims[0] if r[f'{depth_ref}_top'] >= lims[0] else r[f'{depth_ref}_top']
+                    fill_bottom = lims[1] if r[f'{depth_ref}_bottom'] <= lims[1] else r[f'{depth_ref}_bottom']
+                else:
+                    fill_top = lims[0] if r[f'{depth_ref}_top'] <= lims[0] else r[f'{depth_ref}_top']
+                    fill_bottom = lims[1] if r[f'{depth_ref}_bottom'] >= lims[1] else r[f'{depth_ref}_bottom']
+                
+                grax.fill_between([0,gr_max],fill_top,fill_bottom,color=mpl.cm.get_cmap(unit_cmap,unit_cmap_shape)(r['color_id'])[:3]+(unit_alpha,))
+
+            grax.hlines([r[f'{depth_ref}_top']],0,gr_max, **unit_kw)
             if unit_ann:
-                grax.annotate(f"Top of {i[0]}",xy=(gr_max-3,i[1][f'{depth_ref}_top']-2),
+                grax.annotate(f"Top of {i}",xy=(gr_max-3,r[f'{depth_ref}_top']-2),
                                 xycoords='data',horizontalalignment='right', fontsize=unit_ann_fontsize,
                                 bbox={'boxstyle':'round', 'fc':'0.8'})
-                          
+  
 
      #Add Interval Perforated
     if perf is not None:

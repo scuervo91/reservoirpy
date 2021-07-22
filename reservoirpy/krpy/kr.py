@@ -218,7 +218,7 @@ class KrWaterOil:
     @kr.setter
     def kr(self,value):
         if value is not None:
-            assert isinstance(value,kr_df)
+            assert isinstance(value,Kr)
         self._kr = value
 
     #Methods
@@ -238,21 +238,50 @@ class KrWaterOil:
         
         pcwo = self.pcend * np.power(son,self.np) 
         pcwo = np.append(pcwo,0)
+        
+        kr_ratio = kro/krw
 
         #Calculate Sw from endpoints
         sw = sw_denormalize(swn, self.swir, self.sor)
         sw = np.append(sw,1)
-
-        kr_table = kr_df({
+        
+        col_dict = {
             'sw':sw,
             'krw':krw,
             'kro':kro,
             'pcwo':pcwo,
-        })
+            'kr_ratio':kr_ratio
+        }
+        
+        kr_table = Kr(col_dict)
 
         self._kr = kr_table
 
         return kr_table
+    
+    def fw(self, muo, bo, muw, bw):
+        
+        if self.kr is not None:
+            kr_table = self.kr
+            fw = 1 / (1 + (muw/muo)*self.kr['kr_ratio'])
+
+            kr_table['fw'] = fw 
+            self._kr = kr_table
+
+    def swf(self):
+        if self.kr is not None:
+            kr_table = self.kr 
+            
+            s = np.zeros(kr_table.shape[0])
+            for i in range(1,kr_table.shape[0]):
+                s[i] = (kr_table['fw'].iloc[i] - kr_table['fw'].iloc[0]) / (kr_table.index[i] - kr_table.index[0])
+            
+            idx = np.argmax(s)
+            
+            swbt = ((1 - kr_table['fw'].iloc[idx])/s[idx]) + kr_table.index[idx]
+            
+            return kr_table['fw'].iloc[idx], kr_table.index[idx], swbt
+            
 
     def plot(self,
         ax=None,

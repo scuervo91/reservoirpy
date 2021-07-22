@@ -71,7 +71,7 @@ def gas_inflow_curve(pr,j,gas_pvt,n=10):
         pi:     DataFrame with two columns Pressure [p] and Flow [q]-> Pandas DataFrame
         aof:    Absolute open flow -> Number
     """
-    assert isinstance(gas_pvt, pvt), "The pvt must be of PVT class"
+    assert isinstance(gas_pvt, Pvt), "The pvt must be of PVT class"
     assert all(i in gas_pvt.columns for i in ['z','mug'])
 
     #Create pressure Range
@@ -356,7 +356,7 @@ class GasInflow:
 
     @gas.setter
     def gas(self,value):
-        assert isinstance(value,gas), f'{type(value)} not accepted. Name must be gas type'
+        assert isinstance(value,Gas), f'{type(value)} not accepted. Name must be gas type'
         self._gas = value
 
     @property

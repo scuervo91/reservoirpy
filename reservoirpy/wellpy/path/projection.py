@@ -1,7 +1,7 @@
 import numpy as np 
 import pandas as pd  
-
-def unit_vector(azi:(int,float)) -> np.array:
+from typing import Union
+def unit_vector(azi:Union[int,float]) -> np.array:
     """
     Get the unit vector2D of a given azimuth
     Input:
